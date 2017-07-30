@@ -1,0 +1,10 @@
+{
+  "name": "Rematch",
+  "es6": true,
+  "version": "0.0.1",
+  "description": "Powerful JavaScript pattern matching.",
+  "main": "index.js",
+  "repository": "git@github.com:chrisisler/rematch.git",
+  "author": "chrisisler <christopherisler1@gmail.com>",
+  "license": "MIT"
+}
