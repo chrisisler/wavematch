@@ -1,73 +1,50 @@
-// (Constructor, Any) -> Boolean
-const isType = (typeCtor, x) => Object.prototype.toString.call(x) === `[object ${typeCtor.toLowerCase()}]`
+const {
+    objRegExp
+    , arrayRegExp
+    , formatMatcher
+    , formatArg
+    , getMatchers
+} = require('./util')
 
-// (String|Number, String|Number) -> Boolean
-const sortFn = (a, b) => a < b
-
-// String -> String
-/** @example '{ y, x }' -> 'x,y' */
-const formatToken = token => token.replace(/[{}\s*]/g, '').split(',').sort(sortFn).join(',')
-
-// Object -> String
-/** @example { y: 3, x: 'baz' } -> 'x,y' */
-const formatArg = arg => JSON.stringify(Object.keys(arg).sort(sortFn)).replace(/[\[\]"\s*]/g, '')
-
-
-// Object -> Function(Any) -> Any
-const rematch = pattern => arg => {
-    // Number, String, and Boolean match
-    if (pattern[arg]) return pattern[arg](arg)
-
-    // Object match
-    const objMatch = isType('Object', arg) && Object.keys(pattern).find(token => formatToken(token) === formatArg(arg))
-    if (objMatch) return pattern[objMatch](arg)
-
-    // Array match
-    if (arg === '[]') return pattern[arg](arg)
-
-    // Null/undefined match
-    if (arg == null && pattern['_']) return pattern['_']()
-
-    // Default match
-    return pattern.default(arg)
-}
-
-// N-ary arguments
+/**
+ * Pattern matching consists of specifying patterns to which some data should conform to,
+ * checking to see if it does, then acting on that input data based on the according function.
+ * @param {Object} pattern
+ * @returns {Function(Any, ..., Any) -> Any}
+ */
 const match = pattern => (...args) => {
-    const nAryMatchToken = Object.keys(pattern)
-        .filter(key => false === /[\[\]]/g.test(key)) // Remove array tokens
-        .filter(key => false === /[\{\}]/g.test(key)) // Remove object tokens
-        .find(token => {
-            const tokenArgs = token.split(',').map(s => s.trim()) // Array[String]
-            const hasSameArity = args.length === tokenArgs.length
-            const anyNullArgDoesNotMatch = tokenArgs.some((val, i) => val === '_' && args[i] != null)
-            if (anyNullArgDoesNotMatch) return false // Do 
-            else if (hasSameArity) return true
-            else return undefined
+
+    // Attempt to match the given `args` for each matching token in `pattern`.
+    const token = Object.keys(pattern).find(token => {
+
+        // Function arguments are comma-delimited. `getMatchers` retrieves each argument from `token`.
+        const matchers = getMatchers(token)
+
+        // If the arity (num of args) of this token does not equal `args.length`, then skip this token.
+        if (matchers.length !== args.length) return false
+
+        return matchers.every(matcher => {
+            // Skip underscore characer, we don't care what it matches.
+            if (matcher === '_') return true
+
+            // Object match. Return if any arg in `args` has the exact same keys as `matcher` obj describes
+            else if (objRegExp.exec(matcher)) return !!args.find(a => formatMatcher(matcher) === formatArg(a))
+
+            // Array match
+            else if (arrayRegExp.exec(matcher)) return true //todo
+
+            // Boolean match
+            else if (['false', 'true'].includes(matcher) && args.includes(JSON.parse(matcher))) return true
+
+            // String and Number (explicit/literal) match
+            return !!args.find(a => matcher === a)
+        })
     })
-    if (nAryMatchToken) return pattern[nAryMatchToken](...args)
-    return pattern.default(...args)
+    if (token != null) {
+        return pattern[token](...args)
+    } else if ('default' in pattern) {
+        return pattern.default(...args)
+    }
+    // throw new Error('Non-exhaustive pattern, no matches found.')
 }
-
-const zipWith = match({
-    '_, [], _': () => [],
-    '_, _, []': () => [],
-    default: (fn, [x, ...xs], [x, ...ys]) => [fn(x, y)].concat(zipWith(fn, xs, ys))
-})
-
-console.log(
-    zipWith((x, y) => [x, y], [ 1, 2, 3 ], 'xyz'.split(''))
-)
-
-// module.exports = rematch
-
-// const add = match({
-//     'x, _, _': () => 'x visible'
-//     , '_, y, _': () => 'y visible'
-//     , '_, _, z': () => 'z visible'
-//     , 'x, y, z': (x, y, z) => x + y + z
-// })
-
-// // console.log(
-// //     add(false, undefined, null)
-// // )
+module.exports = match

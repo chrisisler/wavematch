@@ -8,23 +8,10 @@ Add parameter type checking.
 
 Add Array support.
 
-Add null/undefined support.
+Add null/undefined support [wip].
 
-Add tests
+Add N-ary parameter support [wip].
 
-Add N-ary parameter support.
+Add tests.
 
 Add support for supplying a value instead of a function as the pattern value.
-
-## Currently supports:
-
-Unary:
-    Boolean
-    String
-    Number
-    (Float?)
-    Object
-    (Array?)
-
-N-ary:
-    named {like x,y}
