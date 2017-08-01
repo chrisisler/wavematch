@@ -2,16 +2,12 @@
 
 Powerful JavaScript pattern matching.
 
-## To do
+### To do
 
 Add parameter type checking.
 
-Add Array support.
+Add Array support (specifically, array length matching).
 
-Add null/undefined support [wip].
-
-Add N-ary parameter support [wip].
+Add null/undefined support (why? is this needed?).
 
 Add tests.
-
-Add support for supplying a value instead of a function as the pattern value.
