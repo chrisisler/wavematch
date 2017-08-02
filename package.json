@@ -1,10 +1,17 @@
 {
-  "name": "Rematch",
+  "name": "rematch",
   "es6": true,
   "version": "0.0.1",
   "description": "Powerful JavaScript pattern matching.",
   "main": "index.js",
+  "scripts": {
+      "test": "mocha"
+  },
   "repository": "git@github.com:chrisisler/rematch.git",
   "author": "chrisisler <christopherisler1@gmail.com>",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "mocha": "^3.5.0"
+  }
 }
