@@ -58,7 +58,7 @@ const canMatchAnyArgs = (matcher, args) => {
     const numberMatch = !matcherIsBooleanString && args.includes(Number(matcher))
 
     // `matcher` is inherently a String (cause it's a key from the `pattern` object)
-    const stringMatch = !matcherIsBooleanString // Also, if it's not any of the above types, it's a String
+    const stringMatch = !matcherIsBooleanString && args.includes(matcher) // Also, if it's not any of the above types, it's a String
 
     // Skip underscore character
     if (matcher === '_') return true

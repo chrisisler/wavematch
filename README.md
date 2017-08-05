@@ -5,19 +5,15 @@ Powerful JavaScript pattern matching.
 ## Optional type checking
 
 todo: Describe.
-
+Note: 
 
 ### To do
 
-
 #### Need
 
-Add tests.
-Fix tests.
+Write remaining tests.
 
 Support recursive functions.
-Examples:
-- `factorial`
 - `zipWith`
 
 #### Want

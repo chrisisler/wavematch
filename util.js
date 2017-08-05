@@ -31,36 +31,38 @@ const formatArgumentObj = arg => JSON.stringify(Object.keys(arg).sort(sortFn)).r
 const hasIdenticalKeys = (matcher, arg) => formatMatcherObjString(matcher) === formatArgumentObj(arg)
 
 /** @todo cache the return value of the function for recursive calls */
-/** @example '_, { x, y }, foo, [ bar, baz ]' -> ['_', '{ x, y }', 'foo', '[ bar, baz ]'] */
+/** @throws {Error} Note: Keep the returned `matchers` in order with `token`, avoid re-using identifiers/names. */
+/** @example '_, { x, y, }, foo, [ bar, foo, ]' -> ['_', '{ x, y, }', 'foo', '[ bar, foo, ]'] */
 // String -> Array[String]
 const getMatchers = token => {
-    const objMatch = token.includes('{') && OBJ_REGEXP.exec(token)
-    const arrayMatch = token.includes('[') && ARRAY_REGEXP.exec(token)
-    let mutableToken = String(token) // Clone the input
-    let matchers = []
+    const tkn = token.replace(/\s*/g, '')
+    let mutableToken = tkn
+    // console.log('tkn is:', tkn)
 
-    // Remove sections of the string which describe Objects
-    if (objMatch) {
-        // Remove the substring containing the regexp match
-        mutableToken = mutableToken.replace(OBJ_REGEXP, '')
-        matchers.push(...objMatch[0].replace(/\s*/g, '').split(/,(?=\{)/g))
-    }
+    const matchers = [ OBJ_REGEXP, ARRAY_REGEXP ].reduce((acc, regexp) => {
+        const matchInfo = regexp.exec(tkn)
+        if (matchInfo) {
+            const matcher = matchInfo[0]
+            const copy = tkn.replace(matcher, '')
+            mutableToken = mutableToken.replace(matcher, '')
+            // if (acc.length && acc.includes(matcher)) throw new Error('Duplicate parameter/matcher name not allowed.')
+            const rest = copy.split(',').filter(Boolean)
+            acc.push(matcher, ...rest)
+        }
+        return acc
+    }, [])
+        .concat(...mutableToken.split(','))
+        .sort(([ char1 ], [ char2 ]) => tkn.indexOf(char1) > tkn.indexOf(char2))
+    console.log('tkn is:', tkn)
+    console.log('matchers is:', matchers)
 
-    // Remove sections of the string which describe Arrays
-    if (arrayMatch) {
-        // Remove the substring containing the regexp match
-        mutableToken = mutableToken.replace(ARRAY_REGEXP, '')
-        matchers.push(...arrayMatch[0].replace(/\s*/g, '').split(/,(?=\[)/g))
-    }
+    // const uniqMatchers = new Set(matchers.map(m => m.split(',').filter(Boolean).join('')))
+    // if (matchers.length !== uniqMatchers.length) throw new Error('Duplicate parameter/matcher name not allowed.')
+    // console.log('matchers is:', matchers)
 
-    //todo: do we need this `if` statement?
-    // if (mutableToken.includes(',')) {
-    // Retrieve matchers from the `token` String which do not describe Objects or Arrays
-    const otherMatchers = mutableToken.split(',').map(str => str.trim()).filter(Boolean)
-    matchers.push(...otherMatchers)
-    // }
     return matchers
 }
+getMatchers('false')
 
 /**
  * Performs type checking for each equally-indexed (Function, value) pair.
