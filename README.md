@@ -2,14 +2,30 @@
 
 Powerful JavaScript pattern matching.
 
+## Optional type checking
+
+todo: Describe.
+
+
 ### To do
 
-Add parameter type checking.
 
-Add Array support (specifically, array length matching).
-
-Add null/undefined support (why? is this needed?).
+#### Need
 
 Add tests.
+Fix tests.
 
-Add support for recursive functions (without stack overflow error).
+Support recursive functions.
+Examples:
+- `factorial`
+- `zipWith`
+
+#### Want
+
+Add support for error catching with a `catch` key.
+
+Add parameter type checking.
+- Add tests for type checking.
+- Add support for an `Any` type, in `pattern.types`.
+
+Add null/undefined support (why? is this needed?).
