@@ -66,7 +66,7 @@ describe('rematch', () => {
         // todo
     // })
 
-    describe.only('matches booleans', () => {
+    describe('matches booleans', () => {
         it('works with one parameter', () => {
             const fn = rematch({ false: () => 'sandwich' })
             assert.strictEqual(fn(false), 'sandwich')
@@ -152,15 +152,15 @@ describe('rematch', () => {
     })
 
     describe('works recursively', () => {
-        // it('for factorial function', () => {
-        //     const factorial = rematch({
-        //         0: () => 1
-        //         , default: (n) => n * factorial(n - 1)
-        //     })
-        //     assert.strictEqual(factorial(4), 24)
-        //     assert.strictEqual(factorial(1), 1)
-        //     assert.strictEqual(factorial(0), 1)
-        // })
+        it('for factorial function', () => {
+            const factorial = rematch({
+                0: () => 1
+                , default: (n) => n * factorial(n - 1)
+            })
+            assert.strictEqual(factorial(4), 24)
+            assert.strictEqual(factorial(1), 1)
+            assert.strictEqual(factorial(0), 1)
+        })
 
         // it('for zipWith function', () => {
         //     const toTuple = (x, y) => [x, y]

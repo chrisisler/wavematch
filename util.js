@@ -1,6 +1,9 @@
-// Do not change these!
+// Do not change these! Hoisted regexp's are more performant than on-the-fly/in-place
 const OBJ_REGEXP = /{.*}/
 const ARRAY_REGEXP = /\[.*\]/
+const STRIP_WHITESPACE_REGEXP = /\s*/g
+const MATCHER_OBJ_STR_REGEXP = /[{}\s*]/g
+const ARGUMENT_OBJ_REGEXP = /[\[\]"\s*]/g
 
 // (Array[Any], Function(Any, Number, Array[Any]) -> Boolean) -> Boolean
 const isIn = (xs, f) => -1 !== xs.findIndex(f)
@@ -17,7 +20,7 @@ const sortFn = (a, b) => a < b
 /** @example '{ y, x, }' -> 'x,y' */
 // String -> String
 const formatMatcherObjString = matcher => matcher
-    .replace(/[{}\s*]/g, '')
+    .replace(MATCHER_OBJ_STR_REGEXP, '')
     .split(',')
     .filter(Boolean) // Removes empty strings caused by trailing commas
     .sort(sortFn)
@@ -25,44 +28,33 @@ const formatMatcherObjString = matcher => matcher
 
 /** @example { y: 3, x: 'baz' } -> 'x,y' */
 // Object -> String
-const formatArgumentObj = arg => JSON.stringify(Object.keys(arg).sort(sortFn)).replace(/[\[\]"\s*]/g, '')
+const formatArgumentObj = arg => JSON.stringify(Object.keys(arg).sort(sortFn)).replace(ARGUMENT_OBJ_REGEXP, '')
 
 // (String, Object) -> Boolean
 const hasIdenticalKeys = (matcher, arg) => formatMatcherObjString(matcher) === formatArgumentObj(arg)
 
 /** @todo cache the return value of the function for recursive calls */
-/** @throws {Error} Note: Keep the returned `matchers` in order with `token`, avoid re-using identifiers/names. */
+/** @todo, @throws {Error} Note: Keep the returned `matchers` in order with `token`, avoid re-using identifiers/names */
 /** @example '_, { x, y, }, foo, [ bar, foo, ]' -> ['_', '{ x, y, }', 'foo', '[ bar, foo, ]'] */
 // String -> Array[String]
 const getMatchers = token => {
-    const tkn = token.replace(/\s*/g, '')
-    let mutableToken = tkn
-    // console.log('tkn is:', tkn)
-
+    const tkn = token.replace(STRIP_WHITESPACE_REGEXP, '')
+    let mutableTkn = tkn
     const matchers = [ OBJ_REGEXP, ARRAY_REGEXP ].reduce((acc, regexp) => {
-        const matchInfo = regexp.exec(tkn)
-        if (matchInfo) {
-            const matcher = matchInfo[0]
-            const copy = tkn.replace(matcher, '')
-            mutableToken = mutableToken.replace(matcher, '')
-            // if (acc.length && acc.includes(matcher)) throw new Error('Duplicate parameter/matcher name not allowed.')
-            const rest = copy.split(',').filter(Boolean)
-            acc.push(matcher, ...rest)
-        }
-        return acc
-    }, [])
-        .concat(...mutableToken.split(','))
-        .sort(([ char1 ], [ char2 ]) => tkn.indexOf(char1) > tkn.indexOf(char2))
-    console.log('tkn is:', tkn)
-    console.log('matchers is:', matchers)
-
-    // const uniqMatchers = new Set(matchers.map(m => m.split(',').filter(Boolean).join('')))
-    // if (matchers.length !== uniqMatchers.length) throw new Error('Duplicate parameter/matcher name not allowed.')
-    // console.log('matchers is:', matchers)
+            const matchInfo = regexp.exec(tkn)
+            if (matchInfo) {
+                const matcher = matchInfo[0]
+                mutableTkn = mutableTkn.replace(matcher, '') // Keeps a "history" of remaining matchers.
+                acc.push(matcher, ...tkn.replace(matcher, '').split(',').filter(Boolean))
+            }
+            return acc
+        }, [])
+        .concat(...mutableTkn.split(',').filter(Boolean))
+        .sort(([ char1 ], [ char2 ]) => tkn.indexOf(char1) > tkn.indexOf(char2)) // Retain the given order 
 
     return matchers
 }
-getMatchers('false')
+// getMatchers('[foo,] foo,')
 
 /**
  * Performs type checking for each equally-indexed (Function, value) pair.
@@ -74,7 +66,7 @@ getMatchers('false')
  */
 const checkTypes = (types, args) => {
     if (!isType('Array', types))
-        throw new TypeError('`types` must be an Array.')
+        throw new TypeError(`\`types\` must be an Array, instead is: ${typeof types}`)
     else if (types.length !== args.length)
         throw new Error('Number of types does not match number of arguments.')
 
