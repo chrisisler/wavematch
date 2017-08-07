@@ -151,7 +151,7 @@ describe('rematch', () => {
         })
     })
 
-    describe('works recursively', () => {
+    describe('works recursively (kind of)', () => {
         it('for factorial function', () => {
             const factorial = rematch({
                 0: () => 1
@@ -172,10 +172,12 @@ describe('rematch', () => {
         //         '_, [], _': () => []
         //         , '_, _, []': () => []
         //         , 'fn, xs, ys': (f, [x, ...xs], [y, ...ys]) => [f(x, y), ...zipWith(f, xs, ys)]
+
+        //         // todo:
         //         // , 'fn, [...], [...]': (f, [x, ...xs], [y, ...ys]) => [f(x, y), ...zipWith(f, xs, ys)]
         //     })
 
-        //     assert.deepStrictEqual(zipWith(toTuple, names, ages), [ [ 'karen', 32 ], [ 'joe', 28 ] ])
+        //     assert.deepEqual(zipWith(toTuple, names, ages), [ [ 'karen', 32 ], [ 'joe', 28 ] ])
         // })
     })
 

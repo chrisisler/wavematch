@@ -4,8 +4,7 @@ Powerful JavaScript pattern matching.
 
 ## Optional type checking
 
-todo: Describe.
-Note: 
+todo
 
 ### To do
 
@@ -15,6 +14,11 @@ Write remaining tests.
 
 Support recursive functions.
 - `zipWith`
+
+Support empty objects
+Support N-keyed objects.
+Support empty arrays
+Support N-length arrays.
 
 #### Want
 

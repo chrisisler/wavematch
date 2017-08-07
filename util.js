@@ -1,5 +1,5 @@
 // Do not change these! Hoisted regexp's are more performant than on-the-fly/in-place
-const OBJ_REGEXP = /{.*}/
+const OBJ_REGEXP = /{.+}/
 const ARRAY_REGEXP = /\[.*\]/
 const STRIP_WHITESPACE_REGEXP = /\s*/g
 const MATCHER_OBJ_STR_REGEXP = /[{}\s*]/g
@@ -35,26 +35,34 @@ const hasIdenticalKeys = (matcher, arg) => formatMatcherObjString(matcher) === f
 
 /** @todo cache the return value of the function for recursive calls */
 /** @todo, @throws {Error} Note: Keep the returned `matchers` in order with `token`, avoid re-using identifiers/names */
-/** @example '_, { x, y, }, foo, [ bar, foo, ]' -> ['_', '{ x, y, }', 'foo', '[ bar, foo, ]'] */
+/** @example '_, { x, y, }, abc, [ bar, foo, ]' -> ['_', '{ x, y, }', 'abc', '[ bar, foo, ]'] */
 // String -> Array[String]
 const getMatchers = token => {
     const tkn = token.replace(STRIP_WHITESPACE_REGEXP, '')
-    let mutableTkn = tkn
+    let mutableTkn = String(tkn)
     const matchers = [ OBJ_REGEXP, ARRAY_REGEXP ].reduce((acc, regexp) => {
             const matchInfo = regexp.exec(tkn)
             if (matchInfo) {
                 const matcher = matchInfo[0]
                 mutableTkn = mutableTkn.replace(matcher, '') // Keeps a "history" of remaining matchers.
-                acc.push(matcher, ...tkn.replace(matcher, '').split(',').filter(Boolean))
+                acc.push(matcher)
             }
             return acc
         }, [])
-        .concat(...mutableTkn.split(',').filter(Boolean))
-        .sort(([ char1 ], [ char2 ]) => tkn.indexOf(char1) > tkn.indexOf(char2)) // Retain the given order 
+        .concat(...mutableTkn.split(',').filter(Boolean)) // Add non-array/object matchers, remove trailing commas
+        // .sort(([ char1 ], [ char2 ]) => tkn.indexOf(char1) > tkn.indexOf(char2)) // Retain the given order
+    // if (matchers.join(',') === tkn) {
 
+    // }
+    // console.log('tkn is:', tkn)
+    // console.log('matchers.join(",") is:', matchers.join(","))
+    // console.log('matchers.join(",") is:', matchers.join(","))
+    // const dupes = getDuplicates(matchers)
+    // if (dupes.length) {
+
+    // }
     return matchers
 }
-// getMatchers('[foo,] foo,')
 
 /**
  * Performs type checking for each equally-indexed (Function, value) pair.
@@ -65,7 +73,7 @@ const getMatchers = token => {
  * @param {Array[Any]} args
  */
 const checkTypes = (types, args) => {
-    if (!isType('Array', types))
+    if (!isType('Array', types) || !types.every(t => isType('Function', t)))
         throw new TypeError(`\`types\` must be an Array, instead is: ${typeof types}`)
     else if (types.length !== args.length)
         throw new Error('Number of types does not match number of arguments.')
