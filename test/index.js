@@ -59,12 +59,72 @@ describe('rematch', () => {
             })
             assert.strictEqual(fn({}), 'DEFAULTED')
             assert.strictEqual(fn({ foo: 0, bar: 0 }), 'hello')
+            assert.strictEqual(fn(null), 'DEFAULTED')
+            assert.strictEqual(fn(void 0), 'DEFAULTED')
+        })
+
+        it('does not work with null or undefined (on purpose)', () => {
+            const fn = rematch({
+                '{ foo, bar }': () => 'hello'
+                , default: () => 'DEFAULTED'
+            })
+            assert.strictEqual(fn(null), 'DEFAULTED')
+            assert.strictEqual(fn(void 0), 'DEFAULTED')
         })
     })
 
-    // describe('works on arrays', () => {
-        // todo
-    // })
+    describe('works on arrays', () => {
+        it('works with an empty array', () => {
+            const resultString =  'i am a fixed string'
+            const fn = rematch({ '[]': () => resultString })
+            assert.strictEqual(fn([]), resultString)
+        })
+
+        it('works with an array of specified length', () => {
+            const one = rematch({
+                '[ foo ]': () => 'just one item'
+                , default: () => 'DEFAULTED'
+            })
+            assert.strictEqual(one(['one thing in this array']), 'just one item')
+            assert.strictEqual(one([]), 'DEFAULTED')
+            assert.strictEqual(one([1, 2, ]), 'DEFAULTED')
+            assert.strictEqual(one([1, 2, 3, 4, 5]), 'DEFAULTED')
+
+            const two = rematch({
+                '[ foo, bar ]': () => 'two items now'
+                , default: () => 'DEFAULTED'
+            })
+            assert.strictEqual(two(['first', 'second']), 'two items now')
+            assert.strictEqual(two([]), 'DEFAULTED')
+            assert.strictEqual(two([1, 2, 3, 4, 5, 6, 7,]), 'DEFAULTED')
+        })
+
+        it('works with an array of non-zero length', () => {
+            const anyLen = rematch({
+                '[...]': () => 'this rocks'
+                , default: () => 'DEFAULTED'
+            })
+            assert.strictEqual(anyLen(['foo']), 'this rocks')
+            assert.strictEqual(anyLen(['foo', {}, 3.2]), 'this rocks')
+            assert.strictEqual(anyLen(['foo', {}, 3.2, 'bar', null, false, []]), 'this rocks')
+
+            assert.strictEqual(anyLen([]), 'DEFAULTED')
+            assert.strictEqual(anyLen({}), 'DEFAULTED')
+            assert.strictEqual(anyLen(''), 'DEFAULTED')
+            assert.strictEqual(anyLen(0), 'DEFAULTED')
+        })
+
+        it('does not work with null or undefined (on purpose)', () => {
+            const fn = rematch({
+                '[]': () => 'zero'
+                , '[x]': () => 'one'
+                , '[x,y]': () => 'two'
+                , default: () => 'DEFAULTED'
+            })
+            assert.strictEqual(fn(null), 'DEFAULTED')
+            assert.strictEqual(fn(void 0), 'DEFAULTED')
+        })
+    })
 
     describe('matches booleans', () => {
         it('works with one parameter', () => {
@@ -149,6 +209,15 @@ describe('rematch', () => {
             assert.strictEqual(fn('randomKey'), 'DEFAULTED')
             assert.strictEqual(fn('foo', 'bar'), 'hello')
         })
+
+        it('does not work with null or undefined (on purpose)', () => {
+            const fn = rematch({
+                'foo': () => 'zero'
+                , default: () => 'DEFAULTED'
+            })
+            assert.strictEqual(fn(null), 'DEFAULTED')
+            assert.strictEqual(fn(void 0), 'DEFAULTED')
+        })
     })
 
     describe('works recursively (kind of)', () => {
@@ -181,11 +250,21 @@ describe('rematch', () => {
         // })
     })
 
-    // describe('works on numbers', () => {
+    //todo
+    describe('works on numbers', () => {
+        it('does not work with null or undefined (on purpose)', () => {
+            const fn = rematch({
+                '0': () => 'zero'
+                , '1': () => 'one'
+                , default: () => 'DEFAULTED'
+            })
+            assert.strictEqual(fn(null), 'DEFAULTED')
+            assert.strictEqual(fn(void 0), 'DEFAULTED')
+        })
+    })
 
-    // })
-
-    // describe('throws an error no matches and no default', () => {
+    // //todo
+    // describe('throws an error if no matches and no default', () => {
 
     // })
 })

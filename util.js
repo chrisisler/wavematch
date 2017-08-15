@@ -33,14 +33,14 @@ const formatArgumentObj = arg => JSON.stringify(Object.keys(arg).sort(sortFn)).r
 // (String, Object) -> Boolean
 const hasIdenticalKeys = (matcher, arg) => formatMatcherObjString(matcher) === formatArgumentObj(arg)
 
-/** @todo cache the return value of the function for recursive calls */
 /** @todo, @throws {Error} Note: Keep the returned `matchers` in order with `token`, avoid re-using identifiers/names */
 /** @example '_, { x, y, }, abc, [ bar, foo, ]' -> ['_', '{ x, y, }', 'abc', '[ bar, foo, ]'] */
 // String -> Array[String]
 const getMatchers = token => {
     const tkn = token.replace(STRIP_WHITESPACE_REGEXP, '')
     let mutableTkn = String(tkn)
-    const matchers = [ OBJ_REGEXP, ARRAY_REGEXP ].reduce((acc, regexp) => {
+    const matchers = [ OBJ_REGEXP, ARRAY_REGEXP ]
+        .reduce((acc, regexp) => {
             const matchInfo = regexp.exec(tkn)
             if (matchInfo) {
                 const matcher = matchInfo[0]
@@ -50,17 +50,6 @@ const getMatchers = token => {
             return acc
         }, [])
         .concat(...mutableTkn.split(',').filter(Boolean)) // Add non-array/object matchers, remove trailing commas
-        // .sort(([ char1 ], [ char2 ]) => tkn.indexOf(char1) > tkn.indexOf(char2)) // Retain the given order
-    // if (matchers.join(',') === tkn) {
-
-    // }
-    // console.log('tkn is:', tkn)
-    // console.log('matchers.join(",") is:', matchers.join(","))
-    // console.log('matchers.join(",") is:', matchers.join(","))
-    // const dupes = getDuplicates(matchers)
-    // if (dupes.length) {
-
-    // }
     return matchers
 }
 
@@ -78,7 +67,7 @@ const checkTypes = (types, args) => {
     else if (types.length !== args.length)
         throw new Error('Number of types does not match number of arguments.')
 
-    // If any `arg[i]` is not the type given by `types[i]` then throw an error
+    // Per arg in `args`, if `args[i]` is not the same type as `types[i]`, then throw an error.
     const errIdx = args.findIndex((arg, i) => !isType(types[i].name, arg))
     if (errIdx !== -1)
         throw new TypeError(`Type mismatch: Argument at index ${errIdx} should be of type ${types[errIdx].name}.`)
@@ -92,4 +81,5 @@ module.exports = {
     , isBooleanStr
     , checkTypes
     , isIn
+    , isType
 }
