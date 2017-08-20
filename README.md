@@ -36,8 +36,6 @@ Add parameter type checking.
 - Add tests for type checking.
 - Add support for an `Any` type, in `pattern.types` (is this a good idea?).
 
-Add null/undefined support (is this a good idea?).
-
 In index.js, provide better error messages by supplying `fn.name` to the `Error` call.
 
 Is there a way to optimize recursive calls in index.js?
