@@ -7,19 +7,29 @@ describe('rematch', () => {
         const hasX = 'has key x'
         const hasXandHasY = 'has keys x and y'
 
-        it('works with one parameter', () => {
+        it('works with one key', () => {
             const fn = rematch({
                 '{ x }': () => hasX
             })
             assert.strictEqual(fn({ x: 3 }), hasX)
         })
 
-        it('works with two parameters', () => {
+        it('works with two keys', () => {
             const fn = rematch({
                 '{ x, y }': () => hasXandHasY
             })
             assert.strictEqual(fn({ x: 3, y: 4 }), hasXandHasY)
         })
+
+        // TODO
+        // it('works with zero keys', () => {
+        //     const fn = rematch({
+        //         '{}': () => hasXandHasY
+        //         , default: () => 'DEFAULTED'
+        //     })
+        //     assert.strictEqual(fn({}), hasXandHasY)
+        //     assert.strictEqual(fn({x:3}), 'DEFAULTED')
+        // })
 
         it('is independent of key ordering', () => {
             const two = rematch({ '{ y, x }': () => 'two params' })
