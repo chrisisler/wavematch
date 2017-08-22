@@ -1,5 +1,5 @@
 const assert = require('assert')
-const rematch = require('../')
+const rematch = require('../src/index')
 
 describe('rematch', () => {
 
