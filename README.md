@@ -1,10 +1,11 @@
-# Rematch - Pattern Matching
+<h1 align='center'>Wavematch</h1>
+<h3 align='center'><strong>JS pattern matching</strong></h3>
 
-*Powerful JavaScript pattern matching.*
-
+<p align='center'>
 Compare input data against patterns and descriptions to check for compatible matches.
 If a match is compatible, the corresponding logic is executed. Return a fixed value
-or apply a function to the input.
+or apply a function to the arguments.
+</p>
 
 ```JavaScript
 const factorial = rematch({
@@ -13,23 +14,24 @@ const factorial = rematch({
 })
 ```
 
-## Usage
+<h2 align='center'>Usage</h2>
 
-#### Match Strings
+<h4 align='center'>Match Strings</h4>
 ```javascript
 // Match an empty string, either way works.
 const myFunc = rematch({
-    '""': (input) => //...
-    "''": (input) => //...
+    '""': () => //...
+    "''": () => //...
 })
 
-// Match a literal string.
+// Match a literal string, _case-sensitive_.
 const myFunc = rematch({
-    'andy': (input) => //...
+    'andy': () => //...
+    'foo': () => //...
 })
 ```
 
-#### Match Numbers
+<h4 align='center'>Match Numbers</h4>
 ```javascript
 // Match exact numbers.
 const myFunc = rematch({
@@ -38,78 +40,81 @@ const myFunc = rematch({
 })
 ```
 
-
-#### Match Null and Undefined
+<h4 align='center'>Match Null and Undefined</h4>
 ```javascript
 const myFunc = rematch({
-    null: (input) => //...
-    undefined: (input) => //...
+    null: () => //...
+    undefined: () => //...
 })
 ```
 
-#### Match Regular Expressions
+<h4 align='center'>Match Regular Expressions</h4>
 ```javascript
 const myFunc = rematch({
-    '/foo/': () => 'haha',
-    default: () => 'fallback'
+    '/foo/': () => //...
+    default: () => //...
 })
-myFunc('fo') //=> 'haha'
 ```
 
-#### Match Arrays
+<h4 align='center'>Match Arrays</h4>
 ```javascript
 const myFunc = rematch({
     // Match an empty array
-    '[]': () => 'empty!',
+    '[]': () => //...
 
     // Match an array of length 1
-    '[ blah ]': () => 'one!',
+    '[ blah ]': () => //...
 
     // Match an array of length 2
-    '[ blah, foo ]': () => 'two!'
+    '[ blah, foo ]': () => //...
 
     // Match an array of arbitrary length
-    '[...]': () => 'yay!'
+    '[...]': () => //...
 
     //TODO
     // Match an array of at least length 1
-    '[ x, ... ]': () => 'at least one'
+    '[ x, ... ]': () => //...
 
     //TODO
     // Match an array of at least length 2
-    '[ x, y, ... ]': () => 'at least two'
+    '[ x, y, ... ]': () => //...
 })
 ```
-#### Match Objects
+<h4 align='center'>Match Objects</h4>
 ```javascript
 const myFunc = rematch({
     //TODO
     // Match an empty object
-    '{}': () => 'empty!',
+    '{}': () => //...
 
     // Match an object with *only* the key `blah`
-    '{ blah }': () => 'one key!',
+    '{ blah }': () => //...
 
     // Match an object with keys `age` and `name`
-    '{ age, name }': () => 'two keys!'
+    '{ age, name }': () => //...
 
     // Match an any non-empty object
-    '{...}': () => 'yay!'
+    '{...}': () => //...
 
     //TODO
     // Match an object with key `x` and optionally more
-    '{ x, ... }': () => 'at least x'
+    '{ x, ... }': () => //...
 
     //TODO
     // Match an object with keys `x`, `y`, and optionally more
-    '{ x, y, ... }': () => 'at least x and y'
+    '{ x, y, ... }': () => //...
 })
 ```
 
-#### Match Functions
-todo
+<h4 align='center'>Match Booleans</h4>
+```javascript
+const myFunc = rematch({
+    false: () => //...
+    true: () => //...
+})
+```
 
-#### Match Booleans
+<h4 align='center'>Match Functions</h4>
 todo
 
 ## To Do
