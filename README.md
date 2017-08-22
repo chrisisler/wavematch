@@ -17,6 +17,7 @@ const factorial = rematch({
 <h2 align='center'>Usage</h2>
 
 <h4 align='center'>Match Strings</h4>
+
 ```javascript
 // Match an empty string, either way works.
 const myFunc = rematch({
@@ -32,6 +33,7 @@ const myFunc = rematch({
 ```
 
 <h4 align='center'>Match Numbers</h4>
+
 ```javascript
 // Match exact numbers.
 const myFunc = rematch({
@@ -41,6 +43,7 @@ const myFunc = rematch({
 ```
 
 <h4 align='center'>Match Null and Undefined</h4>
+
 ```javascript
 const myFunc = rematch({
     null: () => //...
@@ -49,6 +52,7 @@ const myFunc = rematch({
 ```
 
 <h4 align='center'>Match Regular Expressions</h4>
+
 ```javascript
 const myFunc = rematch({
     '/foo/': () => //...
@@ -57,6 +61,7 @@ const myFunc = rematch({
 ```
 
 <h4 align='center'>Match Arrays</h4>
+
 ```javascript
 const myFunc = rematch({
     // Match an empty array
@@ -80,7 +85,9 @@ const myFunc = rematch({
     '[ x, y, ... ]': () => //...
 })
 ```
+
 <h4 align='center'>Match Objects</h4>
+
 ```javascript
 const myFunc = rematch({
     //TODO
@@ -107,6 +114,7 @@ const myFunc = rematch({
 ```
 
 <h4 align='center'>Match Booleans</h4>
+
 ```javascript
 const myFunc = rematch({
     false: () => //...
@@ -115,6 +123,7 @@ const myFunc = rematch({
 ```
 
 <h4 align='center'>Match Functions</h4>
+
 todo
 
 ## To Do
