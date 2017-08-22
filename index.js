@@ -18,7 +18,7 @@ const getArrayMatcherLength = arrayMatcher => arrayMatcher
         .length
 
 // Any -> Boolean
-const isNullOrVoid = x => isType('Undefined', x) || isType('Null', x)
+const isNullOrUndef = x => isType('Undefined', x) || isType('Null', x)
 
 // For non-zero, N-length, and arbitrary-length matches
 // (String, Any) -> Boolean
@@ -37,19 +37,19 @@ const canMatchAnyArgs = (matcher, args) => {
     const objMatch     = OBJ_MATCH_REGEXP.exec(matcher)
     const arrMatch     = ARRAY_MATCH_REGEXP.exec(matcher)
     const regexpMatch  = REGEXP_MATCH_REGEXP.exec(matcher)
-    const booleanMatch = isBoolStr && args.includes(JSON.parse(matcher))
-    const numMatch     = !isBoolStr && args.includes(Number(matcher))
-    const nullMatch    = !isBoolStr && args.includes(null)
-    const undefMatch   = !isBoolStr && args.includes(void 0)
     const strMatch     = !isBoolStr && args.includes(matcher)
+    const numMatch     = !isBoolStr && args.includes(Number(matcher))
+    const booleanMatch =  isBoolStr && args.includes(JSON.parse(matcher))
+    const nullMatch    = !isBoolStr && args.includes(null) && matcher == 'null'
+    const undefMatch   = !isBoolStr && args.includes(void 0) && matcher === 'undefined'
 
     if (objMatch) {
-        const isArbitraryNonZeroKeys = objMatch[0].includes('...') && isIn(args, a => !isNullOrVoid(a) && Object.keys(a).length > 0)
+        const isArbitraryNonZeroKeys = objMatch[0].includes('...') && isIn(args, a => !isNullOrUndef(a) && Object.keys(a).length > 0)
         if (isArbitraryNonZeroKeys) return true
-        return isIn(args, a => !isNullOrVoid(a) && hasIdenticalKeys(matcher, a))
+        return isIn(args, a => !isNullOrUndef(a) && hasIdenticalKeys(matcher, a))
     }
-    else if (arrMatch) return isIn(args, a => !isNullOrVoid(a) && Array.isArray(a) && similarLength(arrMatch[0], a))
-    else if (regexpMatch) return isIn(args, a => !isNullOrVoid(a) && new RegExp(matcher.replace(/\//g, '')).test(a))
+    else if (arrMatch) return isIn(args, a => !isNullOrUndef(a) && Array.isArray(a) && similarLength(arrMatch[0], a))
+    else if (regexpMatch) return isIn(args, a => !isNullOrUndef(a) && new RegExp(matcher.replace(/\//g, '')).test(a))
     else if (booleanMatch) return true
     else if (numMatch) return true
     else if (nullMatch) return true

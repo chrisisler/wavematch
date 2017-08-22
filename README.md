@@ -1,9 +1,10 @@
-# Rematch
+# Rematch - Pattern Matching
 
 Powerful JavaScript pattern matching.
 
 Compare input data against patterns and descriptions to check for compatible matches.
-If a match is compatible, the corresponding logic is executed.
+If a match is compatible, the corresponding logic is executed. Return a fixed value
+or apply a function to the input.
 
 ```JavaScript
 const factorial = rematch({
@@ -15,22 +16,34 @@ const factorial = rematch({
 ## Usage
 
 #### String
-
-Match an empty string, either way works.
 ```javascript
+// Match an empty string, either way works.
 const myFunc = rematch({
     '""': (...args) => doStuff(args)
     "''": (...args) => doStuff(args)
 })
+
+// Match a literal string.
+const myFunc = rematch({
+    'andy': (...args) => doStuff(args)
+})
 ```
 
 #### Number
-
-Match numbers literally.
 ```javascript
+// Match numbers literally.
 const myFunc = rematch({
     0: 'zero',
     5: 'five'
+})
+```
+
+
+#### Null and Undefined
+```javascript
+cosnt myFunc = rematch({
+    null: (...args) => doStuff(args),
+    undefined: (...args) => doStuff(args)
 })
 ```
 
@@ -39,10 +52,6 @@ const myFunc = rematch({
 #### Object
 #### Function
 #### Boolean
-#### Null
-#### Undefined (void 0)
-
-
 ## To do
 
 Add examples to README.
