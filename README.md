@@ -1,6 +1,6 @@
 # Rematch - Pattern Matching
 
-Powerful JavaScript pattern matching.
+*Powerful JavaScript pattern matching.*
 
 Compare input data against patterns and descriptions to check for compatible matches.
 If a match is compatible, the corresponding logic is executed. Return a fixed value
@@ -15,21 +15,23 @@ const factorial = rematch({
 
 ## Usage
 
-#### String
+#### Match Strings
 ```javascript
+// Match an empty string, either way works.
 const myFunc = rematch({
-    // Match an empty string, either way works.
-    '""': (...args) => doStuff(args)
-    "''": (...args) => doStuff(args)
+    '""': (input) => //...
+    "''": (input) => //...
+})
 
-    // Match a literal string.
-    'andy': (...args) => doStuff(args)
+// Match a literal string.
+const myFunc = rematch({
+    'andy': (input) => //...
 })
 ```
 
-#### Number
+#### Match Numbers
 ```javascript
-// Match numbers literally.
+// Match exact numbers.
 const myFunc = rematch({
     0: 'zero',
     5: 'five'
@@ -37,15 +39,15 @@ const myFunc = rematch({
 ```
 
 
-#### Null and Undefined
+#### Match Null and Undefined
 ```javascript
 const myFunc = rematch({
-    null: (...args) => doStuff(args),
-    undefined: (...args) => doStuff(args)
+    null: (input) => //...
+    undefined: (input) => //...
 })
 ```
 
-#### Regular Expression
+#### Match Regular Expressions
 ```javascript
 const myFunc = rematch({
     '/foo/': () => 'haha',
@@ -54,7 +56,7 @@ const myFunc = rematch({
 myFunc('fo') //=> 'haha'
 ```
 
-#### Array
+#### Match Arrays
 ```javascript
 const myFunc = rematch({
     // Match an empty array
@@ -78,7 +80,7 @@ const myFunc = rematch({
     '[ x, y, ... ]': () => 'at least two'
 })
 ```
-#### Object
+#### Match Objects
 ```javascript
 const myFunc = rematch({
     //TODO
@@ -104,22 +106,23 @@ const myFunc = rematch({
 })
 ```
 
-#### Function
+#### Match Functions
 todo
 
-#### Boolean
+#### Match Booleans
+todo
 
-## To do
+## To Do
 
-Add examples to README.
-Write remaining tests for Number, regexp, empty obj/arrary, and error throwing.
-Support recursive functions.
-- `zipWith`
-Support empty objects.
-Support function matching.
-Empty string matching, either way.
-Add parameter type checking.
+- Add examples to README (wip).
+- Add tests for Number, regexp, empty obj/arrary, and error throwing.
+- Add tests for floats `3.2`.
+- Add tests for return a fixed value instead of a function.
+- Add support for parameter type checking.
 - Add support for an `Any` type, in `pattern.types` (is this a good idea?).
-In index.js, provide better error messages by supplying `fn.name` to the `Error` call.
-Add tests for return a fixed value instead of a function.
-Add support for at least N obj/arr
+- Add support for at least N obj/arr
+- Add support for recursive functions like `zipWith`.
+- Add support for empty objects.
+- Add support for function matching.
+- Add support for empty string matching, either way.
+- In index.js, provide better error messages by supplying `fn.name` to the `Error` call.

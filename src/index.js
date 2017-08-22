@@ -34,27 +34,27 @@ const canMatchAnyArgs = (matcher, args) => {
     const isBoolStr = isBooleanStr(matcher)
 
     // obj arr bool num null undef str (todo: function)
-    const objMatch     = OBJ_MATCH_REGEXP.exec(matcher)
-    const arrMatch     = ARRAY_MATCH_REGEXP.exec(matcher)
-    const regexpMatch  = REGEXP_MATCH_REGEXP.exec(matcher)
-    const strMatch     = !isBoolStr && args.includes(matcher)
-    const numMatch     = !isBoolStr && args.includes(Number(matcher))
-    const booleanMatch =  isBoolStr && args.includes(JSON.parse(matcher))
-    const nullMatch    = !isBoolStr && args.includes(null) && matcher == 'null'
-    const undefMatch   = !isBoolStr && args.includes(void 0) && matcher === 'undefined'
+    const matchObj = OBJ_MATCH_REGEXP.exec(matcher)
+    const matchArr = ARRAY_MATCH_REGEXP.exec(matcher)
+    const matchRegExp = REGEXP_MATCH_REGEXP.exec(matcher)
+    const matchStr = !isBoolStr && args.includes(matcher)
+    const matchNum = !isBoolStr && args.includes(Number(matcher))
+    const matchBool = isBoolStr && args.includes(JSON.parse(matcher))
+    const matchNull = !isBoolStr && args.includes(null) && matcher == 'null'
+    const matchUndef = !isBoolStr && args.includes(void 0) && matcher === 'undefined'
 
-    if (objMatch) {
-        const isArbitraryNonZeroKeys = objMatch[0].includes('...') && isIn(args, a => !isNullOrUndef(a) && Object.keys(a).length > 0)
+    if (matchObj) {
+        const isArbitraryNonZeroKeys = matchObj[0].includes('...') && isIn(args, a => !isNullOrUndef(a) && Object.keys(a).length > 0)
         if (isArbitraryNonZeroKeys) return true
         return isIn(args, a => !isNullOrUndef(a) && hasIdenticalKeys(matcher, a))
     }
-    else if (arrMatch) return isIn(args, a => !isNullOrUndef(a) && Array.isArray(a) && similarLength(arrMatch[0], a))
-    else if (regexpMatch) return isIn(args, a => !isNullOrUndef(a) && new RegExp(matcher.replace(/\//g, '')).test(a))
-    else if (booleanMatch) return true
-    else if (numMatch) return true
-    else if (nullMatch) return true
-    else if (undefMatch) return true
-    else if (strMatch) return true
+    else if (matchArr) return isIn(args, a => !isNullOrUndef(a) && Array.isArray(a) && similarLength(matchArr[0], a))
+    else if (matchRegExp) return isIn(args, a => !isNullOrUndef(a) && new RegExp(matcher.replace(/\//g, '')).test(a))
+    else if (matchBool) return true
+    else if (matchNum) return true
+    else if (matchNull) return true
+    else if (matchUndef) return true
+    else if (matchStr) return true
     return false
 }
 
