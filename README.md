@@ -2,40 +2,56 @@
 
 Powerful JavaScript pattern matching.
 
-I've been reading a lot about F#, Haskell, and functional programming topics in general.
-Pattern matching caught my eye, and since my primary language at the moment is JS, I
-figured I would try to implement it. It's called Rematch.
+Compare input data against patterns and descriptions to check for compatible matches.
+If a match is compatible, the corresponding logic is executed.
 
-A lot of the benefits of pattern matching include destructuring in your desired match.
-ES6 allows for destructuring, so there goes me needing to support that.
+```JavaScript
+const factorial = rematch({
+    0: 1,
+    default: (n) => n * factorial(n - 1)
+})
+```
 
-Pattern matching consists of specifying patterns to which some data should conform to,
-checking to see if it does, then acting on that input based on some corresponding logic.
+## Usage
+
+#### String
+
+Match an empty string, either way works.
+```javascript
+const myFunc = rematch({
+    '""': (...args) => doStuff(args)
+    "''": (...args) => doStuff(args)
+})
+```
+
+#### Number
+
+Match numbers literally.
+```javascript
+const myFunc = rematch({
+    0: 'zero',
+    5: 'five'
+})
+```
+
+#### Regular Expression
+#### Array
+#### Object
+#### Function
+#### Boolean
+#### Null
+#### Undefined (void 0)
+
 
 ## To do
 
-#### Need
-
 Add examples to README.
-
-Write remaining tests for Number and error throwing.
-
+Write remaining tests for Number, regexp, empty obj/arrary, and error throwing.
 Support recursive functions.
 - `zipWith`
-
 Support empty objects.
-Support N-keyed objects.
-
 Support function matching.
-
-#### Want
-
-Add support for error catching with a `catch` key.
-
+Empty string matching, either way.
 Add parameter type checking.
-- Add tests for type checking.
 - Add support for an `Any` type, in `pattern.types` (is this a good idea?).
-
 In index.js, provide better error messages by supplying `fn.name` to the `Error` call.
-
-Is there a way to optimize recursive calls in index.js?

@@ -1,6 +1,8 @@
 // Do not change these! Hoisted regexp's are more performant than on-the-fly/in-place
-const OBJ_REGEXP = /{.+}/
-const ARRAY_REGEXP = /\[.*\]/
+const OBJ_MATCH_REGEXP = /{.+}/
+const ARRAY_MATCH_REGEXP = /\[.*\]/
+// const REGEXP_MATCH_REGEXP = new RegExp('/.*/')
+const REGEXP_MATCH_REGEXP = /\/.*\//
 const STRIP_WHITESPACE_REGEXP = /\s*/g
 const MATCHER_OBJ_STR_REGEXP = /[{}\s*]/g
 const ARGUMENT_OBJ_REGEXP = /[\[\]"\s*]/g
@@ -31,7 +33,8 @@ const formatMatcherObjString = matcher => matcher
 const formatArgumentObj = arg => JSON.stringify(Object.keys(arg).sort(sortFn)).replace(ARGUMENT_OBJ_REGEXP, '')
 
 // (String, Object) -> Boolean
-const hasIdenticalKeys = (matcher, arg) => formatMatcherObjString(matcher) === formatArgumentObj(arg)
+const hasIdenticalKeys = (matcher, arg) =>
+    formatMatcherObjString(matcher) === formatArgumentObj(arg)
 
 /** @todo, @throws {Error} Note: Keep the returned `matchers` in order with `token`, avoid re-using identifiers/names */
 /** @example '_, { x, y, }, abc, [ bar, foo, ]' -> ['_', '{ x, y, }', 'abc', '[ bar, foo, ]'] */
@@ -39,11 +42,11 @@ const hasIdenticalKeys = (matcher, arg) => formatMatcherObjString(matcher) === f
 const getMatchers = token => {
     const tkn = token.replace(STRIP_WHITESPACE_REGEXP, '')
     let mutableTkn = String(tkn)
-    const matchers = [ OBJ_REGEXP, ARRAY_REGEXP ]
+    const matchers = [ OBJ_MATCH_REGEXP, ARRAY_MATCH_REGEXP, REGEXP_MATCH_REGEXP ]
         .reduce((acc, regexp) => {
             const matchInfo = regexp.exec(tkn)
             if (matchInfo) {
-                const matcher = matchInfo[0]
+                const [ matcher ] = matchInfo
                 mutableTkn = mutableTkn.replace(matcher, '') // Keeps a "history" of remaining matchers.
                 acc.push(matcher)
             }
@@ -74,8 +77,9 @@ const checkTypes = (types, args) => {
 }
 
 module.exports = {
-    OBJ_REGEXP
-    , ARRAY_REGEXP
+    OBJ_MATCH_REGEXP
+    , ARRAY_MATCH_REGEXP
+    , REGEXP_MATCH_REGEXP
     , getMatchers
     , hasIdenticalKeys
     , isBooleanStr

@@ -1,6 +1,7 @@
 const {
-    OBJ_REGEXP
-    , ARRAY_REGEXP
+    OBJ_MATCH_REGEXP
+    , ARRAY_MATCH_REGEXP
+    , REGEXP_MATCH_REGEXP
     , hasIdenticalKeys
     , getMatchers
     , isBooleanStr
@@ -11,45 +12,49 @@ const {
 
 // String -> Number
 const getArrayMatcherLength = arrayMatcher => arrayMatcher
-    .replace(/[\[\]]/g, '')
-    .split(',')
-    .filter(Boolean)
-    .length
+        .replace(/[\[\]]/g, '')
+        .split(',')
+        .filter(Boolean)
+        .length
 
 // Any -> Boolean
 const isNullOrVoid = x => isType('Undefined', x) || isType('Null', x)
 
 // For non-zero, N-length, and arbitrary-length matches
 // (String, Any) -> Boolean
-const similarLength = (arrayMatcher, arg) => arrayMatcher.includes('...')
-    ? arg.length > 0
-    : arg.length === getArrayMatcherLength(arrayMatcher)
+const similarLength = (arrayMatcher, arg) =>
+    arrayMatcher.includes('...')
+        ? arg.length > 0
+        : arg.length === getArrayMatcherLength(arrayMatcher)
 
 // (String, Array[Any]) -> Boolean
 const canMatchAnyArgs = (matcher, args) => {
     if (matcher === '_') return true // Skip underscore
 
-    const matcherIsBooleanString = isBooleanStr(matcher)
-    const objectMatch = OBJ_REGEXP.exec(matcher)
-    const arrayMatch = ARRAY_REGEXP.exec(matcher)
-    const booleanMatch = matcherIsBooleanString && args.includes(JSON.parse(matcher))
-    const numberMatch = !matcherIsBooleanString && args.includes(Number(matcher))
-    const nullMatch = !matcherIsBooleanString && args.includes(null)
-    const undefinedMatch = !matcherIsBooleanString && args.includes(void 0)
-    const stringMatch = !matcherIsBooleanString && args.includes(matcher)
+    const isBoolStr = isBooleanStr(matcher)
 
-    // if (objectMatch) return isIn(args, a => !isNullOrVoid(a) && hasIdenticalKeys(matcher, a))
-    if (objectMatch) {
-        const isArbitraryNonZeroKeys = objectMatch[0].includes('...') && isIn(args, a => !isNullOrVoid(a) && Object.keys(a).length > 0)
+    // obj arr bool num null undef str (todo: function)
+    const objMatch     = OBJ_MATCH_REGEXP.exec(matcher)
+    const arrMatch     = ARRAY_MATCH_REGEXP.exec(matcher)
+    const regexpMatch  = REGEXP_MATCH_REGEXP.exec(matcher)
+    const booleanMatch = isBoolStr && args.includes(JSON.parse(matcher))
+    const numMatch     = !isBoolStr && args.includes(Number(matcher))
+    const nullMatch    = !isBoolStr && args.includes(null)
+    const undefMatch   = !isBoolStr && args.includes(void 0)
+    const strMatch     = !isBoolStr && args.includes(matcher)
+
+    if (objMatch) {
+        const isArbitraryNonZeroKeys = objMatch[0].includes('...') && isIn(args, a => !isNullOrVoid(a) && Object.keys(a).length > 0)
         if (isArbitraryNonZeroKeys) return true
         return isIn(args, a => !isNullOrVoid(a) && hasIdenticalKeys(matcher, a))
     }
-    else if (arrayMatch) return isIn(args, a => !isNullOrVoid(a) && Array.isArray(a) && similarLength(arrayMatch[0], a))
+    else if (arrMatch) return isIn(args, a => !isNullOrVoid(a) && Array.isArray(a) && similarLength(arrMatch[0], a))
+    else if (regexpMatch) return isIn(args, a => !isNullOrVoid(a) && new RegExp(matcher.replace(/\//g, '')).test(a))
     else if (booleanMatch) return true
-    else if (numberMatch) return true
+    else if (numMatch) return true
     else if (nullMatch) return true
-    else if (undefinedMatch) return true
-    else if (stringMatch) return true
+    else if (undefMatch) return true
+    else if (strMatch) return true
     return false
 }
 
