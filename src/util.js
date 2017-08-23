@@ -1,7 +1,6 @@
-// Do not change these! Hoisted regexp's are more performant than on-the-fly/in-place
-const OBJ_MATCH_REGEXP = /{.+}/
+// Hoisted regexps are more performant than using them in-place
+const OBJ_MATCH_REGEXP = /{.*}/
 const ARRAY_MATCH_REGEXP = /\[.*\]/
-// const REGEXP_MATCH_REGEXP = new RegExp('/.*/')
 const REGEXP_MATCH_REGEXP = /\/.*\//
 const STRIP_WHITESPACE_REGEXP = /\s*/g
 const MATCHER_OBJ_STR_REGEXP = /[{}\s*]/g
@@ -42,7 +41,7 @@ const hasIdenticalKeys = (matcher, arg) =>
 const getMatchers = token => {
     const tkn = token.replace(STRIP_WHITESPACE_REGEXP, '')
     let mutableTkn = String(tkn)
-    const matchers = [ OBJ_MATCH_REGEXP, ARRAY_MATCH_REGEXP, REGEXP_MATCH_REGEXP ]
+    return [ OBJ_MATCH_REGEXP, ARRAY_MATCH_REGEXP, REGEXP_MATCH_REGEXP ]
         .reduce((acc, regexp) => {
             const matchInfo = regexp.exec(tkn)
             if (matchInfo) {
@@ -53,27 +52,18 @@ const getMatchers = token => {
             return acc
         }, [])
         .concat(...mutableTkn.split(',').filter(Boolean)) // Add non-array/object matchers, remove trailing commas
-    return matchers
 }
 
-/**
- * Performs type checking for each equally-indexed (Function, value) pair.
- *
- * @todo Add support for `Any`
- * @throws {Error|TypeError}
- * @param {Array[Function]} types
- * @param {Array[Any]} args
- */
+// TODO: Add support for `Any`
+// (Array[Function], Array[Any]) -> ()
 const checkTypes = (types, args) => {
-    if (!isType('Array', types) || !types.every(t => isType('Function', t)))
-        throw new TypeError(`\`types\` must be an Array, instead is: ${typeof types}`)
-    else if (types.length !== args.length)
-        throw new Error('Number of types does not match number of arguments.')
+    if (!isType('Array', types))                       throw new TypeError(`\`types\` must be an Array, instead is: ${typeof types}`)
+    else if (!types.every(t => isType('Function', t))) throw new TypeError('Every type in `types` must be a Function.')
+    else if (types.length !== args.length)             throw new Error('Number of types does not match number of arguments.')
 
-    // Per arg in `args`, if `args[i]` is not the same type as `types[i]`, then throw an error.
-    const errIdx = args.findIndex((arg, i) => !isType(types[i].name, arg))
-    if (errIdx !== -1)
-        throw new TypeError(`Type mismatch: Argument at index ${errIdx} should be of type ${types[errIdx].name}.`)
+    // Throw error if every `args[i]` is not the same type as `types[i]` for the same `i`
+    const errIdx = args.findIndex((arg, idx) => !isType(types[idx].name, arg))
+    if (errIdx !== -1) throw new TypeError(`Type mismatch: Argument at index ${errIdx} should be of type ${types[errIdx].name}.`)
 }
 
 module.exports = {

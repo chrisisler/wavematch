@@ -90,17 +90,16 @@ const myFunc = rematch({
 
 ```javascript
 const myFunc = rematch({
-    //TODO
     // Match an empty object
     '{}': (...args) => ...
 
-    // Match an object with *only* the key `blah`
+    // Match an object with only the key `blah`
     '{ blah }': (...args) => ...
 
-    // Match an object with keys `age` and `name`
+    // Match an object with only the keys `age` and `name`
     '{ age, name }': (...args) => ...
 
-    // Match an any non-empty object
+    // Match an object with zero or more keys of any name
     '{...}': (...args) => ...
 
     //TODO

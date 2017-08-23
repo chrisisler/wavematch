@@ -28,6 +28,25 @@ const isSimilarLength = (arrayMatcher, arg) =>
         : arg.length === getArrayMatcherLength(arrayMatcher)
 
 // (String, Array[Any]) -> Boolean
+const checkAllObjectCases = (matcher, args) => {
+    // Function (Any -> Boolean) -> Boolean
+    const isInArgs = f => isIn(args, (a, i) => !!f(a, i) && !isNullOrUndef(a)) // Wrapper function to filter nil values
+
+    // empty {}
+    const zeroKeys = m => isInArgs(a => Object.keys(a).length === 0 && m.replace(/,/g, '') === '{}') // String -> Boolean
+    if (zeroKeys(matcher)) return true
+
+    // exactly x
+    // exactly x and y
+    // ... zero or more  of any name
+    // exactly x and zero or more of any name
+    // exactly x, y, and zero or more of any name
+    // exactly one of any name
+    // exactly two of any name
+    // exactly one of any name and zero or more of any name
+}
+
+// (String, Array[Any]) -> Boolean
 const canMatchAnyArgs = (matcher, args) => {
     if (matcher === '_') return true // Skip underscore
 
@@ -39,15 +58,12 @@ const canMatchAnyArgs = (matcher, args) => {
     const matchRegExp = REGEXP_MATCH_REGEXP.exec(matcher)
     const matchStr    = !isBoolStr && args.includes(matcher)
     const matchNum    = !isBoolStr && args.includes(Number(matcher))
-    const matchBool   = isBoolStr && args.includes(JSON.parse(matcher))
-    const matchNull   = !isBoolStr && args.includes(null) && matcher == 'null'
+    const matchBool   =  isBoolStr && args.includes(JSON.parse(matcher))
+    const matchNull   = !isBoolStr && args.includes(null) && matcher === 'null'
     const matchUndef  = !isBoolStr && args.includes(void 0) && matcher === 'undefined'
 
-    if (matchObj) {
-        // For matching objects with more than zero keys, but we don't care what the keys are, or how many
-        const isArbitraryNonZeroKeys = matchObj[0].includes('...') && isIn(args, a => !isNullOrUndef(a) && Object.keys(a).length > 0)
-        if (isArbitraryNonZeroKeys) return true
-        return isIn(args, a => !isNullOrUndef(a) && hasIdenticalKeys(matcher, a))
+    if (matchObj) { // Note: matchObj[0] === matcher
+        return checkAllObjectCases(matcher, args)
     }
     else if (matchArr)    return isIn(args, a => !isNullOrUndef(a) && Array.isArray(a) && isSimilarLength(matchArr[0], a))
     else if (matchRegExp) return isIn(args, a => !isNullOrUndef(a) && new RegExp(matcher.replace(/\//g, '')).test(a))
