@@ -89,26 +89,42 @@ const myFunc = rematch({
 <h4 align='center'>Match Objects</h4>
 
 ```javascript
-const myFunc = rematch({
-    // Match an empty object
-    '{}': (...args) => ...
+// Use a single underscore character to match a key of any name.
+// Use the exact (case-sensitive) word to match a key of that exact name.
 
-    // Match an object with only the key `blah`
-    '{ blah }': (...args) => ...
+const nonGreedy = rematch({
+    // Matches only the empty object.
+    // Match an object with zero named keys and zero unnamed keys
+    '{}':
 
-    // Match an object with only the keys `age` and `name`
-    '{ age, name }': (...args) => ...
+    // Match an object with non-zero named keys and non-zero unnamed keys
+    '{ x, _ }':
+    '{ x, y, _, _ }':
 
-    // Match an object with zero or more keys of any name
-    '{...}': (...args) => ...
+    // Match an object with non-zero named keys and zero unnamed keys
+    '{ x }':
+    '{ x, y }':
 
-    //TODO
-    // Match an object with key `x` and optionally more
-    '{ x, ... }': (...args) => ...
+    // Match an object with zero named keys and non-zero unnamed keys
+    '{ _ }':
+    '{ _, _ }':
+})
 
-    //TODO
-    // Match an object with keys `x`, `y`, and optionally more
-    '{ x, y, ... }': (...args) => ...
+const greedy = rematch({
+    // Matches any object ever (zero or more named keys and zero or more unnamed keys)
+    '{...}':
+
+    // Match an object with at least non-zero keys and at least non-zero unnamed keys
+    '{ x, _, ... }':
+    '{ x, y, _, _, ... }':
+
+    // Match an object with at least non-zero named keys
+    '{ x, ... }':
+    '{ x, y, ... }':
+
+    // Match an object with at least non-zero unnamed keys
+    '{ _, ... }':
+    '{ _, _, ... }':
 })
 ```
 
@@ -140,3 +156,4 @@ const myFunc = rematch({
 - Add support for empty string matching, either way.
 - In index.js, provide better error messages by supplying `fn.name` to the `Error` call.
 - Replace `isIn` with `xs.some`, do not use `isIn`.
+- Update README to reflect new Object match info.

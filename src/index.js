@@ -10,8 +10,6 @@ const {
     , isType
 } = require('./util')
 
-// const HAS_VALID_IDENTIFIER_REGEXP = /[a-zA-Z0-9_]+/
-
 // String -> Number
 const getArrayMatcherLength = arrayMatcher => arrayMatcher
     .replace(/[\[\]]/g, '')
@@ -41,75 +39,63 @@ const isEqualStringArrays = (xs, ys) => JSON.stringify(xs) === JSON.stringify(ys
 const partition = (xs, pred) =>
     xs.reduce((acc, x) => (acc[pred(x) ? 0 : 1].push(x), acc), [[], []])
 
+/**
+ * Checks cases (where `matcher` is known to satisfy the regexp /{.*}/ and `args` contains an Object):
+ *     (1) '{...}'       (zero named keys && zero unnamed keys)
+ *     (2) '{x, _, ...}' (one or more named keys && one or more unnamed keys)
+ *     (3) '{x, ...}'    (one or more named keys && zero unnamed keys)
+ *     (4) '{_, ...}'    (one or more unnamed keys && zero named keys)
+ *     (A) '{}'       (zero named keys && zero unnamed keys)
+ *     (B) '{x, _}' (one or more named keys && one or more unnamed keys)
+ *     (C) '{x}'    (one or more named keys && zero unnamed keys)
+ *     (D) '{_}'    (one or more unnamed keys && zero named keys)
+ */
 // (String, [Any]) -> Boolean
 const checkAllObjectCases = (matcher, args) => {
-    const isInArgs = f => isIn(args, (a, i) => !!f(a, i) && !isNullOrUndef(a)) // Wrapper function to filter nil values. (Any -> Boolean) -> Boolean
+    const validMatcherKeys = getMatcherKeys(matcher).filter(k => k !== '...')
+    const [ unnamedKeys, namedKeys ] = partition(validMatcherKeys, s => s === '_')
 
-    // Checks three cases (where `matcher` is known to satisfy the regexp /{.*}/ and `args` contains an Object):
-    //    (1) '{...}'       (zero named keys && zero unnamed keys)
-    //    (2) '{x, _, ...}' (one or more named keys && one or more unnamed keys)
-    //    (3) '{x, ...}'    (one or more named keys && zero unnamed keys)
-    //    (4) '{_, ...}'    (one or more unnamed keys && zero named keys)
     if (matcher.includes('...')) {
-        const desiredKeys = getMatcherKeys(matcher).filter(s => s !== '...')
-
         // Case (1)
-        if (desiredKeys.length === 0) return true
-
-        const [ unnamedKeys, namedKeys ] = partition(desiredKeys, s => s === '_')
+        if (unnamedKeys.length === 0 && namedKeys.length === 0) {
+            return true // No need to check if `args` includes an Object
+        }
 
         // Case (2)
-        if (unnamedKeys.length && namedKeys.length) {
+        else if (unnamedKeys.length !== 0 && namedKeys.length !== 0) {
+
         }
+
         // Case (3)
-        else if (namedKeys.length) {
-            const out = args.some(a => namedKeys.every(k => Object.keys(a).includes(k)))
-            return out
+        else if (namedKeys.length !== 0) {
+            const result = namedKeys.every(namedKey => args.some(a => Object.keys(a).includes(namedKey)))
+            return result
         }
+
         // Case (4)
-        else if (unnamedKeys.length) {
+        else if (unnamedKeys.length !== 0) {
+        }
+    } else {
+        // Case (A)
+        if () {
+
         }
 
-        
+        // Case (B)
+        else if () {
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        /*
-        const desiredKeys = getMatcherKeys(matcher).filter(s => s !== '...')
-        if (desiredKeys.length === 0)  //todo
-
-        //todo handle case where `matcher` includes _ and ,
-        if (matcher.includes('_')) {
-            //todo
         }
-        else if (!matcher.includes(',')) return true // case: "{...}" = zero or more of any name
 
-        const out = desiredKeys.every(dKey => Object.keys(args[0]).includes(dKey))
-        console.log('out is:', out)
-        return out
-        */
+        // Case (C)
+        else if () {
+
+        }
+
+        // Case (D)
+        else if () {
+
+        }
     }
-
-    // Matches empty objects and objects with name-dependent keys (no "_") 
-    const argsHasObjWithDesiredKeys = isInArgs(a => isEqualStringArrays(Object.keys(a), getMatcherKeys(matcher)))
-    if (argsHasObjWithDesiredKeys) return true
-
-    // exactly one of any name
-    // exactly two of any name
-    return false
 }
 
 // (String, [Any]) -> Boolean
