@@ -6,21 +6,21 @@ const STRIP_WHITESPACE_REGEXP = /\s*/g
 const MATCHER_OBJ_STR_REGEXP = /[{}\s*]/g
 const ARGUMENT_OBJ_REGEXP = /[\[\]"\s*]/g
 
-// (Array[Any], Function(Any, Number, Array[Any]) -> Boolean) -> Boolean
+// ([Any], (Any, Number, [Any]) -> Boolean) -> Boolean
 const isIn = (xs, f) => -1 !== xs.findIndex(f)
 
 // (Function, Any) -> Boolean
 const isType = (type, val) => Object.prototype.toString.call(val) === `[object ${type}]`
 
 // String -> Boolean
-const isBooleanStr = str => (str === 'false') || (str === 'true')
+const isBooleanAsString = str => (str === 'false') || (str === 'true')
 
 // (String|Number, String|Number) -> Boolean
 const sortFn = (a, b) => a < b
 
 /** @example '{ y, x, }' -> 'x,y' */
 // String -> String
-const formatMatcherObjString = matcher => matcher
+const formatMatcherObjString = objMatcher => objMatcher
     .replace(MATCHER_OBJ_STR_REGEXP, '')
     .split(',')
     .filter(Boolean) // Removes empty strings caused by trailing commas
@@ -32,12 +32,12 @@ const formatMatcherObjString = matcher => matcher
 const formatArgumentObj = arg => JSON.stringify(Object.keys(arg).sort(sortFn)).replace(ARGUMENT_OBJ_REGEXP, '')
 
 // (String, Object) -> Boolean
-const hasIdenticalKeys = (matcher, arg) =>
-    formatMatcherObjString(matcher) === formatArgumentObj(arg)
+const hasIdenticalKeys = (objMatcher, arg) =>
+    formatMatcherObjString(objMatcher) === formatArgumentObj(arg)
 
 /** @todo, @throws {Error} Note: Keep the returned `matchers` in order with `token`, avoid re-using identifiers/names */
 /** @example '_, { x, y, }, abc, [ bar, foo, ]' -> ['_', '{ x, y, }', 'abc', '[ bar, foo, ]'] */
-// String -> Array[String]
+// String -> [String]
 const getMatchers = token => {
     const tkn = token.replace(STRIP_WHITESPACE_REGEXP, '')
     let mutableTkn = String(tkn)
@@ -55,12 +55,15 @@ const getMatchers = token => {
 }
 
 // TODO: Add support for `Any`
-// (Array[Function], Array[Any]) -> ()
+// ([Function], [Any]) -> ()
 const checkTypes = (types, args) => {
-    if (!isType('Array', types))                       throw new TypeError(`\`types\` must be an Array, instead is: ${typeof types}`)
-    else if (!types.every(t => isType('Function', t))) throw new TypeError('Every type in `types` must be a Function.')
-    else if (types.length !== args.length)             throw new Error('Number of types does not match number of arguments.')
-
+    if (!isType('Array', types)) {
+        throw new TypeError(`\`types\` must be an Array, instead is: ${typeof types}`)
+    } else if (!types.every(t => isType('Function', t))) {
+        throw new TypeError('Every type in `types` must be a Function.')
+    } else if (types.length !== args.length) {
+        throw new Error('Number of types does not match number of arguments.')
+    }
     // Throw error if every `args[i]` is not the same type as `types[i]` for the same `i`
     const errIdx = args.findIndex((arg, idx) => !isType(types[idx].name, arg))
     if (errIdx !== -1) throw new TypeError(`Type mismatch: Argument at index ${errIdx} should be of type ${types[errIdx].name}.`)
@@ -72,7 +75,7 @@ module.exports = {
     , REGEXP_MATCH_REGEXP
     , getMatchers
     , hasIdenticalKeys
-    , isBooleanStr
+    , isBooleanAsString
     , checkTypes
     , isIn
     , isType

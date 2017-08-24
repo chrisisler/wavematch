@@ -139,3 +139,4 @@ const myFunc = rematch({
 - Add support for function matching.
 - Add support for empty string matching, either way.
 - In index.js, provide better error messages by supplying `fn.name` to the `Error` call.
+- Replace `isIn` with `xs.some`, do not use `isIn`.
