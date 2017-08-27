@@ -157,3 +157,4 @@ const myFunc = rematch({
 - In index.js, provide better error messages by supplying `fn.name` to the `Error` call.
 - Replace `isIn` with `xs.some`, do not use `isIn`.
 - Update README to reflect new Object match info.
+- Use TypeScript.

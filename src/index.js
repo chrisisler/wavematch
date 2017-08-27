@@ -27,6 +27,7 @@ const isSimilarLength = (arrayMatcher, arg) =>
         ? arg.length > 0
         : arg.length === getArrayMatcherLength(arrayMatcher)
 
+// String -> [String]
 const getMatcherKeys = objMatcher => objMatcher
     .replace(/[}{\s]/g, '')
     .split(',')
@@ -50,51 +51,49 @@ const partition = (xs, pred) =>
  *     (C) '{x}'    (one or more named keys && zero unnamed keys)
  *     (D) '{_}'    (one or more unnamed keys && zero named keys)
  */
-// (String, [Any]) -> Boolean
+// (String, [Object]) -> Boolean
 const checkAllObjectCases = (matcher, args) => {
     const validMatcherKeys = getMatcherKeys(matcher).filter(k => k !== '...')
-    const [ unnamedKeys, namedKeys ] = partition(validMatcherKeys, s => s === '_')
+    const [ unnamedMatcherKeys, namedMatcherKeys ] = partition(validMatcherKeys, s => s === '_')
 
-    if (matcher.includes('...')) {
-        // Case (1)
-        if (unnamedKeys.length === 0 && namedKeys.length === 0) {
-            return true // No need to check if `args` includes an Object
-        }
+    // const [ unnamedObjKeys, namedObjKeys ] = partition(args.map(Object.keys), s => s === '_')
+    // console.log('unnamedObjKeys is:', unnamedObjKeys)
+    // console.log('namedObjKeys is:', namedObjKeys)
+    // console.log()
 
-        // Case (2)
-        else if (unnamedKeys.length !== 0 && namedKeys.length !== 0) {
+    if (validMatcherKeys.length === 0 && args.some(a => Object.keys(a).length === 0)) return true
+    else if (validMatcherKeys.length !== 0) {
+        const hasAllNamedKeys = namedMatcherKeys.every(nKey => args.some(a => Object.keys(a).includes(nKey)))
+        const hasAllUnnamedKeys = unnamedMatcherKeys.length <= args.some(a => Object.keys(a).filter(k => !namedMatcherKeys.includes(k)))
 
-        }
+        // const lengthCompatible = args.some(a => Object.keys(a).length >= validMatcherKeys.length)
+        const lengthCompatible = args.some(a => {
+            const [ unnamedArgKeys, namedArgKeys ] = partition(Object.keys(a), k => !namedMatcherKeys.includes(k))
+            console.log('unnamedArgKeys is:', unnamedArgKeys)
+            console.log('namedArgKeys is:', namedArgKeys)
+            return namedArgKeys.length >= namedMatcherKeys.length
+                && unnamedArgKeys.length >= unnamedMatcherKeys.length
+        })
 
-        // Case (3)
-        else if (namedKeys.length !== 0) {
-            const result = namedKeys.every(namedKey => args.some(a => Object.keys(a).includes(namedKey)))
-            return result
-        }
+        console.log('matcher is:', matcher)
+        console.log('unnamedMatcherKeys is:', unnamedMatcherKeys)
+        console.log('namedMatcherKeys is:', namedMatcherKeys)
+        console.log('hasAllNamedKeys is:', hasAllNamedKeys)
+        console.log('hasAllUnnamedKeys is:', hasAllUnnamedKeys)
+        console.log()
 
-        // Case (4)
-        else if (unnamedKeys.length !== 0) {
-        }
-    } else {
-        // Case (A)
-        if () {
-
-        }
-
-        // Case (B)
-        else if () {
-
-        }
-
-        // Case (C)
-        else if () {
-
-        }
-
-        // Case (D)
-        else if () {
-
-        }
+        return hasAllNamedKeys && hasAllUnnamedKeys && lengthCompatible
+    }
+    else if (namedMatcherKeys.length !== 0) {
+        const result = namedMatcherKeys.every(namedKey => args.some(a => Object.keys(a).includes(namedKey)))
+        return result
+    }
+    else if (unnamedMatcherKeys.length !== 0) {
+        const result = unnamedMatcherKeys.every(namedKey => args.some(a => Object.keys(a).includes(namedKey)))
+        return result
+    }
+    else {
+        console.log('else case')
     }
 }
 
@@ -103,7 +102,7 @@ const canMatchAnyArgs = (matcher, args) => {
     if (matcher === '_') return true // Skip underscore
 
     //todo: use Chips.disJoin to filter `args` by `isType`
-    const isBoolStr   = isBooleanAsString(matcher)
+    const isBoolStr   = isBooleanAsString(matcher) // True if `matcher` = 'false' or 'true'
     const matchObj    = OBJ_MATCH_REGEXP.exec(matcher) && args.some(a => isType('Object', a))
     const matchArr    = ARRAY_MATCH_REGEXP.exec(matcher)
     const matchRegExp = REGEXP_MATCH_REGEXP.exec(matcher)
@@ -112,9 +111,9 @@ const canMatchAnyArgs = (matcher, args) => {
     const matchBool   =  isBoolStr && args.includes(JSON.parse(matcher))
     const matchNull   = !isBoolStr && args.includes(null) && matcher === 'null'
     const matchUndef  = !isBoolStr && args.includes(void 0) && matcher === 'undefined'
-    // const matchFn     = !isBoolStr && // todo
+    const matchFn     = !isBoolStr && args.some(a => isType('Function', a))
 
-    if      (matchObj)    return checkAllObjectCases(matcher, args)
+    if      (matchObj)    return checkAllObjectCases(matcher, args.filter(a => isType('Object', a)))
     else if (matchArr)    return isIn(args, a => Array.isArray(a) && isSimilarLength(matchArr[0], a))
     else if (matchRegExp) return isIn(args, a => !isNullOrUndef(a) && new RegExp(matcher.replace(/\//g, '')).test(a))
     else if (matchBool)   return true
@@ -130,9 +129,12 @@ const extractResult = (valOrFn, args) => isType('Function', valOrFn) ? valOrFn(.
 
 // Object -> Function -> Any
 module.exports = exports = exports.default = pattern => (...args) => {
-    if ('types' in pattern) checkTypes(pattern.types, args)
+    if (!args.length) throw new Error('No arguments supplied.')
+    else if ('types' in pattern) checkTypes(pattern.types, args)
     const hasDefault = 'default' in pattern
-    const tokens = hasDefault === true ? Object.keys(pattern).filter(k => k !== 'default') : Object.keys(pattern)
+    const tokens = hasDefault
+        ? Object.keys(pattern).filter(k => k !== 'default')
+        : Object.keys(pattern)
     const token = tokens.find(token => {
         const matchers = getMatchers(token) // [String]
         if (matchers.length !== args.length) return false /** @see getMatchers */
@@ -140,6 +142,6 @@ module.exports = exports = exports.default = pattern => (...args) => {
         return matchers.every(m => canMatchAnyArgs(m, args))
     })
     if (token !== void 0) return extractResult(pattern[token], args)
-    else if (hasDefault === true) return extractResult(pattern.default, args)
+    else if (hasDefault) return extractResult(pattern.default, args)
     throw new Error('Non-exhaustive pattern, no matches found.')
 }

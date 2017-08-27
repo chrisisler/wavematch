@@ -4,6 +4,8 @@ const rematch = require('../src/index')
 describe('rematch', () => {
     const defaultStr = 'DEFAULTED'
 
+    // #5b9fbd
+    // #839496
     describe('works on arrays', () => {
         it('works with an empty array', () => {
             const resultString =  'i am a fixed string'
