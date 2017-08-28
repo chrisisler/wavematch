@@ -27,7 +27,7 @@ const isSimilarLength = (arrayMatcher, arg) =>
         : arg.length === getArrayMatcherLength(arrayMatcher)
 
 // String -> [String]
-const getMatcherKeys = objMatcher => objMatcher
+const getObjMatcherKeys = objMatcher => objMatcher
     .replace(/[}{\s]/g, '')
     .split(',')
     .filter(Boolean)
@@ -52,32 +52,38 @@ const partition = (xs, pred) =>
  */
 // (String, [Object]) -> Boolean
 const checkAllObjectCases = (matcher, args) => {
-    const validMatcherKeys = getMatcherKeys(matcher).filter(k => k !== '...')
-    const [ unnamedMatcherKeys, namedMatcherKeys ] = partition(validMatcherKeys, s => s === '_')
-    // console.log('unnamedMatcherKeys is:', unnamedMatcherKeys)
-    // console.log('namedMatcherKeys is:', namedMatcherKeys)
+    const keys = getObjMatcherKeys(matcher).filter(k => k !== '...')
+    const [ unnamedKeys, namedKeys ] = partition(keys, s => s === '_')
 
-    if (!validMatcherKeys.length && args.some(a => Object.keys(a).length === 0)) return true
-    else if (unnamedMatcherKeys.length && namedMatcherKeys.length) {
-        const someObjHasAllDesiredNamedKeys = namedMatcherKeys.every(nKey => args.some(a => Object.keys(a).includes(nKey)))
-        const someObjHasAllDesiredUnnamedKeys =
-            args.some(a => unnamedMatcherKeys.length <= Object.keys(a).filter(k => !namedMatcherKeys.includes(k)).length)
-        return someObjHasAllDesiredNamedKeys && someObjHasAllDesiredUnnamedKeys
-    }
-    else if (namedMatcherKeys.length) {
-        // console.log('namedMatcherKeys is:', namedMatcherKeys)
+    // (Any -> Boolean) -> Boolean
+    const someArgKeys = predicate => args.some(a => predicate(Object.keys(a)))
+
+    const zeroKeys = !namedKeys.length && !unnamedKeys.length && someArgKeys(ks => !ks.length)
+    if (zeroKeys) {
+        // console.log('a')
+        return true
+    } else if (unnamedKeys.length && namedKeys.length) {
+        const someObjHasAllDesiredNamedKeys = namedKeys.every(k => someArgKeys(ks => ks.includes(k) && ks.length >= namedKeys.length))
+        // const someObjHasAllDesiredUnnamedKeys = unnamedKeys.every(k => someArgKeys(ks => ks.includes(k) && ks.length >= unnamedKeys.length))
+        const someObjHasAllDesiredUnnamedKeys = someArgKeys(ks => unnamedKeys.length <= ks.filter(k => !namedKeys.includes(k)).length) // ?
+
+        // console.log('keys is:', keys)
         // console.log('Object.keys(args[0]) is:', Object.keys(args[0]))
-        args.some(a => {
-            const [ unnamedArgKeys, namedArgKeys ] = partition(Object.keys(a), k => !namedMatcherKeys.includes(k))
-            // return namedMatcherKeys.every(namedKey => ) //todo
-        })
-        return namedMatcherKeys.every(nKey => args.some(a => Object.keys(a).includes(nKey)))
-    }
-    else if (unnamedMatcherKeys.length) {
-        return args.some(a => unnamedMatcherKeys.length <= Object.keys(a).filter(k => !namedMatcherKeys.includes(k)).length)
-    }
-    else {
-        // console.log('else case')
+        // console.log('someObjHasAllDesiredNamedKeys is:', someObjHasAllDesiredNamedKeys)
+        // console.log('someObjHasAllDesiredUnnamedKeys is:', someObjHasAllDesiredUnnamedKeys)
+        // console.log()
+
+        return someObjHasAllDesiredNamedKeys && someObjHasAllDesiredUnnamedKeys
+
+        // const someObjHasAllDesiredUnnamedKeys = someArgKeys(ks => unnamedKeys.length <= ks.filter(k => !namedKeys.includes(k)).length) // ?
+    } else if (namedKeys.length) {
+        // console.log('c')
+        return namedKeys.every(k => someArgKeys(ks => ks.includes(k) && ks.length >= namedKeys.length))
+    } else if (unnamedKeys.length) {
+        // console.log('d')
+        return unnamedKeys.every(k => someArgKeys(ks => ks.includes(k) && ks.length >= unnamedKeys.length))
+    } else {
+        // console.log('e')
     }
 }
 
@@ -88,8 +94,8 @@ const canMatchAnyArgs = (matcher, args) => {
     //todo: use Chips.disJoin to filter `args` by `isType`
     const isBoolStr   = isBooleanAsString(matcher) // True if `matcher` = 'false' or 'true'
     const matchObj    = OBJ_MATCH_REGEXP.exec(matcher) && args.some(a => isType('Object', a))
-    const matchArr    = ARRAY_MATCH_REGEXP.exec(matcher)
-    const matchRegExp = REGEXP_MATCH_REGEXP.exec(matcher)
+    const matchArr    = ARRAY_MATCH_REGEXP.exec(matcher) && args.some(a => isType('Array', a))
+    const matchRegExp = REGEXP_MATCH_REGEXP.exec(matcher) && args.some(a => isType('RegExp', a))
     const matchStr    = !isBoolStr && args.includes(matcher)
     const matchNum    = !isBoolStr && args.includes(Number(matcher))
     const matchBool   =  isBoolStr && args.includes(JSON.parse(matcher))
@@ -104,7 +110,7 @@ const canMatchAnyArgs = (matcher, args) => {
     else if (matchNum)    return true
     else if (matchNull)   return true
     else if (matchUndef)  return true
-    else if (matchStr)    return true
+    else if (matchStr)    return true //todo: allow spaces in single/double-quote delimited strings
     return false
 }
 

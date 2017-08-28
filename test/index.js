@@ -1,20 +1,18 @@
 const assert = require('assert')
-const rematch = require('../src/index')
+const wavematch = require('../src/index')
 
-describe('rematch', () => {
+describe('wavematch', () => {
     const defaultStr = 'DEFAULTED'
 
-    // #5b9fbd
-    // #839496
     describe('works on arrays', () => {
         it('works with an empty array', () => {
             const resultString =  'i am a fixed string'
-            const fn = rematch({ '[]': () => resultString })
+            const fn = wavematch({ '[]': () => resultString })
             assert.strictEqual(fn([]), resultString)
         })
 
         it('works with an array of specified length', () => {
-            const one = rematch({
+            const one = wavematch({
                 '[ foo ]': () => 'just one item'
                 , default: () => defaultStr
             })
@@ -23,7 +21,7 @@ describe('rematch', () => {
             assert.strictEqual(one([1, 2, ]), defaultStr)
             assert.strictEqual(one([1, 2, 3, 4, 5]), defaultStr)
 
-            const two = rematch({
+            const two = wavematch({
                 '[ foo, bar ]': () => 'two items now'
                 , default: () => defaultStr
             })
@@ -33,7 +31,7 @@ describe('rematch', () => {
         })
 
         it('works with an array of non-zero length', () => {
-            const anyLen = rematch({
+            const anyLen = wavematch({
                 '[...]': () => 'this rocks'
                 , default: () => defaultStr
             })
@@ -48,7 +46,7 @@ describe('rematch', () => {
         })
 
         it('does not work with null or undefined (on purpose)', () => {
-            const fn = rematch({
+            const fn = wavematch({
                 '[]': () => 'zero'
                 , '[x]': () => 'one'
                 , '[x,y]': () => 'two'
@@ -61,39 +59,39 @@ describe('rematch', () => {
 
     describe('matches booleans', () => {
         it('works with one parameter', () => {
-            const fn = rematch({ false: () => 'sandwich' })
+            const fn = wavematch({ false: () => 'sandwich' })
             assert.strictEqual(fn(false), 'sandwich')
 
-            const fn2 = rematch({ true: () => 'foobar' })
+            const fn2 = wavematch({ true: () => 'foobar' })
             assert.strictEqual(fn2(true), 'foobar')
 
-            const trailComma = rematch({ 'false,': () => 'sandwich' })
+            const trailComma = wavematch({ 'false,': () => 'sandwich' })
             assert.strictEqual(trailComma(false), 'sandwich')
         })
 
         it('works with two parameters', () => {
-            const ff = rematch({ 'false, false': () => 'double false' })
+            const ff = wavematch({ 'false, false': () => 'double false' })
             assert.strictEqual(ff(false, false), 'double false')
 
-            const tt = rematch({ 'true, true': () => 'double true' })
+            const tt = wavematch({ 'true, true': () => 'double true' })
             assert.strictEqual(tt(true, true), 'double true')
 
-            const tf = rematch({ 'true, false': () => 'mixed, true first' })
+            const tf = wavematch({ 'true, false': () => 'mixed, true first' })
             assert.strictEqual(tf(true, false), 'mixed, true first')
 
-            const ftTrailComma = rematch({ 'false, true,': () => 'mixed, false first' })
+            const ftTrailComma = wavematch({ 'false, true,': () => 'mixed, false first' })
             assert.strictEqual(ftTrailComma(false, true), 'mixed, false first')
         })
 
         it('works with default', () => {
-            const fn = rematch({
+            const fn = wavematch({
                 'false': () => 'sandwich'
                 , default: () => 'DEFAULTED ONE'
             })
             assert.strictEqual(fn(false), 'sandwich')
             assert.strictEqual(fn(true), 'DEFAULTED ONE')
 
-            const trailComma = rematch({
+            const trailComma = wavematch({
                 'false, true,': () => 'mixed, false first'
                 , default: () => 'DEFAULTED TWO'
             })
@@ -104,27 +102,27 @@ describe('rematch', () => {
 
     describe('works on strings', () => {
         it('works with one parameter', () => {
-            const strMatch = rematch({ foo: () => 'its a string' })
+            const strMatch = wavematch({ foo: () => 'its a string' })
             assert.strictEqual(strMatch('foo'), 'its a string')
 
-            const trailComma = rematch({ 'foo,': () => 'still a string' })
+            const trailComma = wavematch({ 'foo,': () => 'still a string' })
             assert.strictEqual(trailComma('foo'), 'still a string')
         })
 
         it('works with two parameters', () => {
-            const strMatch = rematch({ 'foo, bar': () => 'its two strings' })
+            const strMatch = wavematch({ 'foo, bar': () => 'its two strings' })
             assert.strictEqual(strMatch('foo', 'bar'), 'its two strings')
 
-            const trailComma = rematch({ 'foo, bar,': () => 'still two strings' })
+            const trailComma = wavematch({ 'foo, bar,': () => 'still two strings' })
             assert.strictEqual(trailComma('foo', 'bar'), 'still two strings')
         })
 
         it('is independent of parameter order', () => {
-            const arityTwo = rematch({ 'a, b': () => 'arity of two' })
+            const arityTwo = wavematch({ 'a, b': () => 'arity of two' })
             assert.strictEqual(arityTwo('a', 'b'), 'arity of two')
             assert.strictEqual(arityTwo('b', 'a'), 'arity of two')
 
-            const arityThree = rematch({ 'a, b, c': () => 'arity of three' })
+            const arityThree = wavematch({ 'a, b, c': () => 'arity of three' })
             assert.strictEqual(arityThree('a', 'b', 'c'), 'arity of three')
             assert.strictEqual(arityThree('a', 'c', 'b'), 'arity of three')
             assert.strictEqual(arityThree('b', 'a', 'c'), 'arity of three')
@@ -134,7 +132,7 @@ describe('rematch', () => {
         })
 
         it('works with default', () => {
-            const fn = rematch({
+            const fn = wavematch({
                 'foo, bar': () => 'hello'
                 , default: () => defaultStr
             })
@@ -144,7 +142,7 @@ describe('rematch', () => {
         })
 
         it('does not work with null or undefined (on purpose)', () => {
-            const fn = rematch({
+            const fn = wavematch({
                 'foo': () => 'zero'
                 , default: () => defaultStr
             })
@@ -155,7 +153,7 @@ describe('rematch', () => {
 
     describe('works recursively (kind of)', () => {
         it('for factorial function', () => {
-            const factorial = rematch({
+            const factorial = wavematch({
                 0: () => 1
                 , default: (n) => n * factorial(n - 1)
             })
@@ -170,7 +168,7 @@ describe('rematch', () => {
         //     const ages = [ 32, 28 ]
 
         //     //todo: make this work
-        //     const zipWith = rematch({
+        //     const zipWith = wavematch({
         //         '_, [], _': () => []
         //         , '_, _, []': () => []
         //         , 'fn, xs, ys': (f, [x, ...xs], [y, ...ys]) => [f(x, y), ...zipWith(f, xs, ys)]
@@ -186,7 +184,7 @@ describe('rematch', () => {
     //todo
     describe('works on numbers', () => {
         it('does not work with null or undefined (on purpose)', () => {
-            const fn = rematch({
+            const fn = wavematch({
                 '0': () => 'zero'
                 , '1': () => 'one'
                 , default: () => defaultStr

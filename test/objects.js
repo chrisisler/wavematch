@@ -45,7 +45,7 @@ describe.only('matches objects', () => {
             assert.strictEqual(bothFixedLengthKeys({ z: 1, foo: 1 }), fallback)
         })
 
-        it.only('N named keys && zero unnamed keys', () => {
+        it('N named keys && zero unnamed keys', () => {
             const x = 'x'
             const xy = 'xy'
             const xyz = 'xyz'
@@ -55,56 +55,56 @@ describe.only('matches objects', () => {
                 , '{ x, y, z }': xyz
                 , default: fallback
             })
-            // assert.strictEqual(namedFixedLengthKeys({ x: 1 }), x)
+
+            assert.strictEqual(namedFixedLengthKeys({ x: 1 }), x)
             assert.strictEqual(namedFixedLengthKeys({ x: 1, y: 1 }), xy)
-            // assert.strictEqual(namedFixedLengthKeys({ x: 1, y: 1, z: 1 }), xyz)
+            assert.strictEqual(namedFixedLengthKeys({ x: 1, y: 1, z: 1 }), xyz)
 
-            // assert.strictEqual(namedFixedLengthKeys({}), fallback)
-            // assert.strictEqual(namedFixedLengthKeys({ z: 1 }), fallback)
-            // assert.strictEqual(namedFixedLengthKeys({ y: 1 }), fallback)
-            // assert.strictEqual(namedFixedLengthKeys({ y: 1, z: 1 }), fallback)
-            
+            assert.strictEqual(namedFixedLengthKeys({}), fallback)
+            assert.strictEqual(namedFixedLengthKeys({ z: 1 }), fallback)
+            assert.strictEqual(namedFixedLengthKeys({ y: 1 }), fallback)
+            assert.strictEqual(namedFixedLengthKeys({ y: 1, z: 1 }), fallback)
         })
 
-        it('zero named keys && N unnamed keys', () => {
-            const unnamedFixedLengthKeys = wavematch({
-                '{ _ }': 'one'
-                , '{ _, _ }': 'two'
-                , '{ _, _, _ }': 'three'
-                , default: fallback
-            })
+        // it('zero named keys && N unnamed keys', () => {
+        //     const unnamedFixedLengthKeys = wavematch({
+        //         '{ _ }': 'one'
+        //         , '{ _, _ }': 'two'
+        //         , '{ _, _, _ }': 'three'
+        //         , default: fallback
+        //     })
 
-            assert.strictEqual(unnamedFixedLengthKeys({ x: 1 }), 'one')
-            assert.strictEqual(unnamedFixedLengthKeys({ x: 1, y: 1 }), 'two, y')
-            assert.strictEqual(unnamedFixedLengthKeys({ x: 1, y: 1, z: 1 }), 'three, y, z')
+        //     assert.strictEqual(unnamedFixedLengthKeys({ x: 1 }), 'one')
+        //     assert.strictEqual(unnamedFixedLengthKeys({ x: 1, y: 1 }), 'two, y')
+        //     assert.strictEqual(unnamedFixedLengthKeys({ x: 1, y: 1, z: 1 }), 'three, y, z')
 
-            assert.strictEqual(unnamedFixedLengthKeys({}), fallback)
-            assert.strictEqual(unnamedFixedLengthKeys({ a: 1, b: 2, c: 3, d: 4 }), fallback)
-        })
+        //     assert.strictEqual(unnamedFixedLengthKeys({}), fallback)
+        //     assert.strictEqual(unnamedFixedLengthKeys({ a: 1, b: 2, c: 3, d: 4 }), fallback)
+        // })
     })
 
-    describe('with "..."', () => {
-        it('zero named keys && zero unnamed keys', () => {
-            //test if each desired key matches the input obj
-            const bothZeroKeys = wavematch({
-                '{...}': 'neither'
-                , '   {   ...    }   ': 'neither'
-                , default: fallback
-            })
-            assert.strictEqual(bothZeroKeys({}), 'neither')
+    // describe('with "..."', () => {
+    //     it('zero named keys && zero unnamed keys', () => {
+    //         //test if each desired key matches the input obj
+    //         const bothZeroKeys = wavematch({
+    //             '{...}': 'neither'
+    //             , '   {   ...    }   ': 'neither'
+    //             , default: fallback
+    //         })
+    //         assert.strictEqual(bothZeroKeys({}), 'neither')
 
-            assert.strictEqual(bothZeroKeys({}), fallback)
-        })
-        it('at least N named keys && at least N unnamed keys', () => {
+    //         assert.strictEqual(bothZeroKeys({}), fallback)
+    //     })
+    //     it('at least N named keys && at least N unnamed keys', () => {
             
-        })
-        it('at least N named keys && zero unnamed keys', () => {
+    //     })
+    //     it('at least N named keys && zero unnamed keys', () => {
             
-        })
-        it('zero named keys && at least N unnamed keys', () => {
+    //     })
+    //     it('zero named keys && at least N unnamed keys', () => {
             
-        })
-    })
+    //     })
+    // })
 })
 
 function otherTests() {
