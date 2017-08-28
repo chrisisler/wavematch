@@ -52,7 +52,8 @@ const partition = (xs, pred) =>
  */
 // (String, [Object]) -> Boolean
 const checkAllObjectCases = (matcher, args) => {
-    const keys = getObjMatcherKeys(matcher).filter(k => k !== '...')
+    if (!args.length) return false
+    const keys = getObjMatcherKeys(matcher).filter(s => s !== '...')
     const [ unnamedKeys, namedKeys ] = partition(keys, s => s === '_')
 
     // (Any -> Boolean) -> Boolean
@@ -63,25 +64,27 @@ const checkAllObjectCases = (matcher, args) => {
         // console.log('a')
         return true
     } else if (unnamedKeys.length && namedKeys.length) {
-        const someObjHasAllDesiredNamedKeys = namedKeys.every(k => someArgKeys(ks => ks.includes(k) && ks.length >= namedKeys.length))
-        // const someObjHasAllDesiredUnnamedKeys = unnamedKeys.every(k => someArgKeys(ks => ks.includes(k) && ks.length >= unnamedKeys.length))
-        const someObjHasAllDesiredUnnamedKeys = someArgKeys(ks => unnamedKeys.length <= ks.filter(k => !namedKeys.includes(k)).length) // ?
+        // console.log('b')
+        const someArgObjHasEveryNamedKey = namedKeys.every(k => someArgKeys(ks => ks.includes(k) && ks.length >= namedKeys.length))
+        const someArgObjHasEveryUnnamedKey = someArgKeys(ks => unnamedKeys.length <= ks.filter(k => !namedKeys.includes(k)).length)
+        return someArgObjHasEveryNamedKey && someArgObjHasEveryUnnamedKey
+    } else if (namedKeys.length) {
+        // console.log('c')
 
         // console.log('keys is:', keys)
         // console.log('Object.keys(args[0]) is:', Object.keys(args[0]))
-        // console.log('someObjHasAllDesiredNamedKeys is:', someObjHasAllDesiredNamedKeys)
-        // console.log('someObjHasAllDesiredUnnamedKeys is:', someObjHasAllDesiredUnnamedKeys)
+        // console.log('someArgObjHasEveryNamedKey is:', someArgObjHasEveryNamedKey)
+        // console.log('someArgObjHasEveryUnnamedKey is:', someArgObjHasEveryUnnamedKey)
         // console.log()
 
-        return someObjHasAllDesiredNamedKeys && someObjHasAllDesiredUnnamedKeys
-
-        // const someObjHasAllDesiredUnnamedKeys = someArgKeys(ks => unnamedKeys.length <= ks.filter(k => !namedKeys.includes(k)).length) // ?
-    } else if (namedKeys.length) {
-        // console.log('c')
-        return namedKeys.every(k => someArgKeys(ks => ks.includes(k) && ks.length >= namedKeys.length))
+        return matcher.includes('...')
+            ? namedKeys.every(k => someArgKeys(ks => ks.includes(k) && ks.length >= namedKeys.length))
+            : namedKeys.every(k => someArgKeys(ks => ks.includes(k) && ks.length === namedKeys.length))
     } else if (unnamedKeys.length) {
         // console.log('d')
-        return unnamedKeys.every(k => someArgKeys(ks => ks.includes(k) && ks.length >= unnamedKeys.length))
+        return matcher.includes('...')
+            ? someArgKeys(ks => unnamedKeys.length <= ks.filter(k => !namedKeys.includes(k)).length)
+            : someArgKeys(ks => unnamedKeys.length === ks.filter(k => !namedKeys.includes(k)).length)
     } else {
         // console.log('e')
     }
