@@ -1,13 +1,13 @@
 {
-  "name": "rematch",
+  "name": "wavematch",
   "es6": true,
   "version": "0.0.1",
-  "description": "Powerful JavaScript pattern matching.",
+  "description": "JS pattern matching",
   "main": "index.js",
   "scripts": {
       "test": "mocha"
   },
-  "repository": "git@github.com:chrisisler/rematch.git",
+  "repository": "git@github.com:chrisisler/wavematch.git",
   "author": "chrisisler <christopherisler1@gmail.com>",
   "license": "MIT",
   "dependencies": {},
