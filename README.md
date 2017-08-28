@@ -151,7 +151,6 @@ const myFunc = rematch({
 - Add support for an `Any` type, in `pattern.types` (is this a good idea?).
 - Add support for at least N obj/arr
 - Add support for recursive functions like `zipWith`.
-- Add support for empty objects.
 - Add support for function matching.
 - Add support for empty string matching, either way.
 - In index.js, provide better error messages by supplying `fn.name` to the `Error` call.

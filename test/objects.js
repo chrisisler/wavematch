@@ -20,48 +20,49 @@ describe.only('matches objects', () => {
             assert.strictEqual(noKeys({ someKey: 1 , other: 1 }), fallback)
         })
 
-        it.only('N named keys && N unnamed keys', () => {
+        it('N named keys && N unnamed keys', () => {
             const namedXYAndUnnamedKey = 'named x and y keys, unnamed key'
             const namedXAndUnnamedKey = 'named key: x, unnamed key'
             const namedZAndTwoUnnamedKeys = 'named key: z, two unnamed keys'
 
             const bothFixedLengthKeys = wavematch({
-                // '{ x, y, _, }': namedXYAndUnnamedKey
-                // , '{ x, _ }': namedXAndUnnamedKey
-                '{ z, _, _ }': namedZAndTwoUnnamedKeys
+                '{ x, y, _, }': namedXYAndUnnamedKey
+                , '{ x, _ }': namedXAndUnnamedKey
+                , '{ z, _, _ }': namedZAndTwoUnnamedKeys
                 , default: fallback
             })
 
-            // assert.strictEqual(bothFixedLengthKeys({ x: 1, foo: 1 }), namedXAndUnnamedKey)
-            // assert.strictEqual(bothFixedLengthKeys({ x: 1, y: 1 }), namedXAndUnnamedKey)
-            // assert.strictEqual(bothFixedLengthKeys({ x: 1, y: 1, foo: 1 }), namedXYAndUnnamedKey)
+            assert.strictEqual(bothFixedLengthKeys({ x: 1, foo: 1 }), namedXAndUnnamedKey)
+            assert.strictEqual(bothFixedLengthKeys({ x: 1, y: 1 }), namedXAndUnnamedKey)
+            assert.strictEqual(bothFixedLengthKeys({ x: 1, y: 1, foo: 1 }), namedXYAndUnnamedKey)
             assert.strictEqual(bothFixedLengthKeys({ z: 1, bar: 1, foo: 1 }), namedZAndTwoUnnamedKeys)
 
             // works
-            // assert.strictEqual(bothFixedLengthKeys({}), fallback)
-            // assert.strictEqual(bothFixedLengthKeys({ foo: 1 }), fallback)
-            // assert.strictEqual(bothFixedLengthKeys({ bar: 1 }), fallback)
-
-            // does NOT work
-            // assert.strictEqual(bothFixedLengthKeys({ x: 1 }), fallback)
-            // assert.strictEqual(bothFixedLengthKeys({ z: 1, foo: 1 }), fallback)
+            assert.strictEqual(bothFixedLengthKeys({}), fallback)
+            assert.strictEqual(bothFixedLengthKeys({ foo: 1 }), fallback)
+            assert.strictEqual(bothFixedLengthKeys({ bar: 1 }), fallback)
+            assert.strictEqual(bothFixedLengthKeys({ x: 1 }), fallback)
+            assert.strictEqual(bothFixedLengthKeys({ z: 1, foo: 1 }), fallback)
         })
 
-        it('N named keys && zero unnamed keys', () => {
+        it.only('N named keys && zero unnamed keys', () => {
+            const x = 'x'
+            const xy = 'xy'
+            const xyz = 'xyz'
             const namedFixedLengthKeys = wavematch({
-                '{ x }': 'x'
-                , '{ x, y, }': 'x, y'
-                , '{ x, y, z }': 'x, y, z'
+                '{ x }': x
+                , '{ x, y, }': xy
+                , '{ x, y, z }': xyz
                 , default: fallback
             })
-            assert.strictEqual(namedFixedLengthKeys({ x: 1 }), 'x')
-            assert.strictEqual(namedFixedLengthKeys({ x: 1, y: 1 }), 'x, y')
-            assert.strictEqual(namedFixedLengthKeys({ x: 1, y: 1, z: 1 }), 'x, y, z')
+            // assert.strictEqual(namedFixedLengthKeys({ x: 1 }), x)
+            assert.strictEqual(namedFixedLengthKeys({ x: 1, y: 1 }), xy)
+            // assert.strictEqual(namedFixedLengthKeys({ x: 1, y: 1, z: 1 }), xyz)
 
-            assert.strictEqual(namedFixedLengthKeys({}), fallback)
-            assert.strictEqual(namedFixedLengthKeys({ z: 1 }), fallback)
-            assert.strictEqual(namedFixedLengthKeys({ y: 1 }), fallback)
-            assert.strictEqual(namedFixedLengthKeys({ y: 1, z: 1 }), fallback)
+            // assert.strictEqual(namedFixedLengthKeys({}), fallback)
+            // assert.strictEqual(namedFixedLengthKeys({ z: 1 }), fallback)
+            // assert.strictEqual(namedFixedLengthKeys({ y: 1 }), fallback)
+            // assert.strictEqual(namedFixedLengthKeys({ y: 1, z: 1 }), fallback)
             
         })
 

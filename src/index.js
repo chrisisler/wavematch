@@ -6,7 +6,6 @@ const {
     , getMatchers
     , isBooleanAsString
     , checkTypes
-    , isIn
     , isType
 } = require('./util')
 
@@ -55,45 +54,30 @@ const partition = (xs, pred) =>
 const checkAllObjectCases = (matcher, args) => {
     const validMatcherKeys = getMatcherKeys(matcher).filter(k => k !== '...')
     const [ unnamedMatcherKeys, namedMatcherKeys ] = partition(validMatcherKeys, s => s === '_')
+    // console.log('unnamedMatcherKeys is:', unnamedMatcherKeys)
+    // console.log('namedMatcherKeys is:', namedMatcherKeys)
 
-    // const [ unnamedObjKeys, namedObjKeys ] = partition(args.map(Object.keys), s => s === '_')
-    // console.log('unnamedObjKeys is:', unnamedObjKeys)
-    // console.log('namedObjKeys is:', namedObjKeys)
-    // console.log()
-
-    if (validMatcherKeys.length === 0 && args.some(a => Object.keys(a).length === 0)) return true
-    else if (validMatcherKeys.length !== 0) {
-        const hasAllNamedKeys = namedMatcherKeys.every(nKey => args.some(a => Object.keys(a).includes(nKey)))
-        const hasAllUnnamedKeys = unnamedMatcherKeys.length <= args.some(a => Object.keys(a).filter(k => !namedMatcherKeys.includes(k)))
-
-        // const lengthCompatible = args.some(a => Object.keys(a).length >= validMatcherKeys.length)
-        const lengthCompatible = args.some(a => {
+    if (!validMatcherKeys.length && args.some(a => Object.keys(a).length === 0)) return true
+    else if (unnamedMatcherKeys.length && namedMatcherKeys.length) {
+        const someObjHasAllDesiredNamedKeys = namedMatcherKeys.every(nKey => args.some(a => Object.keys(a).includes(nKey)))
+        const someObjHasAllDesiredUnnamedKeys =
+            args.some(a => unnamedMatcherKeys.length <= Object.keys(a).filter(k => !namedMatcherKeys.includes(k)).length)
+        return someObjHasAllDesiredNamedKeys && someObjHasAllDesiredUnnamedKeys
+    }
+    else if (namedMatcherKeys.length) {
+        // console.log('namedMatcherKeys is:', namedMatcherKeys)
+        // console.log('Object.keys(args[0]) is:', Object.keys(args[0]))
+        args.some(a => {
             const [ unnamedArgKeys, namedArgKeys ] = partition(Object.keys(a), k => !namedMatcherKeys.includes(k))
-            console.log('unnamedArgKeys is:', unnamedArgKeys)
-            console.log('namedArgKeys is:', namedArgKeys)
-            return namedArgKeys.length >= namedMatcherKeys.length
-                && unnamedArgKeys.length >= unnamedMatcherKeys.length
+            // return namedMatcherKeys.every(namedKey => ) //todo
         })
-
-        console.log('matcher is:', matcher)
-        console.log('unnamedMatcherKeys is:', unnamedMatcherKeys)
-        console.log('namedMatcherKeys is:', namedMatcherKeys)
-        console.log('hasAllNamedKeys is:', hasAllNamedKeys)
-        console.log('hasAllUnnamedKeys is:', hasAllUnnamedKeys)
-        console.log()
-
-        return hasAllNamedKeys && hasAllUnnamedKeys && lengthCompatible
+        return namedMatcherKeys.every(nKey => args.some(a => Object.keys(a).includes(nKey)))
     }
-    else if (namedMatcherKeys.length !== 0) {
-        const result = namedMatcherKeys.every(namedKey => args.some(a => Object.keys(a).includes(namedKey)))
-        return result
-    }
-    else if (unnamedMatcherKeys.length !== 0) {
-        const result = unnamedMatcherKeys.every(namedKey => args.some(a => Object.keys(a).includes(namedKey)))
-        return result
+    else if (unnamedMatcherKeys.length) {
+        return args.some(a => unnamedMatcherKeys.length <= Object.keys(a).filter(k => !namedMatcherKeys.includes(k)).length)
     }
     else {
-        console.log('else case')
+        // console.log('else case')
     }
 }
 
@@ -114,8 +98,8 @@ const canMatchAnyArgs = (matcher, args) => {
     const matchFn     = !isBoolStr && args.some(a => isType('Function', a))
 
     if      (matchObj)    return checkAllObjectCases(matcher, args.filter(a => isType('Object', a)))
-    else if (matchArr)    return isIn(args, a => Array.isArray(a) && isSimilarLength(matchArr[0], a))
-    else if (matchRegExp) return isIn(args, a => !isNullOrUndef(a) && new RegExp(matcher.replace(/\//g, '')).test(a))
+    else if (matchArr)    return args.some(a => Array.isArray(a) && isSimilarLength(matchArr[0], a))
+    else if (matchRegExp) return args.some(a => !isNullOrUndef(a) && new RegExp(matcher.replace(/\//g, '')).test(a))
     else if (matchBool)   return true
     else if (matchNum)    return true
     else if (matchNull)   return true

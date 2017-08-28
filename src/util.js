@@ -6,9 +6,6 @@ const STRIP_WHITESPACE_REGEXP = /\s*/g
 const MATCHER_OBJ_STR_REGEXP = /[{}\s*]/g
 const ARGUMENT_OBJ_REGEXP = /[\[\]"\s*]/g
 
-// ([Any], (Any, Number, [Any]) -> Boolean) -> Boolean
-const isIn = (xs, f) => -1 !== xs.findIndex(f)
-
 // (Function, Any) -> Boolean
 const isType = (type, val) => Object.prototype.toString.call(val) === `[object ${type}]`
 
@@ -77,6 +74,5 @@ module.exports = {
     , hasIdenticalKeys
     , isBooleanAsString
     , checkTypes
-    , isIn
     , isType
 }
