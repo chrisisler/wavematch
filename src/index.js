@@ -61,6 +61,27 @@ const checkAllObjectCases = (objMatcher, args, tokens) => {
     const [ unnamed, named ] = partition(keys, s => s === '_')
     const argsKeys = args.map(Object.keys) // [[Strings]]
 
+    // Impure function, uses `sortFn`.
+    // If arg keys are length N, return true if there are some arbitrary keys of that same length.
+    // (Boolean, [String], [String], [[String]]) -> Boolean
+    const fn = (isUnnamedKeyType, matcherKeys, argsKeys, tokens) => {
+        // For dynamically extracting the desired type of keys (named vs. unnamed) from each token in `tokens`. (impure func)
+        const isDesiredKeyType = s => (isUnnamedKeyType === true) ? (s === '_') : (s !== '_') // String -> Boolean
+
+        const compatibleMatchersKeys = tokens.reduce((acc, token) => { // [[String]]
+            const _keys = getObjMatcherKeys(token).filter(s => s !== '...' && isDesiredKeyType(s))
+            const tokenIsCompatible = (isUnnamedKeyType === true)
+                ? argsKeys.some(argKeys => _keys.length <= argKeys.filter(argKey => !named.includes(argKey)).length)
+                : argsKeys.some(argKeys => _keys.length <= argKeys.length && _keys.every(mKey => argKeys.includes(mKey)))
+            return tokenIsCompatible === true ? acc.concat([_keys]) : acc // map and filter simultaneously
+        }, [])
+
+        if (compatibleMatchersKeys.length === 1) return true
+
+        const [ mostSpecificTokensKeys ] = compatibleMatchersKeys.sort(sortFn) // Get the largest sized array
+        return isEqualStringArrays(mostSpecificTokensKeys, matcherKeys)
+    }
+
     const zeroKeys = !named.length && !unnamed.length && argsKeys.some(argsKeys => !argsKeys.length) && objMatcher === '{}'
     const zeroOrGreedyKeys = isGreedy === true && !(named.length !== 0 || unnamed.length !== 0)
     if (zeroKeys === true || zeroOrGreedyKeys === true) {
@@ -72,39 +93,19 @@ const checkAllObjectCases = (objMatcher, args, tokens) => {
     } else if (named.length) {
         // If greedy matching ('...'), match as many keys as possible for each obj in `args`.
         if (isGreedy === true) {
-            const arrayOfCompatibleNamedKeys = tokens.reduce((acc, token) => {
-                const _named = getObjMatcherKeys(token).filter(s => s !== '...' && s !== '_')
-                const compatible = _named.every(name => argsKeys.some(argKeys => argKeys.includes(name) && argKeys.length >= _named.length))
-                return compatible === true ? acc.concat([_named]) : acc // map and filter simultaneously
-            }, []) // [[String]]
-
-            if (arrayOfCompatibleNamedKeys.length === 1) return true
-
-            const [ mostSpecificNamedKeys ] = arrayOfCompatibleNamedKeys.sort(sortFn) // Get the largest sized array
-            return isEqualStringArrays(mostSpecificNamedKeys, named)
+            return fn(false, named, argsKeys, tokens)
         }
         return named.every(k => argsKeys.some(argKeys => argKeys.includes(k) && argKeys.length === named.length))
     } else if (unnamed.length) {
-        // If arg keys are length N, return true if there are some unnamed keys of the same length
 
+        // If greedy matching ('...'), match as many keys as possible for each obj in `args`.
         if (isGreedy === true) {
-            const arrayOfCompatibleUnnamedKeys = tokens.reduce((acc, token) => {
-                const _unnamed = getObjMatcherKeys(token).filter(s => s !== '...' && s === '_')
-                const compatible = argsKeys.some(argKeys => _unnamed.length <= argKeys.filter(argKey => !named.includes(argKey)).length)
-                return compatible === true ? acc.concat([_unnamed]) : acc // map and filter simultaneously
-            }, []) // [[String]]
-
-            if (arrayOfCompatibleUnnamedKeys.length === 1) return true
-
-            const [ mostSpecificUnnamedKeys ] = arrayOfCompatibleUnnamedKeys.sort(sortFn) // Get the largest sized array
-            return isEqualStringArrays(mostSpecificUnnamedKeys, unnamed)
+            return fn(true, unnamed, argsKeys, tokens)
         }
         return argsKeys.some(argKeys => unnamed.length === argKeys.filter(k => !named.includes(k)).length)
-
-        // return isGreedy === true
-        //     ? argsKeys.some(argKeys => unnamed.length <= argKeys.filter(k => !named.includes(k)).length)
-        //     : argsKeys.some(argKeys => unnamed.length === argKeys.filter(k => !named.includes(k)).length)
     }
+
+
     throw new Error('Something went wrong.')
 }
 
