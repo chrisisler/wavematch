@@ -55,61 +55,35 @@ const partition = (xs, pred) =>
  */
 // (String, [Object], [String]) -> Boolean
 const checkAllObjectCases = (matcher, args, allMatchers) => {
+    // Don't have to check `if (args.length === 0) return false`, see `canMatchAnyArgs`
+    const isGreedy = matcher.includes('...')
     const keys = getObjMatcherKeys(matcher).filter(s => s !== '...')
-    let [ unnamedKeys, namedKeys ] = partition(keys, s => s === '_')
+    const [ unnamedKeys, namedKeys ] = partition(keys, s => s === '_')
 
-    // (Any -> Boolean) -> Boolean
-    const someArgKeys = predicate => args.some(a => predicate(Object.keys(a)))
+    const argsKeys = args.map(Object.keys) // [[Strings]]
 
-    const zeroKeys = !namedKeys.length && !unnamedKeys.length && someArgKeys(ks => !ks.length)
-    const zeroOrMoreKeys = matcher.includes('...') && !(namedKeys.length || unnamedKeys.length)
+    const zeroKeys = !namedKeys.length && !unnamedKeys.length && argsKeys.some(ks => !ks.length)
+    const zeroOrMoreKeys = isGreedy === true && !(namedKeys.length || unnamedKeys.length)
     if (zeroKeys || zeroOrMoreKeys) {
         // console.log('a')
         return true
     } else if (unnamedKeys.length && namedKeys.length) {
         // console.log('b')
         // todo: This case does not yet support `matcher.includes('...')` logic for (<=) or (===) compare functions.
-        const someArgObjHasEveryNamedKey = namedKeys.every(k => someArgKeys(ks => ks.includes(k) && ks.length >= namedKeys.length))
-        const someArgObjHasEveryUnnamedKey = someArgKeys(ks => unnamedKeys.length <= ks.filter(k => !namedKeys.includes(k)).length)
+        const someArgObjHasEveryNamedKey = namedKeys.every(k => argsKeys.some(ks => ks.includes(k) && ks.length >= namedKeys.length))
+        const someArgObjHasEveryUnnamedKey = argsKeys.some(ks => unnamedKeys.length <= ks.filter(k => !namedKeys.includes(k)).length)
         return someArgObjHasEveryNamedKey && someArgObjHasEveryUnnamedKey
     } else if (namedKeys.length) {
         // console.log('c')
 
-        // if (matcher.includes('...')) {
-        //     // some matcher has every named key
-        //     // There must be some arg where all of its keys satisfy an unknown predicate.
-        //     const someArgKeysMatchAllOfAnyMatchersKeys = allMatchers.some(m => {
-        //         const someNamedKeys = getObjMatcherKeys(m).filter(s => s !== '...' && s !== '_')
-        //         return someArgKeys(argKeys => {
-        //             return argKeys.every(argKey => someNamedKeys.includes(argKey))
-        //                 && argKeys.length >= someNamedKeys.length
-        //         })
-        //     })
-        //     console.log('someArgKeysMatchAllOfAnyMatchersKeys is:', someArgKeysMatchAllOfAnyMatchersKeys)
-        //     // const everyArgKeyMatches = someArgKeys(argKeys => argKeys.every(argKey => namedKeys.includes(argKey)) && argKeys.length >= namedKeys.length)
-        //     const everyNamedKeyMatches = namedKeys.every(namedKey => someArgKeys(argKeys => argKeys.includes(namedKey) && argKeys.length >= namedKeys.length))
-        //     console.log('everyArgKeyMatches is:', everyArgKeyMatches)
-        //     console.log('everyNamedKeyMatches is:', everyNamedKeyMatches)
-        //     return someArgKeysMatchAllOfAnyMatchersKeys || everyNamedKeyMatches
-        // }
-        // return someArgKeys(ks => ks.every(k => namedKeys.includes(k)) && ks.length === namedKeys.length)
-
-        allMatchers.some(m => {
-            const someNamedKeys = getObjMatcherKeys(m).filter(s => s !== '...' && s !== '_')
-            if (isEqualStringArrays(someNamedKeys, namedKeys)) {
-                console.log('hi')
-                namedKeys = someNamedKeys
-            }
-        })
-
-        return matcher.includes('...')
-            ? namedKeys.every(k => someArgKeys(ks => ks.includes(k) && ks.length >= namedKeys.length))
-            : namedKeys.every(k => someArgKeys(ks => ks.includes(k) && ks.length === namedKeys.length))
+        return isGreedy === true
+            ? namedKeys.every(k => argsKeys.some(ks => ks.includes(k) && ks.length >= namedKeys.length))
+            : namedKeys.every(k => argsKeys.some(ks => ks.includes(k) && ks.length === namedKeys.length))
     } else if (unnamedKeys.length) {
         // console.log('d')
-        return matcher.includes('...')
-            ? someArgKeys(ks => unnamedKeys.length <= ks.filter(k => !namedKeys.includes(k)).length)
-            : someArgKeys(ks => unnamedKeys.length === ks.filter(k => !namedKeys.includes(k)).length)
+        return isGreedy === true
+            ? argsKeys.some(ks => unnamedKeys.length <= ks.filter(k => !namedKeys.includes(k)).length)
+            : argsKeys.some(ks => unnamedKeys.length === ks.filter(k => !namedKeys.includes(k)).length)
     } else {
     }
 }
@@ -150,7 +124,7 @@ module.exports = exports = exports.default = pattern => (...args) => {
     if (!args.length) throw new Error('No arguments supplied.')
     else if ('types' in pattern) checkTypes(pattern.types, args)
     const hasDefault = 'default' in pattern
-    const tokens = hasDefault
+    const tokens = hasDefault === true
         ? Object.keys(pattern).filter(k => k !== 'default')
         : Object.keys(pattern)
     const token = tokens.find(token => {
@@ -160,6 +134,6 @@ module.exports = exports = exports.default = pattern => (...args) => {
         return matchers.every(m => canMatchAnyArgs(m, args, matchers))
     })
     if (token !== void 0) return extractResult(pattern[token], args)
-    else if (hasDefault) return extractResult(pattern.default, args)
+    else if (hasDefault === true) return extractResult(pattern.default, args)
     throw new Error('Non-exhaustive pattern, no matches found.')
 }
