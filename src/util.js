@@ -66,10 +66,14 @@ const checkTypes = (types, args) => {
     if (errIdx !== -1) throw new TypeError(`Type mismatch: Argument at index ${errIdx} should be of type ${types[errIdx].name}.`)
 }
 
+// ([String], [String]) -> Boolean. Maybe `.sort` both arrays?
+const isEqualStringArrays = (xs, ys) => JSON.stringify(xs) === JSON.stringify(ys)
+
 module.exports = {
-    OBJ_MATCH_REGEXP
-    , REGEXP_MATCH_REGEXP
+    REGEXP_MATCH_REGEXP
     , ARRAY_MATCH_REGEXP
+    , OBJ_MATCH_REGEXP
+    , isEqualStringArrays
     , isBooleanAsString
     , hasIdenticalKeys
     , getMatchers

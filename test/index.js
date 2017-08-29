@@ -4,59 +4,6 @@ const wavematch = require('../src/index')
 describe('wavematch', () => {
     const defaultStr = 'DEFAULTED'
 
-    describe('works on arrays', () => {
-        it('works with an empty array', () => {
-            const resultString =  'i am a fixed string'
-            const fn = wavematch({ '[]': () => resultString })
-            assert.strictEqual(fn([]), resultString)
-        })
-
-        it('works with an array of specified length', () => {
-            const one = wavematch({
-                '[ foo ]': () => 'just one item'
-                , default: () => defaultStr
-            })
-            assert.strictEqual(one(['one thing in this array']), 'just one item')
-            assert.strictEqual(one([]), defaultStr)
-            assert.strictEqual(one([1, 2, ]), defaultStr)
-            assert.strictEqual(one([1, 2, 3, 4, 5]), defaultStr)
-
-            const two = wavematch({
-                '[ foo, bar ]': () => 'two items now'
-                , default: () => defaultStr
-            })
-            assert.strictEqual(two(['first', 'second']), 'two items now')
-            assert.strictEqual(two([]), defaultStr)
-            assert.strictEqual(two([1, 2, 3, 4, 5, 6, 7,]), defaultStr)
-        })
-
-        it('works with an array of non-zero length', () => {
-            const anyLen = wavematch({
-                '[...]': () => 'this rocks'
-                , default: () => defaultStr
-            })
-            assert.strictEqual(anyLen(['foo']), 'this rocks')
-            assert.strictEqual(anyLen(['foo', {}, 3.2]), 'this rocks')
-            assert.strictEqual(anyLen(['foo', {}, 3.2, 'bar', null, false, []]), 'this rocks')
-
-            assert.strictEqual(anyLen([]), defaultStr)
-            assert.strictEqual(anyLen({}), defaultStr)
-            assert.strictEqual(anyLen(''), defaultStr)
-            assert.strictEqual(anyLen(0), defaultStr)
-        })
-
-        it('does not work with null or undefined (on purpose)', () => {
-            const fn = wavematch({
-                '[]': () => 'zero'
-                , '[x]': () => 'one'
-                , '[x,y]': () => 'two'
-                , default: () => defaultStr
-            })
-            assert.strictEqual(fn(null), defaultStr)
-            assert.strictEqual(fn(void 0), defaultStr)
-        })
-    })
-
     describe('matches booleans', () => {
         it('works with one parameter', () => {
             const fn = wavematch({ false: () => 'sandwich' })

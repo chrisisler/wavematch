@@ -70,7 +70,7 @@ const myFunc = wavematch({
     // Match an array of length 1
     '[ blah ]': (...args) => ...
 
-    // Match an array of length 2
+    // Match an array of length N
     '[ blah, foo ]': (...args) => ...
 
     // Match an array of arbitrary length
@@ -81,7 +81,7 @@ const myFunc = wavematch({
     '[ x, ... ]': (...args) => ...
 
     //TODO
-    // Match an array of at least length 2
+    // Match an array of at least length N
     '[ x, y, ... ]': (...args) => ...
 })
 ```

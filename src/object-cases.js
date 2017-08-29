@@ -1,11 +1,8 @@
-const { sortFn } = require('./util')
+const { sortFn, isEqualStringArrays } = require('./util')
 
 // ([Any], Any -> Boolean) -> [[Any], [Any]]
 const partition = (xs, pred) =>
     xs.reduce((acc, x) => (acc[pred(x) ? 0 : 1].push(x), acc), [[], []])
-
-// ([String], [String]) -> Boolean. Maybe `.sort` both arrays?
-const isEqualStringArrays = (xs, ys) => JSON.stringify(xs) === JSON.stringify(ys)
 
 // String -> [String]
 const getObjMatcherKeys = objMatcher => objMatcher
@@ -15,14 +12,15 @@ const getObjMatcherKeys = objMatcher => objMatcher
 
 // If arg keys are length N, return true if there are some arbitrary keys of that same length.
 // (Boolean, [String], [String], [[String]]) -> Boolean
-const greedyMatcherIsCompatible = (isUnnamedKeyType, matcherKeys, argsKeys, tokens) => {
+const greedyMatcherIsCompatible = (isUnnamedKeyType, objMatcherKeys, argsKeys, tokens) => {
     // For dynamically extracting the desired type of keys (named vs. unnamed) from each token in `tokens`. (impure func)
     const isDesiredKeyType = s => (isUnnamedKeyType === true) ? (s === '_') : (s !== '_') // String -> Boolean
 
-    const compatibleMatchersKeys = tokens.reduce((acc, token) => { // [[String]]
+    // compatibleMatchersKeys :: [[String]] :: Each (un/named) key from each token in `tokens`
+    const compatibleMatchersKeys = tokens.reduce((acc, token) => {
         const _keys = getObjMatcherKeys(token).filter(s => s !== '...' && isDesiredKeyType(s))
         const tokenIsCompatible = (isUnnamedKeyType === true)
-            ? argsKeys.some(argKeys => _keys.length <= argKeys.filter(argKey => !matcherKeys.includes(argKey)).length)
+            ? argsKeys.some(argKeys => _keys.length <= argKeys.filter(argKey => !objMatcherKeys.includes(argKey)).length)
             : argsKeys.some(argKeys => _keys.length <= argKeys.length && _keys.every(mKey => argKeys.includes(mKey)))
         return tokenIsCompatible === true ? acc.concat([_keys]) : acc // map and filter simultaneously
     }, [])
@@ -30,7 +28,7 @@ const greedyMatcherIsCompatible = (isUnnamedKeyType, matcherKeys, argsKeys, toke
     if (compatibleMatchersKeys.length === 1) return true
 
     const [ mostSpecificTokensKeys ] = compatibleMatchersKeys.sort(sortFn) // Get the largest sized array
-    return isEqualStringArrays(mostSpecificTokensKeys, matcherKeys)
+    return isEqualStringArrays(mostSpecificTokensKeys, objMatcherKeys)
 }
 
 

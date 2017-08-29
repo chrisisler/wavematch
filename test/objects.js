@@ -6,7 +6,7 @@ const wavematch = require('../src/index')
 const someValue = 'magic'
 const fallback = 'DEFAULTED'
 
-describe.only('matches objects', () => {
+describe('matches objects', () => {
 
     otherTests() // see bottom
 
