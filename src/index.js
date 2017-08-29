@@ -43,7 +43,10 @@ const partition = (xs, pred) =>
     xs.reduce((acc, x) => (acc[pred(x) ? 0 : 1].push(x), acc), [[], []])
 
 // (String, {length}, {length}) -> Boolean
-// const lengths = (op, x, y) => wavematch({ '===': x.length === y.length, '>=': x.length >= y.length })(op) // todo
+const compare = (op, x, y) => wavematch({
+    '===': x.length === y.length
+    , '>=': x.length >= y.length
+}).call(null, op)
 
 /**
  * Check cases where `objMatcher` satisfies the regexp /{.*}/ and `args` contains an Object
@@ -55,45 +58,54 @@ const checkAllObjectCases = (objMatcher, args, tokens) => {
     // Don't have to check `if (args.length === 0) return false`, see `canMatchAnyArgs`
     const isGreedy = objMatcher.includes('...')
     const keys = getObjMatcherKeys(objMatcher).filter(s => s !== '...')
-    const [ unnamedKeys, namedKeys ] = partition(keys, s => s === '_')
+    const [ unnamed, named ] = partition(keys, s => s === '_')
     const argsKeys = args.map(Object.keys) // [[Strings]]
 
-    const zeroKeys = !namedKeys.length && !unnamedKeys.length && argsKeys.some(ks => !ks.length) && objMatcher === '{}'
-    const zeroOrGreedyKeys = isGreedy === true && !(namedKeys.length || unnamedKeys.length)
-    if (zeroKeys || zeroOrGreedyKeys) {
+    const zeroKeys = !named.length && !unnamed.length && argsKeys.some(argsKeys => !argsKeys.length) && objMatcher === '{}'
+    const zeroOrGreedyKeys = isGreedy === true && !(named.length !== 0 || unnamed.length !== 0)
+    if (zeroKeys === true || zeroOrGreedyKeys === true) {
         return true
-    } else if (unnamedKeys.length && namedKeys.length) { // Todo: support `isGreedy` compare function
-        const someArgObjHasEveryNamedKey = namedKeys.every(k => argsKeys.some(ks => ks.includes(k) && ks.length >= namedKeys.length))
-        const someArgObjHasEveryUnnamedKey = argsKeys.some(ks => unnamedKeys.length <= ks.filter(k => !namedKeys.includes(k)).length)
-        return someArgObjHasEveryNamedKey && someArgObjHasEveryUnnamedKey
-    } else if (namedKeys.length) {
+    } else if (unnamed.length && named.length) { // Todo: support `isGreedy` compare function
+        const someArgHasAllNamedKeys = named.every(name => argsKeys.some(argsKeys => argsKeys.includes(name) && argsKeys.length >= named.length))
+        const someArgHasAllUnnamedKeys = argsKeys.some(argsKeys => unnamed.length <= argsKeys.filter(k => !named.includes(k)).length)
+        return someArgHasAllNamedKeys && someArgHasAllUnnamedKeys
+    } else if (named.length) {
         // If greedy matching ('...'), match as many keys as possible for each obj in `args`.
         if (isGreedy === true) {
-            // arrayOfCompatibleNamedKeys :: [[String]]
             const arrayOfCompatibleNamedKeys = tokens.reduce((acc, token) => {
-                const _namedKeys = getObjMatcherKeys(token).filter(s => s !== '...' && s !== '_')
-                const isCompatible = _namedKeys
-                    .every(named => argsKeys.some(argKeys => argKeys.includes(named) && argKeys.length >= _namedKeys.length))
-                return isCompatible === true ? acc.concat([_namedKeys]) : acc
-            }, [])
+                const _named = getObjMatcherKeys(token).filter(s => s !== '...' && s !== '_')
+                const compatible = _named.every(name => argsKeys.some(argKeys => argKeys.includes(name) && argKeys.length >= _named.length))
+                return compatible === true ? acc.concat([_named]) : acc // map and filter simultaneously
+            }, []) // [[String]]
 
             if (arrayOfCompatibleNamedKeys.length === 1) return true
 
             const [ mostSpecificNamedKeys ] = arrayOfCompatibleNamedKeys.sort(sortFn) // Get the largest sized array
-            return isEqualStringArrays(mostSpecificNamedKeys, namedKeys)
+            return isEqualStringArrays(mostSpecificNamedKeys, named)
         }
+        return named.every(k => argsKeys.some(argKeys => argKeys.includes(k) && argKeys.length === named.length))
+    } else if (unnamed.length) {
+        // If arg keys are length N, return true if there are some unnamed keys of the same length
 
-        return namedKeys.every(k => argsKeys.some(ks => ks.includes(k) && ks.length === namedKeys.length))
-        // return namedKeys.every(k => argsKeys.some(ks => ks.includes(k) && lengths('===', ks, namedKeys))) //todo
-    } else if (unnamedKeys.length) {
-        // console.log('d')
+        if (isGreedy === true) {
+            const arrayOfCompatibleUnnamedKeys = tokens.reduce((acc, token) => {
+                const _unnamed = getObjMatcherKeys(token).filter(s => s !== '...' && s === '_')
+                const compatible = argsKeys.some(argKeys => _unnamed.length <= argKeys.filter(argKey => !named.includes(argKey)).length)
+                return compatible === true ? acc.concat([_unnamed]) : acc // map and filter simultaneously
+            }, []) // [[String]]
 
-        return isGreedy === true
-            ? argsKeys.some(ks => unnamedKeys.length <= ks.filter(k => !namedKeys.includes(k)).length)
-            : argsKeys.some(ks => unnamedKeys.length === ks.filter(k => !namedKeys.includes(k)).length)
-    } else {
-        throw new Error('----- wtf -----')
+            if (arrayOfCompatibleUnnamedKeys.length === 1) return true
+
+            const [ mostSpecificUnnamedKeys ] = arrayOfCompatibleUnnamedKeys.sort(sortFn) // Get the largest sized array
+            return isEqualStringArrays(mostSpecificUnnamedKeys, unnamed)
+        }
+        return argsKeys.some(argKeys => unnamed.length === argKeys.filter(k => !named.includes(k)).length)
+
+        // return isGreedy === true
+        //     ? argsKeys.some(argKeys => unnamed.length <= argKeys.filter(k => !named.includes(k)).length)
+        //     : argsKeys.some(argKeys => unnamed.length === argKeys.filter(k => !named.includes(k)).length)
     }
+    throw new Error('Something went wrong.')
 }
 
 // The `tokens` array is only used for object-matching logic in `checkAllObjectCases`
@@ -106,7 +118,7 @@ const canMatchAnyArgs = (matcher, args, tokens) => {
     const matchObj    = OBJ_MATCH_REGEXP.exec(matcher) && args.some(a => isType('Object', a))
     const matchArr    = ARRAY_MATCH_REGEXP.exec(matcher) && args.some(a => isType('Array', a))
     const matchRegExp = REGEXP_MATCH_REGEXP.exec(matcher) && args.some(a => isType('RegExp', a))
-    const matchStr    = !isBoolStr && args.includes(matcher)
+    const matchStr    = !isBoolStr && args.includes(matcher) // todo
     const matchNum    = !isBoolStr && args.includes(Number(matcher))
     const matchBool   =  isBoolStr && args.includes(JSON.parse(matcher))
     const matchNull   = !isBoolStr && args.includes(null) && matcher === 'null'
