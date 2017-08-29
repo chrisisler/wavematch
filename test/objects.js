@@ -8,14 +8,14 @@ const fallback = 'DEFAULTED'
 
 describe.only('matches objects', () => {
 
-    otherTests() // see bottom
+    // otherTests() // see bottom
 
     describe('without "..."', () => {
         it('zero named keys && zero unnamed keys', () => {
             const zeroKeys = wavematch({
-                '{}': someValue
-                , '   {   }   ': someValue
-                , default: fallback
+                '{}'            : someValue
+                , '   {   }   ' : someValue
+                , default       : fallback
             })
             assert.strictEqual(zeroKeys({}), someValue)
 
@@ -29,10 +29,10 @@ describe.only('matches objects', () => {
             const namedZAndTwoUnnamedKeys = 'named key: z, two unnamed keys'
 
             const bothKeys = wavematch({
-                '{ x, y, _, }': namedXYAndUnnamedKey
-                , '{ x, _ }': namedXAndUnnamedKey
-                , '{ z, _, _ }': namedZAndTwoUnnamedKeys
-                , default: fallback
+                '{ x, y, _, }'  : namedXYAndUnnamedKey
+                , '{ x, _ }'    : namedXAndUnnamedKey
+                , '{ z, _, _ }' : namedZAndTwoUnnamedKeys
+                , default       : fallback
             })
 
             assert.strictEqual(bothKeys({ x: 1, foo: 1 }), namedXAndUnnamedKey)
@@ -53,10 +53,10 @@ describe.only('matches objects', () => {
             const xy = 'xy'
             const xyz = 'xyz'
             const onlyNamedKeys = wavematch({
-                '{ x }': x
-                , '{ x, y, }': xy
-                , '{ x, y, z }': xyz
-                , default: fallback
+                '{ x }'         : x
+                , '{ x, y, }'   : xy
+                , '{ x, y, z }' : xyz
+                , default       : fallback
             })
 
             assert.strictEqual(onlyNamedKeys({ x: 1 }), x)
@@ -71,10 +71,10 @@ describe.only('matches objects', () => {
 
         it('zero named keys && N unnamed keys', () => {
             const onlyUnnamedKeys = wavematch({
-                '{ _ }': 'one'
-                , '{ _, _ }': 'two'
-                , '{ _, _, _ }': 'three'
-                , default: fallback
+                '{ _ }'         : 'one'
+                , '{ _, _ }'    : 'two'
+                , '{ _, _, _ }' : 'three'
+                , default       : fallback
             })
 
             assert.strictEqual(onlyUnnamedKeys({ x: 1 }), 'one')
@@ -86,28 +86,69 @@ describe.only('matches objects', () => {
         })
     })
 
-    // describe('with "..."', () => {
-    //     it('zero named keys && zero unnamed keys', () => {
-    //         //test if each desired key matches the input obj
-    //         const bothZeroKeys = wavematch({
-    //             '{...}': 'neither'
-    //             , '   {   ...    }   ': 'neither'
-    //             , default: fallback
-    //         })
-    //         assert.strictEqual(bothZeroKeys({}), 'neither')
+    describe('with "..."', () => {
+        it('zero named keys && zero unnamed keys', () => {
+            //test if each desired key matches the input obj
+            const bothZeroKeys = wavematch({
+                '{...}'                : 'neither'
+                , '   {   ...    }   ' : 'neither'
+                , default              : fallback
+            })
+            assert.strictEqual(bothZeroKeys({}), 'neither')
 
-    //         assert.strictEqual(bothZeroKeys({}), fallback)
-    //     })
-    //     it('at least N named keys && at least N unnamed keys', () => {
+            // This case contains no `default` key because '{...}' will match any object ever.
+            assert.strictEqual(bothZeroKeys({ foo: 3 }), 'neither')
+        })
+
+        it('at least N named keys && at least N unnamed keys', () => {
+            // Where there is at least one named key and at least one unnamed key.
+            const zeroOrMoreOfBothKeys = wavematch({
+                '{ age, id, name, _, _, _, ... }' : 'three'
+                , '{ age, id, name, _, _, ... }'  : 'three named, two unnamed'
+                , '{ age, id, _, _, ... }'        : 'two'
+                , '{ age, id, _, ... }'           : 'two named, one unnamed'
+                , '{ age, _, ... }'               : 'one'
+                , default: fallback
+            })
+
+            // only "one" pair of named && unnamed keys (in the input object under test)
+            assert.strictEqual(zeroOrMoreOfBothKeys({ age: 1, foo: 1 }), 'one')
+            assert.strictEqual(zeroOrMoreOfBothKeys({ age: 1, foo: 1, bar: 1 }), 'one') // extra keys don't need names
+
+            // "two" pairs of named && unnamed keys (in the input object under test)
+            assert.strictEqual(zeroOrMoreOfBothKeys({ age: 1, id: 1, foo: 1, bar: 1 }), 'two')
+            assert.strictEqual(zeroOrMoreOfBothKeys({ age: 1, id: 1, foo: 1, bar: 1, whatever: 1 }), 'two')
+
+            // "three" pairs of named && unnamed keys (in the input object under test)
+            assert.strictEqual(zeroOrMoreOfBothKeys({ age: 1, id: 1, name: 'andy', foo: 1, bar: 1, baz: 1 }), 'three')
+            assert.strictEqual(zeroOrMoreOfBothKeys({ age: 1, id: 1, name: 'andy', foo: 1, bar: 1, baz: 1, whatever: 1 }), 'three')
+        })
+
+        // This case (and its "unnamed" equivalent, below) are especially difficult
+        // because having '{ x, ... }' overrides matches for '{ x, y, ... }' too,
+        // even though the latter is _more_ specific. Obviously, the implementation
+        // logic must accommodate for this potential pitfall (noted 2017-8-28).
+        it.only('at least N named keys && zero unnamed keys', () => {
+            const oneOrMoreNamedKeys = wavematch({
+                '{ todos, ... }': 'one key or more'
+                , '{ todos, store, ... }': 'two keys or more'
+                , '{ todos, store, redux, ... }': 'three keys or more'
+                , default: fallback
+            })
+
+            // assert.strictEqual(oneOrMoreNamedKeys({ todos: 1 }), 'one key or more')
+            // assert.strictEqual(oneOrMoreNamedKeys({ todos: 1, foo: 1 }), 'one key or more')
+
+            assert.strictEqual(oneOrMoreNamedKeys({ todos: 1, store: 1 }), 'two keys or more')
+            // assert.strictEqual(oneOrMoreNamedKeys({ todos: 1, store: 1, foo: 1 }), 'two keys or more')
+        })
+
+        /*
+        it('zero named keys && at least N unnamed keys', () => {
             
-    //     })
-    //     it('at least N named keys && zero unnamed keys', () => {
-            
-    //     })
-    //     it('zero named keys && at least N unnamed keys', () => {
-            
-    //     })
-    // })
+        })
+        */
+    })
 })
 
 function otherTests() {
@@ -132,7 +173,7 @@ function otherTests() {
         assert.strictEqual(fn({ x: 3 }), 'x')
         assert.strictEqual(fn({ x: 3, y: 4 }), 'xy')
     })
-    it.only('does not work with null or undefined (on purpose)', () => {
+    it('does not work with null or undefined (on purpose)', () => {
         const fn = wavematch({
             '{ foo, bar }': () => 'hello'
             , default: () => fallback

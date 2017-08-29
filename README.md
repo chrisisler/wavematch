@@ -8,7 +8,7 @@ Return a fixed value or apply a function to the arguments.
 </p>
 
 ```JavaScript
-const factorial = rematch({
+const factorial = wavematch({
     0: 1,
     default: (n) => n * factorial(n - 1)
 })
@@ -20,13 +20,13 @@ const factorial = rematch({
 
 ```javascript
 // Match an empty string, either way works.
-const myFunc = rematch({
+const myFunc = wavematch({
     '""': (...args) => ...
     "''": (...args) => ...
 })
 
 // Match a literal string, _case-sensitive_.
-const myFunc = rematch({
+const myFunc = wavematch({
     'andy': (...args) => ...
     'foo': (...args) => ...
 })
@@ -36,7 +36,7 @@ const myFunc = rematch({
 
 ```javascript
 // Match exact numbers.
-const myFunc = rematch({
+const myFunc = wavematch({
     0: (...args) => ...
     5: (...args) => ...
 })
@@ -45,7 +45,7 @@ const myFunc = rematch({
 <h4 align='center'>Match Null and Undefined</h4>
 
 ```javascript
-const myFunc = rematch({
+const myFunc = wavematch({
     null: (...args) => ...
     undefined: (...args) => ...
 })
@@ -54,7 +54,7 @@ const myFunc = rematch({
 <h4 align='center'>Match Regular Expressions</h4>
 
 ```javascript
-const myFunc = rematch({
+const myFunc = wavematch({
     '/foo/': (...args) => ...
     default: (...args) => ...
 })
@@ -63,7 +63,7 @@ const myFunc = rematch({
 <h4 align='center'>Match Arrays</h4>
 
 ```javascript
-const myFunc = rematch({
+const myFunc = wavematch({
     // Match an empty array
     '[]': (...args) => ...
 
@@ -92,7 +92,7 @@ const myFunc = rematch({
 // Use a single underscore character to match a key of any name.
 // Use the exact (case-sensitive) word to match a key of that exact name.
 
-const nonGreedy = rematch({
+const nonGreedy = wavematch({
     // Matches only the empty object.
     // Match an object with zero named keys and zero unnamed keys
     '{}':
@@ -110,7 +110,7 @@ const nonGreedy = rematch({
     '{ _, _ }':
 })
 
-const greedy = rematch({
+const greedy = wavematch({
     // Matches any object ever (zero or more named keys and zero or more unnamed keys)
     '{...}':
 
@@ -131,7 +131,7 @@ const greedy = rematch({
 <h4 align='center'>Match Booleans</h4>
 
 ```javascript
-const myFunc = rematch({
+const myFunc = wavematch({
     false: (...args) => ...
     true: (...args) => ...
 })
@@ -141,19 +141,29 @@ const myFunc = rematch({
 
 <p align='center'>todo</p>
 
+<h4 align='center'>Argument type-checking</h4>
+
+Provide type checking based on a `types` key.
+The constructor at each index is asserted against the `toString` value of each argument.
+
+```javascript
+const filter = wavematch({
+    types: [Function, Array]
+    , default: (fn, array) => ...
+})
+```
+
 <h2 align='center'>To Do</h2>
 
 - Add examples to README (wip).
-- Add tests for Number, regexp, empty obj/arrary, and error throwing.
-- Add tests for floats `3.2`.
+- Add tests for Number, regexp, empty array, float/double.
 - Add tests for return a fixed value instead of a function.
 - Add support for parameter type checking.
 - Add support for an `Any` type, in `pattern.types` (is this a good idea?).
-- Add support for at least N obj/arr
 - Add support for recursive functions like `zipWith`.
 - Add support for function matching.
 - Add support for empty string matching, either way.
 - In index.js, provide better error messages by supplying `fn.name` to the `Error` call.
-- Replace `isIn` with `xs.some`, do not use `isIn`.
-- Update README to reflect new Object match info.
-- Use TypeScript.
+
+<h5 align='center'>Takeaway</h5>
+- Object property ordering is not guaranteed.
