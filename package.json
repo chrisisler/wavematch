@@ -1,7 +1,7 @@
 {
   "name": "wavematch",
   "es6": true,
-  "version": "0.0.1",
+  "version": "0.1.1",
   "description": "JS pattern matching",
   "main": "index.js",
   "scripts": {

@@ -1,14 +1,23 @@
 const { sortFn, isEqualStringArrays } = require('./util')
 
-// ([Any], Any -> Boolean) -> [[Any], [Any]]
-const partition = (xs, pred) =>
-    xs.reduce((acc, x) => (acc[pred(x) ? 0 : 1].push(x), acc), [[], []])
+/**
+ * Partition an array into sub-arrays containing satisfactory/non-satisfactory elements.
+ * @type {([Any], Any -> Boolean) -> [[Any], [Any]]}
+ */
+const partition = (xs, predicate) =>
+    xs.reduce((acc, x) => (acc[predicate(x) ? 0 : 1].push(x), acc), [[], []])
 
-// String -> [String]
+
+/**
+ * Map an object describing string into an array of its desired keys.
+ * @example '{ x, y, z, }' -> [ 'x', 'y', 'z' ]
+ * @type {String -> [String]}
+ */
+const OBJECT_BRACKETS_REGEXP = /[}{\s]/g
 const getObjMatcherKeys = objMatcher => objMatcher
-    .replace(/[}{\s]/g, '')
+    .replace(OBJECT_BRACKETS_REGEXP, '')
     .split(',')
-    .filter(Boolean)
+    .filter(Boolean) // remove empty strings caused by trailing commas.
 
 // If arg keys are length N, return true if there are some arbitrary keys of that same length.
 // (Boolean, [String], [String], [[String]]) -> Boolean

@@ -1,11 +1,10 @@
-const ARRAY_BRACKETS_REGEXP = /[\[\]]/g
-
 /**
  * Uses of this function are not interested in the contents of the strings,
  * just the number of strings described in the given `arrayMatcher`.
  * @example '[ foo, bar, x, ..., ]' -> [ 'foo', 'bar', 'x', '...' ]
  * @type {String -> [String]}
  */
+const ARRAY_BRACKETS_REGEXP = /[\[\]\s]/g
 const getArrayMatcherNames = arrayMatcher => arrayMatcher
     .replace(ARRAY_BRACKETS_REGEXP, '')
     .split(',')
@@ -16,22 +15,16 @@ const getArrayMatcherNames = arrayMatcher => arrayMatcher
  * @type {(String, [[Any]], [String]) -> Boolean}
  */
 const isCompatibleGreedyArrayMatcher = (arrayMatcher, argsArrays, tokens) => {
-    // mostCompatibleTokenNames :: undefined or [String] :: It's the most compatible because it's the largest
-    // compatibleTokenNames :: [] or [[String]] :: Each (length-compatible) name from each token in `tokens`
-    const [ mostCompatibleTokenNames, ...compatibleTokenNames ] = tokens
-        .reduce((acc, token) => { 
-            const tokenNames = getArrayMatcherNames(token).filter(s => !s.includes('...')).map(s => s.trim())
-            const tokenLengthIsCompatible = argsArrays.some(inputArray => tokenNames.length <= inputArray.length)
-            return tokenLengthIsCompatible === true ? acc.concat([tokenNames]) : acc // exclude incompatible tokens
-        }, [])
-        .sort((a, b) => a.length < b.length) // Get largest sized array as first element (for destructuring)
+    // Either `undefined` or `[String]` :: The largest (most length-compatible) array from `tokens`
+    const [ mostCompatibleTokenNames ] = tokens.reduce((acc, token) => { 
+        const tokenNames = getArrayMatcherNames(token).filter(s => !s.includes('...'))
+        const tokenLengthIsCompatible = argsArrays.some(inputArray => tokenNames.length <= inputArray.length)
+        return tokenLengthIsCompatible === true ? acc.concat([tokenNames]) : acc // exclude incompatible tokens
+    }, []).sort((a, b) => a.length < b.length) // Get largest sized array as first element (for destructuring)
 
-    // The `void 0` checks if the array is empty (because destructuring on `[]` returns an undefined element at index 0)
-    const noCompatibleTokens = mostCompatibleTokenNames === void 0 && argsArrays.some(inputArray => inputArray.length === 0)
-    if (noCompatibleTokens === true) return false // Not sure how this works, but it does
-
-    // Greedyness doesn't matter if there's only one compatible token
-    // else if (!!mostCompatibleTokenNames && compatibleTokenNames.length === 0) return true
+    // `void 0` checks for emptiness (a destructured value from an empty array is undefined)
+    const noCompatibleTokens = (mostCompatibleTokenNames === void 0) && argsArrays.some(arr => arr.length === 0)
+    if (noCompatibleTokens === true) return false // Return false because no token is compatible
 
     const arrayMatcherNames = getArrayMatcherNames(arrayMatcher).filter(s => s !== '...')
     return mostCompatibleTokenNames.length === arrayMatcherNames.length

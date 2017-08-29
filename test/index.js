@@ -136,7 +136,7 @@ describe('wavematch', () => {
                 , '1': () => 'one'
                 , default: () => defaultStr
             })
-            // assert.strictEqual(fn(null), defaultStr)
+            assert.strictEqual(fn(null), defaultStr)
             assert.strictEqual(fn(void 0), defaultStr)
         })
     })
