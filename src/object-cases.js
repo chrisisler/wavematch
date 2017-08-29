@@ -35,12 +35,13 @@ const greedyMatcherIsCompatible = (isUnnamedKeyType, matcherKeys, argsKeys, toke
 
 
 // (String, [Any], [Any]) -> Boolean
-const compareLengthsBy = (op, x, y) => {
+const compareLength = (op, { length: len1 }, { length: len2 }) => {
     /* eslint-disable indent */
     switch(op) {
-        case '>=': return x.length >= y.length
-        case '===': return x.length === y.length
-        default: throw new Error(`Non-exhaustive operator: ${op}`)
+        case '>='  : return len1 >= len2
+        case '<='  : return len1 <= len2
+        case '===' : return len1 === len2
+        default    : throw new Error(`Non-exhaustive switch-case for operator: ${op}`)
     }
 }
 
@@ -60,21 +61,8 @@ const checkAllObjectCases = (objMatcher, args, tokens) => {
     const zeroKeys = !named.length && !unnamed.length && argsKeys.some(argsKeys => !argsKeys.length) && objMatcher === '{}'
     const zeroOrGreedyKeys = isGreedy === true && !(named.length !== 0 || unnamed.length !== 0)
     if (zeroKeys === true || zeroOrGreedyKeys === true) return true
-    // else if (unnamed.length && named.length) {
-    //     const someArgHasAllNamedKeys = named.every(name => argsKeys.some(argsKeys => argsKeys.includes(name) && argsKeys.length >= named.length))
-    //     const someArgHasAllUnnamedKeys = argsKeys.some(argKeys => unnamed.length <= argKeys.filter(k => !named.includes(k)).length)
-    //     return someArgHasAllNamedKeys && someArgHasAllUnnamedKeys
-    // } else if (named.length) {
-    //     return (isGreedy === true)
-    //         ? greedyMatcherIsCompatible(false, named, argsKeys, tokens)
-    //         : named.every(k => argsKeys.some(argKeys => argKeys.includes(k) && argKeys.length === named.length))
-    // } else if (unnamed.length) {
-    //     return (isGreedy === true)
-    //         ? greedyMatcherIsCompatible(true, unnamed, argsKeys, tokens)
-    //         : argsKeys.some(argKeys => unnamed.length === argKeys.filter(k => !named.includes(k)).length)
-    // }
 
-    if (unnamed.length && named.length) {
+    else if (unnamed.length && named.length) {
         const someArgHasAllNamedKeys = named.every(name => argsKeys.some(argsKeys => argsKeys.includes(name) && argsKeys.length >= named.length))
         const someArgHasAllUnnamedKeys = argsKeys.some(argKeys => argKeys.filter(k => !named.includes(k)).length >= unnamed.length)
         return someArgHasAllNamedKeys && someArgHasAllUnnamedKeys
@@ -87,7 +75,7 @@ const checkAllObjectCases = (objMatcher, args, tokens) => {
             ? greedyMatcherIsCompatible(true, unnamed, argsKeys, tokens)
             : argsKeys.some(argKeys => unnamed.length === argKeys.filter(k => !named.includes(k)).length)
     }
-    // throw new Error('Something went wrong.')
+    throw new Error('Something went wrong.')
 }
 
 module.exports = checkAllObjectCases

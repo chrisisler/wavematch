@@ -3,7 +3,6 @@ const {
     , REGEXP_MATCH_REGEXP
     , ARRAY_MATCH_REGEXP
     , isBooleanAsString
-    // , hasIdenticalKeys
     , getMatchers
     , checkTypes
     , isType
@@ -29,13 +28,11 @@ const isSimilarLength = (arrayMatcher, arg) =>
         ? arg.length > 0
         : arg.length === getArrayMatcherLength(arrayMatcher)
 
-
 // The `tokens` array is only used for object-matching logic in `checkAllObjectCases`
 // (String, [Any], [String]) -> Boolean
 const canMatchAnyArgs = (matcher, args, tokens) => {
     if (matcher === '_') return true // Skip, wildcard is compatible with any input `args`
 
-    //todo: use Chips.disJoin to filter `args` by `isType`
     const isBoolStr   = isBooleanAsString(matcher) // True if `matcher` = 'false' or 'true'
     const matchObj    = OBJ_MATCH_REGEXP.exec(matcher) && args.some(a => isType('Object', a))
     const matchArr    = ARRAY_MATCH_REGEXP.exec(matcher) && args.some(a => isType('Array', a))
@@ -62,7 +59,7 @@ const canMatchAnyArgs = (matcher, args, tokens) => {
 const extractResult = (valOrFn, args) => isType('Function', valOrFn) ? valOrFn(...args) : valOrFn
 
 // Object -> Function -> Any
-const wavematch = pattern => (...args) => {
+module.exports = exports = exports.default = pattern => (...args) => {
     if (!args.length) throw new Error('No arguments supplied.')
     else if ('types' in pattern) checkTypes(pattern.types, args)
     const hasDefault = 'default' in pattern
@@ -76,4 +73,3 @@ const wavematch = pattern => (...args) => {
     else if (hasDefault === true) return extractResult(pattern.default, args)
     throw new Error('Non-exhaustive pattern, no matches found.')
 }
-module.exports = exports = exports.default = wavematch
