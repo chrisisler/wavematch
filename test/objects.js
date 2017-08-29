@@ -17,10 +17,10 @@ describe.only('matches objects', () => {
                 , '   {   }   ' : someValue
                 , default       : fallback
             })
-            assert.strictEqual(zeroKeys({}), someValue)
+            // assert.strictEqual(zeroKeys({}), someValue)
 
-            assert.strictEqual(zeroKeys({ someKey: 1 }), fallback)
-            assert.strictEqual(zeroKeys({ someKey: 1 , other: 1 }), fallback)
+            // assert.strictEqual(zeroKeys({ someKey: 1 }), fallback)
+            // assert.strictEqual(zeroKeys({ someKey: 1 , other: 1 }), fallback)
         })
 
         it('N named keys && N unnamed keys', () => {
@@ -128,20 +128,20 @@ describe.only('matches objects', () => {
         // because having '{ x, ... }' overrides matches for '{ x, y, ... }' too,
         // even though the latter is _more_ specific. Obviously, the implementation
         // logic must accommodate for this potential pitfall (noted 2017-8-28).
-        // it.only('at least N named keys && zero unnamed keys', () => {
-        //     const oneOrMoreNamedKeys = wavematch({
-        //         '{ todos, ... }': 'one key or more'
-        //         , '{ todos, store, ... }': 'two keys or more'
-        //         , '{ todos, store, redux, ... }': 'three keys or more'
-        //         , default: fallback
-        //     })
+        it('at least N named keys && zero unnamed keys', () => {
+            const oneOrMoreNamedKeys = wavematch({
+                '{ todos, ... }': 'one key or more'
+                , '{ todos, store, ... }': 'two keys or more'
+                , '{ todos, store, redux, ... }': 'three keys or more'
+                , default: fallback
+            })
 
-        //     // assert.strictEqual(oneOrMoreNamedKeys({ todos: 1 }), 'one key or more')
-        //     // assert.strictEqual(oneOrMoreNamedKeys({ todos: 1, foo: 1 }), 'one key or more')
+            assert.strictEqual(oneOrMoreNamedKeys({ todos: 1 }), 'one key or more')
+            assert.strictEqual(oneOrMoreNamedKeys({ todos: 1, foo: 1 }), 'one key or more')
 
-        //     assert.strictEqual(oneOrMoreNamedKeys({ todos: 1, store: 1 }), 'two keys or more')
-        //     // assert.strictEqual(oneOrMoreNamedKeys({ todos: 1, store: 1, foo: 1 }), 'two keys or more')
-        // })
+            assert.strictEqual(oneOrMoreNamedKeys({ todos: 1, store: 1 }), 'two keys or more')
+            assert.strictEqual(oneOrMoreNamedKeys({ todos: 1, store: 1, foo: 1 }), 'two keys or more')
+        })
 
         /*
         it('zero named keys && at least N unnamed keys', () => {

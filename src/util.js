@@ -68,11 +68,12 @@ const checkTypes = (types, args) => {
 
 module.exports = {
     OBJ_MATCH_REGEXP
-    , ARRAY_MATCH_REGEXP
     , REGEXP_MATCH_REGEXP
-    , getMatchers
-    , hasIdenticalKeys
+    , ARRAY_MATCH_REGEXP
     , isBooleanAsString
+    , hasIdenticalKeys
+    , getMatchers
     , checkTypes
     , isType
+    , sortFn
 }
