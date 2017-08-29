@@ -19,7 +19,8 @@ const factorial = wavematch({
 
 
 <h3 align='center'>Match Strings</h3>
-Match string literals, _case-sensitive_. Any quote style works.
+Match string literals, case-sensitive. Any quote style works.
+
 ```javascript
 const logic = wavematch({
     "foo": (...args) => ...
@@ -31,6 +32,7 @@ const logic = wavematch({
 
 
 <h3 align='center'>Match Numbers</h3>
+
 ```javascript
 const logic = wavematch({
     0: (...args) => ...
@@ -44,6 +46,7 @@ const logic = wavematch({
 
 
 <h3 align='center'>Match Null and Undefined</h3>
+
 ```javascript
 const logic = wavematch({
     null: (...args) => ...
@@ -54,6 +57,7 @@ const logic = wavematch({
 
 
 <h3 align='center'>Match Regular Expressions</h3>
+
 ```javascript
 const logic = wavematch({
     '/foo/': (...args) => ...
@@ -64,6 +68,7 @@ const logic = wavematch({
 
 
 <h3 align='center'>Match Arrays</h3>
+
 ```javascript
 const logic = wavematch({
     // Match an empty array
@@ -91,6 +96,7 @@ const logic = wavematch({
 Use the exact (case-sensitive) word to match a key of that exact name.
 Use an underscore character to match a key of any name.
 Trailing commas are supported and will not cause errors.
+
 ```javascript
 const nonGreedyLogic = wavematch({
     // Match only an empty object (no keys)
@@ -132,6 +138,7 @@ const greedyLogic = wavematch({
 
 
 <h3 align='center'>Match Booleans</h3>
+
 ```javascript
 const logic = wavematch({
     false: (...args) => ...
@@ -143,11 +150,13 @@ const logic = wavematch({
 
 <h3 align='center'>Match Functions</h3>
 <p align='center'>todo</p>
+<br>
 
 
 <h3 align='center'>Argument type-checking</h3>
 Provide type checking based on a `types` key.
 The constructor at each index is asserted against the `toString` value of each argument.
+
 ```javascript
 const filter = wavematch({
     types: [Function, Array]
@@ -158,6 +167,7 @@ const filter = wavematch({
 
 
 <h2 align='center'>To Do</h2>
+
 - Add tests for Number, regexp, float/double.
 - Add tests for return a fixed value instead of a function.
 - Add support for parameter type checking.
@@ -167,8 +177,9 @@ const filter = wavematch({
 
 <h3 align='center'>Limitations</h3>
 - Cannot match an empty string. Workaround:
+
 ```javascript
-const strLogic = wavematch({
+const emptyStrMatch = wavematch({
     [String()]: (...args) => ...
 })
 ```
