@@ -18,9 +18,10 @@ const isNullOrUndef = x => isType('Undefined', x) || isType('Null', x)
  * @type {(String, [Any], [String]) -> Boolean}
  */
 const isCompatible = (matcher, args, tokens) => {
-    if (matcher === '_') return true // Skip, wildcard is compatible with any input 
+    if (matcher === '_') return true // Skip, wildcard is always compatible
 
     const isBoolStr   = isBooleanAsString(matcher) // True if `matcher` = 'false' or 'true'
+
     const matchObj    = OBJ_MATCH_REGEXP.exec(matcher) && args.some(a => isType('Object', a))
     const matchArr    = ARRAY_MATCH_REGEXP.exec(matcher) && args.some(Array.isArray)
     const matchRegExp = REGEXP_MATCH_REGEXP.exec(matcher) && args.some(a => isType('RegExp', a))
@@ -49,6 +50,18 @@ const isCompatible = (matcher, args, tokens) => {
 const extractResult = (valOrFn, args) => isType('Function', valOrFn) ? valOrFn(...args) : valOrFn
 
 /**
+ * Apply one or more functions to (key-specified) `args` and return the result.
+ * @example applyTransform((...args) => doStuff(args), arg1, arg2, ..., argN)
+ * @example applyTransform({ 2: argAtIndex2 => doStuff(argAtIndex2) }, arg1, arg2, ..., argN)
+ * @type {(Function|Object, [Any]) -> Any|[Any]}
+ * @todo
+ */
+// const applyTransform = (transform, args) =>
+//     isType('Function', transform)
+//         ? transform(...args)
+//         : args.map((arg, idx) => transform[idx] ? transform[idx](arg) : arg)
+
+/**
  * Compare input data against desired structures to check for compatibility.
  * If a match is compatible, the corresponding expression is executed.
  * Return a fixed value or apply a function to the arguments.
@@ -60,16 +73,21 @@ const extractResult = (valOrFn, args) => isType('Function', valOrFn) ? valOrFn(.
  *     @param {[Any]} args - All input. Verified per pattern case for type-dependent compatibility.
  *     @returns {Any} - From `pattern`. Either a value or a function which gets applied to `args`.
  */
-module.exports = exports = exports.default = pattern => (...args) => {
-    if (!args.length) throw new Error('No arguments supplied.')
+module.exports = exports = exports.default = (pattern={}) => (...args) => {
+    if (args.length === 0) throw new Error('No arguments supplied.')
+    // else if ('transform' in pattern) args = applyTransform(pattern.transform, args)
     else if ('types' in pattern) checkTypes(pattern.types, args)
+
     const hasDefault = 'default' in pattern
-    const tokens = hasDefault === true ? Object.keys(pattern).filter(k => k !== 'default') : Object.keys(pattern)
+    const tokens = hasDefault === true
+        ? Object.keys(pattern).filter(k => k !== 'default')
+        : Object.keys(pattern)
     const token = tokens.find(token => {
-        const matchers = getMatchers(token) // [String]
-        if (matchers.length !== args.length) return false // Skip arity mismatches. See `getMatchers`
+        const matchers = getMatchers(token)
+        if (matchers.length !== args.length) return false // Skip arity-incompatible cases
         return matchers.every(matcher => isCompatible(matcher, args, tokens))
     })
+
     if (token !== void 0) return extractResult(pattern[token], args)
     else if (hasDefault === true) return extractResult(pattern.default, args)
     throw new Error('Non-exhaustive pattern, no matches found.')

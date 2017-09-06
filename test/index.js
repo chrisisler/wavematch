@@ -105,6 +105,8 @@ describe('wavematch', () => {
                 , default: (n) => n * factorial(n - 1)
             })
             assert.strictEqual(factorial(4), 24)
+            assert.strictEqual(factorial(3), 6)
+            assert.strictEqual(factorial(2), 2)
             assert.strictEqual(factorial(1), 1)
             assert.strictEqual(factorial(0), 1)
         })
@@ -129,16 +131,54 @@ describe('wavematch', () => {
     })
 
     //todo
-    describe('works on numbers', () => {
+    describe('matches numbers', () => {
+        it('works numbers', () => {
+            const fn = wavematch({
+                42: 'forty-two'
+                , default: defaultStr
+            })
+            assert.strictEqual(fn(42), 'forty-two')
+
+            assert.strictEqual(fn(0), defaultStr)
+            assert.strictEqual(fn(-0), defaultStr)
+            assert.strictEqual(fn(41), defaultStr)
+            assert.strictEqual(fn(43), defaultStr)
+        })
+
+        it('works for floats', () => {
+            const fn = wavematch({
+                3.61      : 'three six one'
+                , 99.99   : 'quad nines'
+                , 7       : 'just seven'
+                , default : defaultStr
+            })
+
+            assert.strictEqual(fn(3.61), 'three six one')
+            assert.strictEqual(fn(99.99), 'quad nines')
+            assert.strictEqual(fn(7), 'just seven')
+
+            assert.strictEqual(fn(1), defaultStr)
+            assert.strictEqual(fn(-1), defaultStr)
+            assert.strictEqual(fn(0), defaultStr)
+            assert.strictEqual(fn(-0), defaultStr)
+
+            assert.strictEqual(fn(null), defaultStr)
+            assert.strictEqual(fn(void 0), defaultStr)
+        })
+
         it('does not work with null or undefined (on purpose)', () => {
             const fn = wavematch({
-                '0': () => 'zero'
-                , '1': () => 'one'
-                , default: () => defaultStr
+                '0'       : () => 'zero'
+                , '1'     : () => 'one'
+                , default : () => defaultStr
             })
             assert.strictEqual(fn(null), defaultStr)
             assert.strictEqual(fn(void 0), defaultStr)
         })
+    })
+
+    describe('matches RegExp', () => {
+
     })
 
     // //todo

@@ -2,8 +2,8 @@
 <h3 align='center'><strong>JS pattern matching</strong></h3>
 
 <p align='center'>
-Compare input data against desired structures to check for compatibility.
-If a match is compatible, the corresponding expression is executed.
+Compare inputs against descriptions to check for compatibility.
+If a described match is compatible, the corresponding expression is executed.
 Return a fixed value or apply a function to the arguments.
 </p>
 
@@ -19,10 +19,10 @@ const factorial = wavematch({
 
 
 <h3 align='center'>Match Strings</h3>
-Match string literals, case-sensitive. Any quote style works.
+<p>Match string literals, case-sensitive. Any quote style works.</p>
 
 ```javascript
-const logic = wavematch({
+const stringMatch = wavematch({
     "foo": (...args) => ...
     'andy': (...args) => ...
     bar: (...args) => ...
@@ -34,11 +34,10 @@ const logic = wavematch({
 <h3 align='center'>Match Numbers</h3>
 
 ```javascript
-const logic = wavematch({
+const numberMatch = wavematch({
     0: (...args) => ...
     5: (...args) => ...
 
-    // todo
     3.2: (...args) => ...
 })
 ```
@@ -48,7 +47,7 @@ const logic = wavematch({
 <h3 align='center'>Match Null and Undefined</h3>
 
 ```javascript
-const logic = wavematch({
+const nullMatch = wavematch({
     null: (...args) => ...
     undefined: (...args) => ...
 })
@@ -59,7 +58,7 @@ const logic = wavematch({
 <h3 align='center'>Match Regular Expressions</h3>
 
 ```javascript
-const logic = wavematch({
+const regExpMatch = wavematch({
     '/foo/': (...args) => ...
     default: (...args) => ...
 })
@@ -70,7 +69,7 @@ const logic = wavematch({
 <h3 align='center'>Match Arrays</h3>
 
 ```javascript
-const logic = wavematch({
+const arrayMatch = wavematch({
     // Match an empty array
     '[]': (...args) => ...
 
@@ -168,21 +167,14 @@ const filter = wavematch({
 
 <h2 align='center'>To Do</h2>
 
-- Add tests for Number, regexp, float/double.
+- Add `curry2()` to the default export
+- Add tests for RegExp
 - Add tests for return a fixed value instead of a function.
+- Add tests for `applyTransform`
 - Add support for parameter type checking.
 - Add support for an `Any` type, in `pattern.types` (is this a good idea?).
 - Add support for recursive functions like `zipWith`.
 - Add support for function matching.
 
 <h3 align='center'>Limitations</h3>
-- Cannot match an empty string. Workaround:
-
-```javascript
-const emptyStrMatch = wavematch({
-    [String()]: (...args) => ...
-})
-```
-
-<h4 align='center'>Takeaway</h4>
-- Object property ordering is not guaranteed.
+- Cannot match an empty string.

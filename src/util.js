@@ -32,9 +32,11 @@ const formatArgumentObj = arg => JSON.stringify(Object.keys(arg).sort(sortFn)).r
 const hasIdenticalKeys = (objMatcher, arg) =>
     formatMatcherObjString(objMatcher) === formatArgumentObj(arg)
 
-/** @todo, @throws {Error} Note: Keep the returned `matchers` in order with `token`, avoid re-using identifiers/names */
-/** @example '_, { x, y, }, abc, [ bar, foo, ]' -> ['_', '{ x, y, }', 'abc', '[ bar, foo, ]'] */
-// String -> [String]
+/**
+ * @todo, @throws {Error} Note: Keep the returned `matchers` "in order" with `token`, avoid re-using identifiers/names
+ * @example '_, { x, y, }, abc, [ bar, foo, ]' -> ['_', '{ x, y, }', 'abc', '[ bar, foo, ]']
+ * @type {String -> [String]}
+ */
 const getMatchers = token => {
     const tkn = token.replace(STRIP_WHITESPACE_REGEXP, '')
     let mutableTkn = String(tkn)
