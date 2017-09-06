@@ -152,27 +152,12 @@ const logic = wavematch({
 <br>
 
 
-<h3 align='center'>Argument type-checking</h3>
-Provide type checking based on a `types` key.
-The constructor at each index is asserted against the `toString` value of each argument.
-
-```javascript
-const filter = wavematch({
-    types: [Function, Array]
-     default: (fn, array) => ...
-})
-```
-<br>
-
-
 <h2 align='center'>To Do</h2>
 
 - Add `curry2()` to the default export
 - Add tests for RegExp
 - Add tests for return a fixed value instead of a function.
 - Add tests for `applyTransform`
-- Add support for parameter type checking.
-- Add support for an `Any` type, in `pattern.types` (is this a good idea?).
 - Add support for recursive functions like `zipWith`.
 - Add support for function matching.
 

@@ -53,21 +53,6 @@ const getMatchers = token => {
         .concat(...mutableTkn.split(',').filter(Boolean)) // Add non-array/object matchers, remove trailing commas
 }
 
-// TODO: Add support for `Any`
-// ([Function], [Any]) -> ()
-const checkTypes = (types, args) => {
-    if (!isType('Array', types)) {
-        throw new TypeError(`\`types\` must be an Array, instead is: ${typeof types}`)
-    } else if (!types.every(t => isType('Function', t))) {
-        throw new TypeError('Every type in `types` must be a Function.')
-    } else if (types.length !== args.length) {
-        throw new Error('Number of types does not match number of arguments.')
-    }
-    // Throw error if every `args[i]` is not the same type as `types[i]` for the same `i`
-    const errIdx = args.findIndex((arg, idx) => !isType(types[idx].name, arg))
-    if (errIdx !== -1) throw new TypeError(`Type mismatch: Argument at index ${errIdx} should be of type ${types[errIdx].name}.`)
-}
-
 // ([String], [String]) -> Boolean. Maybe `.sort` both arrays?
 const isEqualStringArrays = (xs, ys) => JSON.stringify(xs) === JSON.stringify(ys)
 
@@ -79,7 +64,6 @@ module.exports = {
     , isBooleanAsString
     , hasIdenticalKeys
     , getMatchers
-    , checkTypes
     , isType
     , sortFn
 }

@@ -4,7 +4,6 @@ const {
     , ARRAY_MATCH_REGEXP
     , isBooleanAsString
     , getMatchers
-    , checkTypes
     , isType
 } = require('./util')
 const checkAllObjectCases = require('./object-cases')
@@ -76,7 +75,6 @@ const extractResult = (valOrFn, args) => isType('Function', valOrFn) ? valOrFn(.
 module.exports = exports = exports.default = (pattern={}) => (...args) => {
     if (args.length === 0) throw new Error('No arguments supplied.')
     // else if ('transform' in pattern) args = applyTransform(pattern.transform, args)
-    else if ('types' in pattern) checkTypes(pattern.types, args)
 
     const hasDefault = 'default' in pattern
     const tokens = hasDefault === true
