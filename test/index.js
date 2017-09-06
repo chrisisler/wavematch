@@ -178,7 +178,30 @@ describe('wavematch', () => {
     })
 
     describe('matches RegExp', () => {
+        it('with a RegExp matcher and String argument', () => {
+            const fn = wavematch({
+                '/foo?/': 'wtf'
+                , default: defaultStr
+            })
+            assert.strictEqual(fn('foo'), 'wtf')
+            assert.strictEqual(fn('fo'), 'wtf')
 
+            assert.strictEqual(fn('pizza'), defaultStr)
+        })
+
+        it('with a String matcher and RegExp argument', () => {
+            const fn = wavematch({
+                foo: 'wtf'
+                , fo: 'wtf'
+                , default: defaultStr
+            })
+
+            assert.strictEqual(fn(/foo?/), 'wtf')
+            assert.strictEqual(fn(/fo+/), 'wtf')
+            assert.strictEqual(fn(/.*/), 'wtf')
+
+            assert.strictEqual(fn(/pizza/), defaultStr)
+        })
     })
 
     // //todo

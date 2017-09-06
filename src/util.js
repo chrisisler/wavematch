@@ -6,17 +6,17 @@ const STRIP_WHITESPACE_REGEXP = /\s*/g
 const MATCHER_OBJ_STR_REGEXP = /[{}\s*]/g
 const ARGUMENT_OBJ_REGEXP = /[\[\]"\s*]/g
 
-// (Function, Any) -> Boolean
+/** @type {(Function, Any) -> Boolean} */
 const isType = (type, val) => Object.prototype.toString.call(val) === `[object ${type}]`
 
-// String -> Boolean
+/** @type {String -> Boolean} */
 const isBooleanAsString = str => (str === 'false') || (str === 'true')
 
-// (String|Number, String|Number) -> Boolean
+/** @type {(String|Number, String|Number) -> Boolean} */
 const sortFn = (a, b) => a < b
 
 /** @example '{ y, x, }' -> 'x,y' */
-// String -> String
+/** @type {String -> String} */
 const formatMatcherObjString = objMatcher => objMatcher
     .replace(MATCHER_OBJ_STR_REGEXP, '')
     .split(',')
@@ -25,10 +25,12 @@ const formatMatcherObjString = objMatcher => objMatcher
     .join(',')
 
 /** @example { y: 3, x: 'baz' } -> 'x,y' */
-// Object -> String
-const formatArgumentObj = arg => JSON.stringify(Object.keys(arg).sort(sortFn)).replace(ARGUMENT_OBJ_REGEXP, '')
+/** @type {Object -> String} */
+const formatArgumentObj = arg =>
+    JSON.stringify(Object.keys(arg).sort(sortFn))
+        .replace(ARGUMENT_OBJ_REGEXP, '')
 
-// (String, Object) -> Boolean
+/** @type {(String, Object) -> Boolean} */
 const hasIdenticalKeys = (objMatcher, arg) =>
     formatMatcherObjString(objMatcher) === formatArgumentObj(arg)
 
@@ -41,19 +43,20 @@ const getMatchers = token => {
     const tkn = token.replace(STRIP_WHITESPACE_REGEXP, '')
     let mutableTkn = String(tkn)
     return [ OBJ_MATCH_REGEXP, ARRAY_MATCH_REGEXP, REGEXP_MATCH_REGEXP ]
-        .reduce((acc, regexp) => {
-            const matchInfo = regexp.exec(tkn)
+        .reduce((matchers, regExp) => {
+            const matchInfo = regExp.exec(tkn)
             if (matchInfo) {
                 const [ matcher ] = matchInfo
                 mutableTkn = mutableTkn.replace(matcher, '') // Keeps a "history" of remaining matchers.
-                acc.push(matcher)
+                matchers = matchers.concat(matcher)
             }
-            return acc
+            return matchers
         }, [])
         .concat(...mutableTkn.split(',').filter(Boolean)) // Add non-array/object matchers, remove trailing commas
 }
 
-// ([String], [String]) -> Boolean. Maybe `.sort` both arrays?
+// Maybe `.sort` both arrays?
+/** @type {([String], [String]) -> Boolean} */
 const isEqualStringArrays = (xs, ys) => JSON.stringify(xs) === JSON.stringify(ys)
 
 module.exports = {

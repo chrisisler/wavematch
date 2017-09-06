@@ -6,7 +6,7 @@ const largeArray = [...Array(100)].map(_ => val)
 const fallback = 'DEFAULTED'
 const nonArrayDataTypes = [ 0, 4.2, '', {}, (function(){}), void 0, null, /.*/ ]
 
-describe('works on arrays', () => {
+describe.only('works on arrays', () => {
 
     describe('without "..."', () => {
 
