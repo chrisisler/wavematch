@@ -4,9 +4,9 @@ const wavematch = require('../src/index')
 const val = 'hi' // doesn't matter what actual value is
 const largeArray = [...Array(100)].map(_ => val)
 const fallback = 'DEFAULTED'
-const nonArrayDataTypes = [ 0, 4.2, '', {}, (function(){}), void 0, null, /.*/ ]
+const nonArrayDataTypes = [ 0, 4.2, '', {}, (function(){}), void 0, null, /regexp/ ]
 
-describe.only('works on arrays', () => {
+describe('works on arrays', () => {
 
     describe('without "..."', () => {
 
@@ -26,6 +26,7 @@ describe.only('works on arrays', () => {
             assert.strictEqual(zeroLength(largeArray), fallback)
 
             nonArrayDataTypes.forEach(notAnArray => {
+                console.log('notAnArray is:', notAnArray)
                 assert.strictEqual(zeroLength(notAnArray), fallback)
             })
         })

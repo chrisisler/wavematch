@@ -10,6 +10,9 @@ const getArrayMatcherNames = arrayMatcher => arrayMatcher
     .split(',')
     .filter(Boolean) // Allow trailing commas, nobody is perfect
 
+/** @type {String -> Boolean} */
+const isNotGreedy = str => !str.includes('...')
+
 /**
  * For array cases where the input described by some token is known to be greedy (include '...').
  * @type {(String, [[Any]], [String]) -> Boolean}
@@ -17,7 +20,7 @@ const getArrayMatcherNames = arrayMatcher => arrayMatcher
 const isCompatibleGreedyArrayMatcher = (arrayMatcher, argsArrays, tokens) => {
     // Either `undefined` or `[String]` :: The largest (most length-compatible) array from `tokens`
     const [ mostCompatibleTokenNames ] = tokens.reduce((acc, token) => { 
-        const tokenNames = getArrayMatcherNames(token).filter(s => !s.includes('...'))
+        const tokenNames = getArrayMatcherNames(token).filter(isNotGreedy)
         const tokenLengthIsCompatible = argsArrays.some(inputArray => tokenNames.length <= inputArray.length)
         return tokenLengthIsCompatible === true ? acc.concat([tokenNames]) : acc // exclude incompatible tokens
     }, []).sort((a, b) => a.length < b.length) // Get largest sized array as first element (for destructuring)
@@ -26,7 +29,7 @@ const isCompatibleGreedyArrayMatcher = (arrayMatcher, argsArrays, tokens) => {
     const noCompatibleTokens = (mostCompatibleTokenNames === void 0) && argsArrays.some(arr => arr.length === 0)
     if (noCompatibleTokens === true) return false // Return false because no token is compatible
 
-    const arrayMatcherNames = getArrayMatcherNames(arrayMatcher).filter(s => s !== '...')
+    const arrayMatcherNames = getArrayMatcherNames(arrayMatcher).filter(isNotGreedy) // filter may need `s => s !== '...'`
     return mostCompatibleTokenNames.length === arrayMatcherNames.length
 }
 

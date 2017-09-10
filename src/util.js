@@ -1,13 +1,16 @@
 // Hoisted regexps are more performant than using them in-place
 const OBJ_MATCH_REGEXP = /{.*}/
-const ARRAY_MATCH_REGEXP = /\[.*\]/
+const ARR_MATCH_REGEXP = /\[.*\]/
 const REGEXP_MATCH_REGEXP = /\/.*\//
 const STRIP_WHITESPACE_REGEXP = /\s*/g
 const MATCHER_OBJ_STR_REGEXP = /[{}\s*]/g
 const ARGUMENT_OBJ_REGEXP = /[\[\]"\s*]/g
 
-/** @type {(Function, Any) -> Boolean} */
-const isType = (type, val) => Object.prototype.toString.call(val) === `[object ${type}]`
+/** @type {Function -> Function} */
+const curry2 = f => (x, y) => !y ? y2 => f(x, y2) : f(x, y)
+
+/** @type {Function -> Any -> Boolean} */
+const isType = curry2((type, val) => Object.prototype.toString.call(val) === `[object ${type}]`)
 
 /** @type {String -> Boolean} */
 const isBooleanAsString = str => (str === 'false') || (str === 'true')
@@ -42,7 +45,7 @@ const hasIdenticalKeys = (objMatcher, arg) =>
 const getMatchers = token => {
     const tkn = token.replace(STRIP_WHITESPACE_REGEXP, '')
     let mutableTkn = String(tkn)
-    return [ OBJ_MATCH_REGEXP, ARRAY_MATCH_REGEXP, REGEXP_MATCH_REGEXP ]
+    return [ OBJ_MATCH_REGEXP, ARR_MATCH_REGEXP, REGEXP_MATCH_REGEXP ]
         .reduce((matchers, regExp) => {
             const matchInfo = regExp.exec(tkn)
             if (matchInfo) {
@@ -61,7 +64,7 @@ const isEqualStringArrays = (xs, ys) => JSON.stringify(xs) === JSON.stringify(ys
 
 module.exports = {
     REGEXP_MATCH_REGEXP
-    , ARRAY_MATCH_REGEXP
+    , ARR_MATCH_REGEXP
     , OBJ_MATCH_REGEXP
     , isEqualStringArrays
     , isBooleanAsString
