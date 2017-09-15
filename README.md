@@ -17,6 +17,15 @@ const factorial = wavematch({
 ```
 
 
+<h2 align='center'>Install</h2>
+```sh
+npm i wavematch
+
+# or with yarn
+yarn add wavematch
+```
+
+
 <h2 align='center'>Usage</h2>
 
 
