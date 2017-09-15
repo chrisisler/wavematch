@@ -26,7 +26,6 @@ describe('works on arrays', () => {
             assert.strictEqual(zeroLength(largeArray), fallback)
 
             nonArrayDataTypes.forEach(notAnArray => {
-                console.log('notAnArray is:', notAnArray)
                 assert.strictEqual(zeroLength(notAnArray), fallback)
             })
         })

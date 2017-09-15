@@ -52,37 +52,37 @@ describe('matches objects', () => {
             const x = 'x'
             const xy = 'xy'
             const xyz = 'xyz'
-            const onlyNamedKeys = wavematch({
+            const justNamedKeys = wavematch({
                 '{ x }'         : x
                 , '{ x, y, }'   : xy
                 , '{ x, y, z }' : xyz
                 , default       : fallback
             })
 
-            assert.strictEqual(onlyNamedKeys({ x: 1 }), x)
-            assert.strictEqual(onlyNamedKeys({ x: 1, y: 1 }), xy)
-            assert.strictEqual(onlyNamedKeys({ x: 1, y: 1, z: 1 }), xyz)
+            assert.strictEqual(justNamedKeys({ x: 1 }), x)
+            assert.strictEqual(justNamedKeys({ x: 1, y: 1 }), xy)
+            assert.strictEqual(justNamedKeys({ x: 1, y: 1, z: 1 }), xyz)
 
-            assert.strictEqual(onlyNamedKeys({}), fallback)
-            assert.strictEqual(onlyNamedKeys({ z: 1 }), fallback)
-            assert.strictEqual(onlyNamedKeys({ y: 1 }), fallback)
-            assert.strictEqual(onlyNamedKeys({ y: 1, z: 1 }), fallback)
+            assert.strictEqual(justNamedKeys({}), fallback)
+            assert.strictEqual(justNamedKeys({ z: 1 }), fallback)
+            assert.strictEqual(justNamedKeys({ y: 1 }), fallback)
+            assert.strictEqual(justNamedKeys({ y: 1, z: 1 }), fallback)
         })
 
         it('zero named keys && N unnamed keys', () => {
-            const onlyUnnamedKeys = wavematch({
+            const justUnnamedKeys = wavematch({
                 '{ _ }'         : 'one'
                 , '{ _, _ }'    : 'two'
                 , '{ _, _, _ }' : 'three'
                 , default       : fallback
             })
 
-            assert.strictEqual(onlyUnnamedKeys({ x: 1 }), 'one')
-            assert.strictEqual(onlyUnnamedKeys({ x: 1, y: 1 }), 'two')
-            assert.strictEqual(onlyUnnamedKeys({ x: 1, y: 1, z: 1 }), 'three')
+            assert.strictEqual(justUnnamedKeys({ x: 1 }), 'one')
+            assert.strictEqual(justUnnamedKeys({ x: 1, y: 1 }), 'two')
+            assert.strictEqual(justUnnamedKeys({ x: 1, y: 1, z: 1 }), 'three')
 
-            assert.strictEqual(onlyUnnamedKeys({}), fallback)
-            assert.strictEqual(onlyUnnamedKeys({ a: 1, b: 2, c: 3, d: 4 }), fallback)
+            assert.strictEqual(justUnnamedKeys({}), fallback)
+            assert.strictEqual(justUnnamedKeys({ a: 1, b: 2, c: 3, d: 4 }), fallback)
         })
     })
 
@@ -111,7 +111,7 @@ describe('matches objects', () => {
                 , default: fallback
             })
 
-            // only "one" pair of named && unnamed keys (in the input object under test)
+            // just "one" pair of named && unnamed keys (in the input object under test)
             assert.strictEqual(zeroOrMoreOfBothKeys({ age: 1, foo: 1 }), 'one')
             assert.strictEqual(zeroOrMoreOfBothKeys({ age: 1, foo: 1, bar: 1 }), 'one') // extra keys don't need specific names
 

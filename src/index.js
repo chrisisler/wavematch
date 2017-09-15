@@ -16,7 +16,6 @@ const isNullOrUndef = x => isType('Undefined', x) || isType('Null', x)
 // Handles type-dependent branching logic for verifying if `matcher` is somehow compatible.
 /** @type {(String, [Any], [String]) -> Boolean} */
 const isCompatible = (matcher, args, tokens) => {
-    // input : isCompatible('[]', '')
     if (matcher === '_') return true // Skip, wildcard is always compatible
 
     const isBoolStr = isBooleanAsString(matcher) // True if `matcher` = 'false' or 'true'
@@ -74,7 +73,7 @@ const extractResult = (valOrFn, args) =>
  *     @param {[Any]} args - All input. Verified per pattern case for type-dependent compatibility.
  *     @returns {Any} - From `pattern`. Either a value or a function which gets applied to `args`.
  */
-module.exports = exports = exports.default = (pattern={}) => (...args) => {
+module.exports = (pattern={}) => (...args) => {
     if (args.length === 0) throw new Error('No arguments supplied.')
     // else if ('transform' in pattern) args = applyTransform(pattern.transform, args)
 
