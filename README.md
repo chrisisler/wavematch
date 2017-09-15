@@ -18,6 +18,7 @@ const factorial = wavematch({
 
 
 <h2 align='center'>Install</h2>
+
 ```bash
 npm i wavematch
 
