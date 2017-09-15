@@ -1,10 +1,12 @@
 <h1 align='center'>Wavematch</h1>
 <h3 align='center'><strong>JS pattern matching</strong></h3>
+<h5 align='center'><strong>Conditionals, enhanced switch-case, and more.</strong></h5>
 
 <p align='center'>
 Compare inputs against descriptions to check for compatibility.
-If a described match is compatible, the corresponding expression is executed.
-Return a fixed value or apply a function to the arguments.
+If a pattern is compatible, the corresponding expression is executed.
+Return a value or apply a function to the arguments.
+Fallback to an optional `default` if no match succeeds.
 </p>
 
 ```JavaScript
@@ -94,7 +96,8 @@ const arrayMatch = wavematch({
 <h3 align='center'>Match Objects</h3>
 Use the exact (case-sensitive) word to match a key of that exact name.
 Use an underscore character to match a key of any name.
-Trailing commas are supported and will not cause errors.
+Trailing commas are supported and will not cause errors, (if you find a bug,
+please [file an issue](https://github.com/chrisisler/wavematch/issues/new)).
 
 ```javascript
 const nonGreedyLogic = wavematch({
@@ -154,6 +157,7 @@ const logic = wavematch({
 
 <h2 align='center'>To Do</h2>
 
+- Add webpack to build step to allow `import` and `export` keywords.
 - Add `curry2()` to the default export
 - Add tests for RegExp
 - Add tests for return a fixed value instead of a function.
