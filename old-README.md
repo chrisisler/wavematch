@@ -95,3 +95,10 @@ factorial example here
             // ^ throw Error(`Wavematch rule (number ${N}) (named ${name}) contains out of scope default value for argument ${argName}`)
         }
    )
+- NPM packages that don't work for parsing args:
+  - get-function-arguments
+  - function-arguments
+  - js-function-reflector
+  - fn-args
+  - handle-arguments
+  - manage-arguments

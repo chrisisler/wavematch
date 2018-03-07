@@ -12,7 +12,8 @@
   "license": "MIT",
   "dependencies": {},
   "devDependencies": {
-    "js-function-reflector": "^1.4.0",
-    "mocha": "^3.5.0"
+    "json5": "^0.5.1",
+    "mocha": "^3.5.0",
+    "parse-function": "^5.2.3"
   }
 }

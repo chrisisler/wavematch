@@ -1,4 +1,5 @@
-const reflect = require('js-function-reflector')
+const parseFunction = require('parse-function')().parse
+const json5 = require('json5')
 
 // type PatternArg = Object {
 //   argName: String
@@ -22,16 +23,15 @@ module.exports = function wavematch (...values) {
       if (!isType('Function', pattern)) {
         throw Error(`Pattern at index ${index} is not a Function, instead is: ${getType(pattern)}.`)
       }
-      const reflected = reflect(pattern)
+      const reflectedArgs = reflectArguments(pattern)
 
-      if (reflected.args.length === 0) {
-        const nameMaybe = (reflected.name !== 'anonymous') ? `"${reflected.name}" ` : ''
+      if (reflectedArgs.length === 0) {
+        const nameMaybe = (pattern.name !== 'anonymous') ? `"${pattern.name}" ` : ''
         throw Error(`Pattern ${nameMaybe}at index ${index} must accept one or more arguments.`)
       }
-      return reflected.args.map(normalize)
+      return reflectedArgs
     })
 
-    // console.log('patternsArgs is:', patternsArgs)
     const patternsIncludesCatchAll = patternsArgs.some((patternArgs, patternIndex) => {
       const catchAll = patternArgs.find(patternArg => patternArg.argName === '_')
       const catchAllExists = Boolean(catchAll)
@@ -61,21 +61,50 @@ module.exports = function wavematch (...values) {
   }
 }
 
-function normalize (arg) {
-  if (isType('Array', arg)) {
-    return {
-      argName: arg[0],
-      default: arg[1]
+
+/**
+ * type Arg = Object { argName: String, default?: Any }
+ *
+ * @param {Function} fn
+ * @returns {Array<Arg>}
+ */
+function reflectArguments (fn) {
+  const parsed = parseFunction(fn)
+
+  if (parsed.args.length === 0) {
+    return []
+  }
+
+  const reflectedArguments = parsed.args.map(argName => {
+    let _default = parsed.defaults[argName]
+
+    // if no default then don't put `default` key in the returned object
+    if (_default === void 0) {
+      return {
+        argName: argName
+      }
     }
-  }
-  return {
-    argName: arg
-  }
+    // default is an Object, parse it into an actual Object type
+    if (_default.startsWith('{')) {
+      _default = json5.parse(_default)
+    } else {
+      _default = eval(_default)
+    }
+
+    return {
+      argName: argName,
+      default: _default
+    }
+  })
+
+  return reflectedArguments
 }
 
-function isType (type, value) {
-  return getType(value) === `[object ${type}]`
+
+function isType (constructor, value) {
+  return getType(value) === `[object ${constructor}]`
 }
+
 
 function getType (value) {
   return Object.prototype.toString.call(value)
