@@ -5,13 +5,14 @@
   "description": "JS pattern matching",
   "main": "index.js",
   "scripts": {
-      "test": "mocha"
+    "test": "mocha"
   },
   "repository": "git@github.com:chrisisler/wavematch.git",
   "author": "chrisisler <christopherisler1@gmail.com>",
   "license": "MIT",
   "dependencies": {},
   "devDependencies": {
+    "js-function-reflector": "^1.4.0",
     "mocha": "^3.5.0"
   }
 }

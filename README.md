@@ -1,179 +1,65 @@
-<h1 align='center'>Wavematch</h1>
-<h3 align='center'><strong>JS pattern matching</strong></h3>
-<h5 align='center'><strong>Conditionals, enhanced switch-case, and more.</strong></h5>
+# Summary
+[summary]: #summary
 
-<p align='center'>
-Compare inputs against descriptions to check for compatibility.
-If a pattern is compatible, the corresponding expression is executed.
-Return a value or apply a function to the arguments.
-Fallback to an optional `default` if no match succeeds.
-</p>
+What does this do?
 
-```JavaScript
-const factorial = wavematch({
-    0: 1,
-    default: (n) => n * factorial(n - 1)
-})
+How would it be used?
+```javascript
+const factorial = n => wavematch(n)(
+  (n = 0) => 1,
+  _ => n * factorial(n - 1)
+)
+factorial(5) //=> 120
 ```
 
 
-<h2 align='center'>Install</h2>
+# Background
+[background]: #background
 
-```bash
-npm i wavematch
-
-# or with yarn
-yarn add wavematch
-```
+Point out previous discussions with (bullet-point) links.
+How is this different than before?
+What do you need to get started? Previous knowledge?
 
 
-<h2 align='center'>Usage</h2>
+# Motivation
+[motivation]: #motivation
 
+Why are we doing this?
+What use cases does it support?
+What is the expected outcome?
+(What problem does this (new thing/solution) solve?)
 
-<h3 align='center'>Match Strings</h3>
-<p>Match string literals, case-sensitive. Any quote style works.</p>
+# Design
+[design]: #design
+
+## Syntax
+
+Something from the Rust matching thingy here.
 
 ```javascript
-const stringMatch = wavematch({
-    "foo": (...args) => ...
-    'andy': (...args) => ...
-    bar: (...args) => ...
-})
-```
-<br>
+wavematch(VALUE)(
+  ARGUMENT => EXPRESSION,
+  (ARGUMENT = PATTERN) => EXPRESSION
+)
 
-
-<h3 align='center'>Match Numbers</h3>
-
-```javascript
-const numberMatch = wavematch({
-    0: (...args) => ...
-    5: (...args) => ...
-
-    3.2: (...args) => ...
-})
-```
-<br>
-
-
-<h3 align='center'>Match Null and Undefined</h3>
-
-```javascript
-const nullMatch = wavematch({
-    null: (...args) => ...
-    undefined: (...args) => ...
-})
-```
-<br>
-
-
-<h3 align='center'>Match Regular Expressions</h3>
-
-```javascript
-const regExpMatch = wavematch({
-    '/foo/': (...args) => ...
-    default: (...args) => ...
-})
-```
-<br>
-
-
-<h3 align='center'>Match Arrays</h3>
-
-```javascript
-const arrayMatch = wavematch({
-    // Match an empty array
-    '[]': (...args) => ...
-
-    // Match an array of length 1
-    '[ blah ]': (...args) => ...
-
-    // Match an array of length N
-    '[ blah, foo ]': (...args) => ...
-
-    // Match an array of arbitrary length
-    '[...]': (...args) => ...
-
-    // Match an array of at least length 1
-    '[ x, ... ]': (...args) => ...
-
-    // Match an array of at least length N
-    '[ x, y, ... ]': (...args) => ...
-})
+wavematch(VALUE_1, VALUE_2, ..., VALUE_N)(
+  (ARG_1 = PATTERN_1, ARG_2 = PATTERN_2, ..., ARG_N = PATTERN_N) => EXPRESSION
+)
 ```
 
+# To Do
 
-<h3 align='center'>Match Objects</h3>
-Use the exact (case-sensitive) word to match a key of that exact name.
-Use an underscore character to match a key of any name.
-Trailing commas are supported and will not cause errors, (if you find a bug,
-please [file an issue](https://github.com/chrisisler/wavematch/issues/new)).
+- `() => EXPRESSION` should be error
+- Catch-all `_` must be last rule
+- Catch-all must not have default value
+- `values` must be non-zero length
+- `rules` must be non-zero length
+- every rule must be a function (?)
+- TODO if any rule has any arg that has a function as its default value, `reflect` that function
 
-```javascript
-const nonGreedyLogic = wavematch({
-    // Match only an empty object (no keys)
-    '{}': (...args) => ...
+# Reading
 
-    // Match an object with exactly N named keys
-    '{ x }': (...args) => ...
-    '{ x, y }': (...args) => ...
-
-    // Match an object with exactly N unnamed keys
-    // For when you want a specific amount of keys of any name
-    '{ _ }': (...args) => ...
-    '{ _, _ }': (...args) => ...
-
-    // Match an object with exactly N named keys and M unnamed keys
-    '{ x, _ }': (...args) => ...
-    '{ x, y, _, _ }': (...args) => ...
-    '{ x, y, _, foo }': (...args) => ...
-})
-
-const greedyLogic = wavematch({
-    // Matches any object (zero or more keys)
-    '{...}': (...args) => ...
-
-    // Match an object with N or more named keys
-    '{ x, ... }': (...args) => ...
-    '{ x, y, ... }': (...args) => ...
-
-    // Match an object with N or more unnamed keys
-    '{ _, ... }': (...args) => ...
-    '{ _, _, ... }': (...args) => ...
-
-    // Match an object with N or more named keys and N or more unnamed keys
-    '{ x, _, ... }': (...args) => ...
-    '{ x, _, z, ... }': (...args) => ...
-})
-```
-<br>
-
-
-<h3 align='center'>Match Booleans</h3>
-
-```javascript
-const logic = wavematch({
-    false: (...args) => ...
-    true: (...args) => ...
-})
-```
-<br>
-
-
-<h3 align='center'>Match Functions</h3>
-<p align='center'>todo</p>
-<br>
-
-
-<h2 align='center'>To Do</h2>
-
-- Add webpack to build step to allow `import` and `export` keywords.
-- Add `curry2()` to the default export
-- Add tests for RegExp
-- Add tests for return a fixed value instead of a function.
-- Add tests for `applyTransform`
-- Add support for recursive functions like `zipWith`.
-- Add support for function matching.
-
-<h3 align='center'>Limitations</h3>
-- Cannot match an empty string.
+- doc.rust-lang.org/book/second-edition/ch18-01-all-the-places-for-patterns.html
+- github.com/chrisisler/wavematch
+- github.com/arrizalamin/js-function-reflector
+- github.com/rust-lang/rfcs/blob/master/text/1522-conservative-impl-trait.md
