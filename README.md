@@ -49,13 +49,16 @@ wavematch(VALUE_1, VALUE_2, ..., VALUE_N)(
 
 # To Do
 
-- `() => EXPRESSION` should be error
-- Catch-all `_` must be last rule
-- Catch-all must not have default value
-- `values` must be non-zero length
-- `rules` must be non-zero length
-- every rule must be a function (?)
-- TODO if any rule has any arg that has a function as its default value, `reflect` that function
+- Error if two identical function prototypes provided ("Unreachable pattern: duplicate" (see Rust error message for this error))
+```
+(s = '') => ...
+(s = '') => ...
+and
+_ => ...
+_ => ...
+```
+- TODO collect errors instead of throwing instantly
+- TODO if any rule has any arg that has a function as its default value, `reflect` that function (why?)
 
 # Reading
 
