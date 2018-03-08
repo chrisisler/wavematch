@@ -44,6 +44,7 @@ _ => ...
 _ => ...
 ```
 - if any rule has any arg that has a function as its default value, `reflect` that function (why?)
+- write tests
 
 # Reading
 

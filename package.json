@@ -5,15 +5,22 @@
   "description": "JavaScript's missing controw flow.",
   "main": "index.js",
   "scripts": {
-    "test": "mocha"
+    "test": "mocha",
+    "build": "flow-remove-types src/ -d lib/",
+    "prepublish": "yarn run build"
   },
   "repository": "git@github.com:chrisisler/wavematch.git",
   "author": "chrisisler <christopherisler1@gmail.com>",
   "license": "MIT",
   "dependencies": {},
   "devDependencies": {
+    "eslint-config-prettier": "^2.9.0",
+    "eslint-plugin-prettier": "^2.6.0",
+    "flow-bin": "^0.66.0",
+    "flow-remove-types": "^1.2.3",
     "json5": "^0.5.1",
     "mocha": "^3.5.0",
-    "parse-function": "^5.2.3"
+    "parse-function": "^5.2.3",
+    "prettier": "1.11.1"
   }
 }
