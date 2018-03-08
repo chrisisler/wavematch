@@ -2,7 +2,7 @@
   "name": "wavematch",
   "es6": true,
   "version": "0.2.0",
-  "description": "JS pattern matching",
+  "description": "JavaScript's missing controw flow.",
   "main": "index.js",
   "scripts": {
     "test": "mocha"
