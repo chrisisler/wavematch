@@ -1,50 +1,61 @@
 //@flow
 
+// see stackoverflow.com/questions/46596235/flow-generic-type-for-function-expression-arrow-functions
+// https://ponyfoo.com/articles/pattern-matching-in-ecmascript
+
 const { EOL: newLine } = require('os')
-const parseFunction: Function = require('parse-function')().parse
 const json5: { parse: string => Object } = require('json5')
+const parseFunction: Function = require('parse-function')().parse
 
-type ReflectedArg = {
+type ReflectedArg = $ReadOnly<{
   argName: string,
-  default?: ?any
-}
+  default?: any | void
+}>
 
-type Rule = {
+type Expression = (...Array<any>) => ?mixed
+
+type Rule = $ReadOnly<{
   allReflectedArgs: Array<ReflectedArg>,
   arity: number,
-  expression: Function
-}
+  expression: Expression
+}>
 
 // for accumulating error stack traces
 let errors: Array<string> = []
 
-module.exports = function wavematch(...values: Array<mixed>): Function => ?any {
+module.exports = function wavematch(
+  ...values: Array<any>
+): (...Array<Expression>) => ?mixed {
   if (values.length === 0) {
     collectError(
       SyntaxError(
         'Please supply at least one argument to ' +
-          'match function. Cannot match no input.'
+          'match function. Cannot match on zero parameters.'
       )
     )
   }
 
-  return function(...patterns: Array<Function>): ?any {
+  return function(...patterns: Array<Expression>): ?mixed {
     if (patterns.length === 0) {
       // fatal error
       throw SyntaxError(
         'Non-exhaustive patterns. ' +
-          'Please add the catch-all pattern "_ => { expression }" at the last ' +
+          'Please add the wildcard pattern "_ => { expression }" at the last ' +
           'index.'
       )
     }
 
     const rules: Array<Rule> = patterns.map(toRule)
 
-    // search for index of catch-all rule instead of assuming it was placed
+    // search for index of wildcard rule instead of assuming it was placed
     // in the preferred location (at the last index) and provide error if not
-    const indexOfCatchAllRule = rules.findIndex((rule: Rule) => {
-      for (let index = 0; index < rule.allReflectedArgs.length; index++) {
-        const reflectedArg: ReflectedArg = rule.allReflectedArgs[index]
+    const indexOfWildcardRule: number = rules.findIndex((rule: Rule) => {
+      return rule.allReflectedArgs.some((reflectedArg: ReflectedArg, index) => {
+        // `reflectedArg.argName` is a false boolean if the argument is a
+        // destructured array or destructured object
+        if (reflectedArg.argName === false) {
+          return false
+        }
 
         if (!reflectedArg.argName.includes('_')) {
           return false
@@ -53,56 +64,52 @@ module.exports = function wavematch(...values: Array<mixed>): Function => ?any {
         if (reflectedArg.argName.length > 1) {
           collectError(
             SyntaxError(
-              'Catch-all argument name contains ' +
-                `${
-                  reflectedArg.argName.length
-                } underscore characters. Expected just one.`
+              'Wildcard argument name contains ' +
+                reflectedArg.argName.length +
+                'underscore characters. Expected just one.'
             )
           )
         }
 
-        const isCatchAllRule = reflectedArg.argName === '_'
+        const isWildcardRule = reflectedArg.argName === '_'
 
-        if (rule.arity > 1 && isCatchAllRule) {
+        if (rule.arity > 1 && isWildcardRule) {
           collectError(
             SyntaxError(
-              'Catch-all pattern must be unary. ' +
+              'Wildcard pattern must be unary. ' +
                 `Expected one argument (named "_"). Found ${rule.arity} args.`
             )
           )
         }
 
-        // if (isCatchAllRule && reflectedArg.default) {
-        //   indexOfCatchAllArg = index
-        // }
-
-        return isCatchAllRule
-      }
+        return isWildcardRule
+      })
     })
-    const catchAllExists = indexOfCatchAllRule > -1
 
-    if (catchAllExists) {
-      if (patterns.length >= 1 && indexOfCatchAllRule !== rules.length - 1) {
+    const wildcardExists = indexOfWildcardRule > -1
+
+    if (wildcardExists) {
+      if (patterns.length >= 1 && indexOfWildcardRule !== rules.length - 1) {
         collectError(
           SyntaxError(
-            'Catch-all pattern should be the ' +
-              `last pattern. Instead is at index ${indexOfCatchAllRule}.`
+            'Wildcard pattern should be the ' +
+              `last pattern. Instead is at index ${indexOfWildcardRule}.`
           )
         )
       }
 
-      const catchAllRule = rules[indexOfCatchAllRule]
-      const catchAllArg: ?ReflectedArg = catchAllRule.allReflectedArgs.find(
-        (r: ReflectedArg) => r.argName === '_'
+      const wildcardRule: Rule = rules[indexOfWildcardRule]
+      const wildcardArg: ?ReflectedArg = wildcardRule.allReflectedArgs.find(
+        (reflectedArg: ReflectedArg) => reflectedArg.argName === '_'
       )
 
-      if (catchAllArg != null) {
-        if ('default' in catchAllArg && catchAllArg.default != null) {
+      if (wildcardArg != null) {
+        if ('default' in wildcardArg && wildcardArg.default != null) {
           collectError(
             SyntaxError(
-              'Catch-all pattern must not have a ' +
+              'Wildcard pattern must not have a ' +
                 'default argument. Found default argument of: ' +
-                catchAllArg.default
+                wildcardArg.default
             )
           )
         }
@@ -111,7 +118,7 @@ module.exports = function wavematch(...values: Array<mixed>): Function => ?any {
       collectError(
         SyntaxError(
           'Non-exaustive pattern. Expected ' +
-            'catch-all rule: "_ => { expression }" as last rule.'
+            'wildcard rule: "_ => { expression }" as last rule.'
         )
       )
     }
@@ -120,24 +127,40 @@ module.exports = function wavematch(...values: Array<mixed>): Function => ?any {
     maybeThrowAndFlushErrors()
 
     for (let index = 0; index < rules.length; index++) {
-      // skip catch-all pattern as it:
+      // skip wildcard pattern as it:
       // 1) might not exist
       // 2) might not be at the last index like it's supposed to be
-      if (index !== indexOfCatchAllRule) {
+      if (index !== indexOfWildcardRule) {
         if (rules[index].arity === values.length) {
-          const matched = rules[index].expression(...values)
-          return matched
+          // const matched = rules[index].expression(...values)
+          if (doesMatch(rules[index], values)) {
+            return rules[index].expression(...values)
+          }
         }
       }
     }
 
-    if (catchAllExists) {
-      const matched = rules[indexOfCatchAllRule].expression(...values)
-      return matched
+    if (wildcardExists) {
+      return rules[indexOfWildcardRule].expression(...values)
     }
   }
 }
 
+// /Users/litebox/Code/Git/wavematch/node_modules/json5/lib/json5.js:64
+//             throw error;
+//             ^
+
+// SyntaxError: Expected 'a' instead of 'u' at line 1 column 16 of the JSON5 data. Still to read: "umber }"
+//     at error (/Users/litebox/Code/Git/wavematch/node_modules/json5/lib/json5.js:56:25)
+//     at next (/Users/litebox/Code/Git/wavematch/node_modules/json5/lib/json5.js:72:17)
+//     at word (/Users/litebox/Code/Git/wavematch/node_modules/json5/lib/json5.js:389:15)
+//     at value (/Users/litebox/Code/Git/wavematch/node_modules/json5/lib/json5.js:493:56)
+//     at object (/Users/litebox/Code/Git/wavematch/node_modules/json5/lib/json5.js:459:35)
+//     at value (/Users/litebox/Code/Git/wavematch/node_modules/json5/lib/json5.js:482:20)
+//     at Object.parse (/Users/litebox/Code/Git/wavematch/node_modules/json5/lib/json5.js:508:18)
+//     at parsed.args.map.argName (/Users/litebox/Code/Git/wavematch/lib/index.js:158:24)
+//     at Array.map (<anonymous>)
+//     at reflectArguments (/Users/litebox/Code/Git/wavematch/lib/index.js:147:42)
 function reflectArguments(fn: Function): Array<ReflectedArg> {
   const parsed: { args: Array<string>, defaults: Object } = parseFunction(fn)
 
@@ -146,6 +169,9 @@ function reflectArguments(fn: Function): Array<ReflectedArg> {
   }
 
   const reflectedArguments = parsed.args.map(argName => {
+    // `argName` is a false boolean if the argument is a
+    // destructured array or destructured object
+
     let _default = parsed.defaults[argName]
 
     // if no default then don't put `default` key in the returned object
@@ -156,6 +182,7 @@ function reflectArguments(fn: Function): Array<ReflectedArg> {
     }
     // default is an Object, parse it into an actual Object type
     if (_default.startsWith('{')) {
+      // pattern present in _default must be conformant to json5 spec
       _default = json5.parse(_default)
     } else {
       _default = eval(_default)
@@ -170,27 +197,18 @@ function reflectArguments(fn: Function): Array<ReflectedArg> {
   return reflectedArguments
 }
 
-/**
- * @param {Function} constructor
- * @param {Any} value
- * @returns {Boolean}
- */
-function isType(constructor, value) {
+function isType(constructor: string, value: any): boolean {
   return getType(value) === `[object ${constructor}]`
 }
 
-/**
- * @param {Any} value
- * @returns {String}
- */
-function getType(value) {
+function getType(value: any): string {
   return Object.prototype.toString.call(value)
 }
 
 /**
- * @param {Error}
+ * accesses and mutates `errors: Array<string>` outside of this scope
  */
-function collectError(error) {
+function collectError(error: Error): void {
   // write this function name, file name, line number, and column number
   // to the `.stack` String prop of the supplied object
   // Error.captureStackTrace(error)
@@ -200,8 +218,8 @@ function collectError(error) {
 /**
  * @throws {Error}
  */
-function maybeThrowAndFlushErrors() {
-  const separator = [...Array(80)].map(() => '-').join('')
+function maybeThrowAndFlushErrors(): void {
+  const separator: string = [...Array(80)].map(() => '-').join('')
 
   if (errors.length === 1) {
     const message =
@@ -238,9 +256,11 @@ function maybeThrowAndFlushErrors() {
   }
 }
 
-function toRule(pattern, index) {
-  const isFunction = !isType('Function', pattern)
-  if (isFunction) {
+// https://stackoverflow.com/questions/46596235/flow-generic-type-for-function-expression-arrow-functions
+// wtf
+// type ToRule<A, B> = <B: >(patter)
+function toRule(pattern: Function, index: number): Rule {
+  if (!isType('Function', pattern)) {
     collectError(
       TypeError(
         `Pattern at index ${index} is not a ` +
@@ -248,9 +268,16 @@ function toRule(pattern, index) {
       )
     )
   }
-  let reflectedArgs = reflectArguments(pattern)
 
-  if (reflectedArgs.length === 0) {
+  const reflectedArgs: Array<ReflectedArg> = reflectArguments(pattern)
+
+  const rule: Rule = {
+    allReflectedArgs: reflectedArgs,
+    expression: pattern,
+    arity: reflectedArgs.length
+  }
+
+  if (rule.arity === 0) {
     collectError(
       SyntaxError(
         `Pattern at index ${index} does ` +
@@ -259,7 +286,7 @@ function toRule(pattern, index) {
     )
   }
 
-  if (reflectedArgs.length === 0) {
+  if (rule.allReflectedArgs.length === 0) {
     const patternDisplayName =
       pattern.name === 'anonymous'
         ? 'Anonymous pattern'
@@ -272,10 +299,40 @@ function toRule(pattern, index) {
     )
   }
 
-  const rule = {
-    allReflectedArgs: reflectedArgs,
-    expression: pattern,
-    arity: reflectedArgs.length
-  }
   return rule
+}
+
+// todo
+function doesMatch(rule: Rule, values: Array<any>): boolean {
+  const constructors = [Object, Number, Function, Array, String, Set, Map]
+
+  return values.every((value: any, index: number) => {
+    const reflectedArg: ReflectedArg = rule.allReflectedArgs[index]
+
+    if ('default' in reflectedArg) {
+      const pattern: any = reflectedArg.default
+
+      // for `(value = Array) => { ... }` patterns
+      if (constructors.indexOf(pattern) !== -1) {
+        return isType(pattern.name, value)
+      }
+
+      // for `(value = { x: 3, y: 4 }) => { ... }` patterns
+      if (isType('Object', pattern)) {
+        // key value match
+        const patternKeys: Array<string> = Object.keys(pattern)
+
+        if (patternKeys.length !== Object.keys(value).length) {
+          return false
+        }
+
+        return patternKeys.every((key: string) => {
+          if (constructors.indexOf(pattern[key]) !== -1) {
+            return isType(pattern[key].name, value)
+          }
+          return pattern[key] === value[key]
+        })
+      }
+    }
+  })
 }
