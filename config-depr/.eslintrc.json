@@ -1,0 +1,35 @@
+{
+  "parser": "flow",
+  "env": {
+    "browser": true,
+    "commonjs": true,
+    "es6": true,
+    "node": true
+  },
+  "plugins": ["prettier"],
+  "extends": [
+    "eslint:recommended",
+    "plugin:prettier/recommended",
+    "prettier",
+    "prettier/flowtype"
+  ],
+  "rules": {
+    "prettier/prettier": "error",
+    "indent": [
+      "error",
+      2
+    ],
+    "linebreak-style": [
+      "error",
+      "unix"
+    ],
+    "quotes": [
+      "error",
+      "single"
+    ],
+    "semi": [
+      "error",
+      "never"
+    ]
+  }
+}
