@@ -1,5 +1,5 @@
 {
-  "requirePragma": false,
+  "requirePragma": true,
   "printWidth": 80,
   "bracketSpacing": true,
   "tabWidth": 2,
@@ -10,7 +10,9 @@
   "overrides": [
     {
       "files": ".prettierrc.json",
-      "options": { "parser": "json"  }
+      "options": {
+        "parser": "json"
+      }
     }
   ]
 }

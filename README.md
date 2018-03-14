@@ -8,19 +8,32 @@ const factorial = N => wavematch(N)(
 )
 factorial(5) //=> 120
 
+const isUsd = item => wavematch(item)(
+    (arg = { options: { currency: 'USD' } }) => true,
+    _ => false
+    )
+isUsd({ value: 19.99, options: { currency: 'USD' } }) //=> true
+isUsd({ value: 19.99, options: { currency: 'ARS' } }) //=> false
+
 // zip example
 // zipWith example
 // fibonnaci example
 // flatten example
 // non-function example
+// nested example
+// async/await example
 // flow types example
 // typescript example
 // react example
 ```
 
-What does this do?
+> What does this do?
+JavaScript's missing control flow operator.
 
-How would it be used?
+Compare values against a series of patterns and execute code based on which pattern matches.
+Patterns can be made up of literal values, type checks, and wildcards.
+
+> How would it be used?
 
 
 # Background
@@ -54,5 +67,13 @@ wavematch(VALUE)(
 
 wavematch(VALUE_1, VALUE_2, ..., VALUE_N)(
   (ARG_1 = PATTERN_1, ARG_2 = PATTERN_2, ..., ARG_N = PATTERN_N) => EXPRESSION
+)
+```
+
+Assuming your editor supports code snippets, here's a snippet for wavematch:
+```javascript
+wavematch(${1:value})(
+  (${2:arg} = ${3:pattern}) => ${4:expression}
+  _ => ${5:defaultExpression}
 )
 ```

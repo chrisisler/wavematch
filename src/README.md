@@ -51,3 +51,5 @@ _ => ...
 - doc.rust-lang.org/book/second-edition/ch18-01-all-the-places-for-patterns.html
 - github.com/chrisisler/wavematch
 - github.com/rust-lang/rfcs/blob/master/text/1522-conservative-impl-trait.md
+- https://stackoverflow.com/questions/46596235/flow-generic-type-for-function-expression-arrow-functions
+- https://ponyfoo.com/articles/pattern-matching-in-ecmascript
