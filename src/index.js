@@ -2,21 +2,27 @@
 
 const json5: { parse: string => Object } = require('json5')
 const functionParse: Function = require('parse-function')().parse
+const isEqual = require('lodash.isequal')
 
 const { warning, invariant } = require('./errors.js')
 
 type ReflectedArg = $ReadOnly<{
   argName: string,
-  default?: any | void
+  default?: any
 }>
 
-type Expression = (...Array<any>) => ?mixed
+type Expression = (...Array<mixed>) => ?mixed
 
 type Rule = $ReadOnly<{
   allReflectedArgs: Array<ReflectedArg>,
   arity: number,
   expression: Expression
 }>
+
+// stand-ins for the `Object` and `Array` constructors since flow reserves the
+// `Object` and `Array` keywords
+type ObjectConstructor = (?mixed) => mixed | Object
+type ArrayConstructor = (...Array<mixed>) => Array<mixed>
 
 module.exports = wavematch
 function wavematch(...values: Array<any>): (...Array<Expression>) => ?mixed {
@@ -35,6 +41,33 @@ function wavematch(...values: Array<any>): (...Array<Expression>) => ?mixed {
     )
 
     const rules: Array<Rule> = patterns.map(toRule)
+
+    // // provide warning for duplicate rules (tell user which index is duplicated)
+    // const tuple = rules.reduce(
+    //   (reducedIndexes: [number, number], rule, ruleIndex) => {
+    //     const duplicateRuleIndex = rules.findIndex((otherRule, otherIndex) => {
+    //       if (ruleIndex !== otherIndex) {
+    //         return isEqual(otherRule.allReflectedArgs, rule.allReflectedArgs)
+    //       }
+    //     })
+    //     if (duplicateRuleIndex !== -1) {
+    //       return [duplicateRuleIndex, ruleIndex]
+    //     }
+    //     return reducedIndexes
+    //   },
+    //   [-1, -1]
+    // )
+    // console.log('tuple is:', tuple)
+
+    const indexOfRuleOverArity = rules.findIndex(r => r.arity > values.length)
+    if (indexOfRuleOverArity !== -1) {
+      warning(
+        true,
+        `Rule at index ${indexOfRuleOverArity} tries to match ` +
+          `${rules[indexOfRuleOverArity].arity} arguments. Expected only ` +
+          `${values.length}.`
+      )
+    }
 
     const indexOfWildcardRule: number = rules.findIndex((rule: Rule) =>
       rule.allReflectedArgs.some((reflectedArg: ReflectedArg, index) => {
@@ -212,7 +245,26 @@ function toRule(pattern: Function, index: number): Rule {
   return rule
 }
 
+/**
+ * Note: returns `true` for Strings
+ */
+function isArrayLike(value: any): boolean {
+  return (
+    value != null &&
+    !isType('Function', value) &&
+    !isType('GeneratorFunction', value) &&
+    isType('Number', value.length) &&
+    value.length > -1 &&
+    value.length % 1 === 0 &&
+    value.length <= Number.MAX_SAFE_INTEGER
+  )
+}
+
 const constructors = [Object, Number, Function, Array, String, Set, Map]
+
+function isFloat(value) {
+  return isType('Number', value) && value % 1 !== 0
+}
 
 function doesMatch(
   rule: Rule,
@@ -226,23 +278,54 @@ function doesMatch(
     if ('default' in reflectedArg) {
       const pattern: any = reflectedArg.default
 
-      // for `(value = Array) => { ... }` patterns
-      // if (constructors.indexOf(pattern) !== -1) {
-      //   return isType(pattern.name, value)
-      // }
+      // eensy-teensy bit of type-coersion here (`arguments` -> array)
+      // the `isArrayLike` predicate evaluates true for Strings, exclude those
+      const arrayMatched = isArrayLike(value) && !isType('String', value)
+      if (arrayMatched) {
+        const arrayValue = isType('Array', value) ? value : Array.from(value)
+        return arrayMatch(arrayValue, valueIndex, rules, ruleIndex, pattern)
+      }
 
       if (isType('Object', value)) {
-        return handleObjectValueMatch(
-          value,
-          valueIndex,
-          rules,
-          ruleIndex,
-          pattern
-        )
+        return objectMatch(value, valueIndex, rules, ruleIndex, pattern)
       }
+
+      if (isFloat(value)) {
+        return isEqual(pattern, value)
+      }
+
+      if (isType('Number', value)) {
+        // whole numbers (includes 3, excludes 3.0)
+        return value === pattern
+      }
+
+      if (isType('Function', value) || isType('GeneratorFunction', value)) {
+        if (Function === pattern) {
+          return true
+        }
+      }
+
+      if (isType('Boolean', value)) {
+        if (Boolean === pattern) {
+          return true
+        }
+
+        if (pattern === value) {
+          return true
+        }
+      }
+
+      // `[].every(() => {})` evaluates to `true` for some reason... wtf js
+      return false
+
+      // for `(value = Array) => { ... }` patterns
+      // if (constructors.includes(pattern)) {
+      //   return isType(pattern.name, value)
+      // }
     }
+
     // todo
-    console.warn('----- `reflectedArg` does NOT have `default` -----')
+    // console.warn('----- `reflectedArg` does NOT have `default` -----')
     return true
   })
 }
@@ -250,18 +333,16 @@ function doesMatch(
 /**
  * @returns {Boolean} - true: accept rule, false: reject rule and try next
  */
-function handleObjectValueMatch(
-  value: Object,
+function objectMatch(
+  objectValue: Object,
   valueIndex: number,
   rules: Array<Rule>,
   ruleIndex: number,
-  pattern: any
+  objectPattern: Object | ObjectConstructor
 ): boolean {
-  const isEqual = require('lodash.isequal')
-
   // gets the index of the rule that has a pattern for the corresponding
   // input value (at `valueIndex`) with the highest number of keys (which
-  // may exceed the number of keys that `value` has)
+  // may exceed the number of keys that `objectValue` has)
   const mostSpecificRuleIndex =
     rules.length === 2
       ? 0
@@ -278,7 +359,7 @@ function handleObjectValueMatch(
         }, -1)
 
   // pattern matches any object: `(argN = Object) => { ... }`
-  if (Object === pattern) {
+  if (Object === objectPattern) {
     // show warning and skip constructor check if a rule with an `Object`
     // constructor type check is provided before a rule with a destructured
     // object pattern with the highest specificity (number of keys)
@@ -298,31 +379,95 @@ function handleObjectValueMatch(
       // )
       return false
     } else {
-      return isType(pattern.name, value)
-    }
-  } else if (isType('Object', pattern)) {
-    // pattern matches specific objects: `(argN = { key: val }) => { ... }`
-    const patternKeys = Object.keys(pattern)
-
-    // empty object `{} === {}` behavior handled by lodash's `isEqual`
-    if (patternKeys.length === 0 && isEqual(pattern, value)) {
       return true
     }
+  } else if (isType('Object', objectPattern)) {
+    const patternKeys = Object.keys(objectPattern)
 
-    if (patternKeys.length <= Object.keys(value).length) {
+    if (patternKeys.length === 0) {
+      return isEqual(objectPattern, objectValue)
+    } else if (patternKeys.length <= Object.keys(objectValue).length) {
       if (mostSpecificRuleIndex === ruleIndex) {
         return patternKeys.every((key: string) => {
           // todo: support constructor type checks in object value positions (json5)
-          // if (constructors.includes(pattern[key])) {
-          //   return isType(pattern[key].name, value)
+          // if (constructors.includes(objectPattern[key])) {
+          //   return isType(objectPattern[key].name, objectValue)
           // }
-          return isEqual(pattern[key], value[key])
+          return isEqual(objectPattern[key], objectValue[key])
         })
       }
     } else {
-      // pattern has more keys than value, do not warn
+      // pattern has more keys than objectValue (do not warn)
       return false
     }
   }
+  return false
+}
+
+function arrayMatch(
+  arrayValue: Array<mixed>,
+  valueIndex: number,
+  rules: Array<Rule>,
+  ruleIndex: number,
+  arrayPattern: Array<mixed> | ArrayConstructor
+): boolean {
+  if (Array === arrayPattern) {
+    const anotherRuleDestructuresArray = rules.some(r => {
+      const reflArg = r.allReflectedArgs[valueIndex]
+      // todo flow disable for these if checks
+      if (
+        'default' in reflArg &&
+        reflArg.default != null &&
+        isType('Array', reflArg.default)
+      ) {
+        if (reflArg.default.length > arrayValue.length) {
+          return false // `reflArg.default` mismatches: too many elements
+        }
+        return true
+      }
+    })
+    if (anotherRuleDestructuresArray) {
+      return false
+    }
+    return isType('Array', arrayValue)
+  } else {
+    if (arrayValue.length === 0) {
+      return isEqual(arrayPattern, arrayValue)
+    } else if (arrayPattern.length > arrayValue.length) {
+      return false
+    } else if (arrayPattern.length <= arrayValue.length) {
+      const thisRuleIsOnlyDestructurer = rules.length === 2
+
+      if (thisRuleIsOnlyDestructurer) {
+        return arrayPattern.every((val, idx) => isEqual(val, arrayValue[idx]))
+      } else {
+        // "best length" meaning closest to the arrayValue length but not larger
+        const indexOfRuleWithBestLength = rules.reduce(
+          (reducedIndex: number, rule: Rule, currentIndex: number) => {
+            const reflectedArg: ReflectedArg = rule.allReflectedArgs[valueIndex]
+
+            if (
+              'default' in reflectedArg &&
+              reflectedArg.default != null &&
+              isType('Array', reflectedArg.default)
+            ) {
+              if (reflectedArg.default.length > reducedIndex) {
+                if (reflectedArg.default.length <= arrayValue.length) {
+                  return currentIndex
+                }
+              }
+            }
+            return reducedIndex
+          },
+          -1
+        )
+
+        if (ruleIndex === indexOfRuleWithBestLength) {
+          return true
+        }
+      }
+    }
+  }
+  // fallback behavior
   return false
 }

@@ -19,7 +19,12 @@ function collectError(error: Error): void {
  * @throws {Error}
  */
 function maybeThrowAndFlushErrors(): void {
-  const separator: string = [...Array(80)].map(() => '-').join('')
+  // todo: figure out which version of Node this project targets.
+  // const separator: string = [...Array(80)].map(() => '-').join('')
+  const separator: string = [].concat
+    .apply([], Array(80))
+    .map(() => '-')
+    .join('')
 
   if (errors.length === 1) {
     const message =
@@ -58,13 +63,13 @@ function maybeThrowAndFlushErrors(): void {
 
 const isNotProd = process.env.NODE_ENV !== 'production'
 
-let warning = function (condition: boolean, message: string): void {}
+let warning = function(condition: boolean, message: string): void {}
 
 if (isNotProd) {
-  warning = function (condition: boolean, message: string): void {
+  warning = function(condition: boolean, message: string): void {
     if (condition) {
       if (typeof console !== 'undefined') {
-        console.warn(message)
+        console.warn('Warning: ' + message)
       }
       try {
         // This error was thrown as a convenience so that you can use this stack
@@ -75,7 +80,7 @@ if (isNotProd) {
   }
 }
 
-function invariant (condition: boolean, message: string): void {
+function invariant(condition: boolean, message: string): void {
   if (condition) {
     throw Error(message)
   }

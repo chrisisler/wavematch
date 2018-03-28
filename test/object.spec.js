@@ -3,7 +3,7 @@ const wavematch = require('../lib/index.js')
 const { accept, reject, eq } = require('./shared.js')
 
 // any object can be parsed by wavematch if it is valid json5
-describe.only('wavematch object specification', () => {
+describe('wavematch object specification', () => {
   // equality comparisons are handled by lodash's `isEqual`
   it('should match destructured defaults with exact values', () => {
     const matchedUnary = wavematch({ x: 1, y: 2 })(
@@ -52,10 +52,8 @@ describe.only('wavematch object specification', () => {
   })
 
   it('should match using constructor functions', () => {
-    const foo = wavematch({ foo: 'bar' })(
-      (o = Object) => accept,
-      _ => reject
-    )
+    // prettier-ignore
+    const foo = wavematch({ foo: 'bar' })((o = Object) => accept, _ => reject)
     eq(foo, accept)
   })
 
@@ -101,6 +99,7 @@ describe.only('wavematch object specification', () => {
   })
 
   it('should work for nested matches with constructor functions', () => {
+    //prettier-ignore
     const result = wavematch({ obj: {} })(
       (a = Object) => wavematch(a.obj)(
         (b = Object) => accept,
@@ -110,4 +109,22 @@ describe.only('wavematch object specification', () => {
     )
     eq(result, accept)
   })
+
+  it('should match empty object with only the object constructor', () => {
+    const emptyInputObjectOnlyConstructor = wavematch({})(
+      (obj = {}) => accept,
+      _ => reject
+    )
+    eq(emptyInputObjectOnlyConstructor, accept)
+  })
+
+  // it.only('should ', () => {
+  //   const matched = wavematch({ error: new Error() })(
+  //     // there has to be a way to do this
+  //     (obj = { error: { $type: 'Error' } }) => accept,
+  //     (obj = { loading: true }) => reject,
+  //     _ => reject
+  //   )
+  //   eq(matched, accept)
+  // })
 })

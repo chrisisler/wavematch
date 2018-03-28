@@ -1,11 +1,10 @@
 {
   "name": "wavematch",
-  "es6": true,
+  "license": "MIT",
   "version": "0.3.0",
-  "description": "JavaScript's missing controw flow.",
   "main": "index.js",
   "scripts": {
-    "test": "yarn run build && mocha --no-colors",
+    "test": "yarn run build && NODE_ENV=development mocha --no-colors",
     "build": "flow-remove-types src/ -d lib/",
     "prepublish": "yarn run build",
     "flow start": "flow start",
@@ -14,7 +13,6 @@
   },
   "repository": "git@github.com:chrisisler/wavematch.git",
   "author": "chrisisler <christopherisler1@gmail.com>",
-  "license": "MIT",
   "devDependencies": {
     "eslint": "^4.18.2",
     "eslint-config-prettier": "^2.9.0",

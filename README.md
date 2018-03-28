@@ -2,19 +2,32 @@
 [summary]: #summary
 
 ```javascript
-const factorial = N => wavematch(N)(
-  (N = 0) => 1,
-  _       => N * factorial(N - 1)
+let factorial = n => wavematch(n)(
+  (n = 0) => 1,
+  _       => n * factorial(n - 1)
 )
 factorial(5) //=> 120
+```
 
-const isUsd = item => wavematch(item)(
-    (arg = { options: { currency: 'USD' } }) => true,
-    _ => false
-    )
+```javascript
+let isUsd = item => wavematch(item)(
+  (arg = { options: { currency: 'USD' } }) => true,
+  _ => false
+)
 isUsd({ value: 19.99, options: { currency: 'USD' } }) //=> true
 isUsd({ value: 19.99, options: { currency: 'ARS' } }) //=> false
+```
 
+```javascript
+// In a React app
+let rendered = wavematch(this.state)(
+  (state = { error: Error })  => <ErrorView error={error} />,
+  (state = { loading: true }) => <LoadingView />,
+  _                           => <SuccessView data={this.state.data} />
+)
+```
+
+```javascript
 // zip example
 // zipWith example
 // fibonnaci example
@@ -24,11 +37,10 @@ isUsd({ value: 19.99, options: { currency: 'ARS' } }) //=> false
 // async/await example
 // flow types example
 // typescript example
-// react example
 ```
 
 > What does this do?
-JavaScript's missing control flow operator.
+Wavematch is a control flow operator for modern JavaScript.
 
 Compare values against a series of patterns and execute code based on which pattern matches.
 Patterns can be made up of literal values, type checks, and wildcards.
@@ -77,3 +89,7 @@ wavematch(${1:value})(
   _ => ${5:defaultExpression}
 )
 ```
+
+## Limitations
+
+All patterns which match and describe objects must be valid [JSON5](json5.org).
