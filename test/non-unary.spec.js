@@ -33,10 +33,7 @@ describe('wavematch multiple arguments specification', () => {
 
     // prettier-ignore
     assert.deepEqual(
-      filter((value, key) => value === 3 || key == 'id', {
-        foo: 0,
-        id: 'yes'
-      }),
+      filter((value, key) => value === 3 || key == 'id', { foo: 0, id: 'yes' }),
       { id: 'yes' }
     )
 
@@ -61,26 +58,21 @@ describe('wavematch multiple arguments specification', () => {
     )
   })
 
-  // only
-  it.only('array#zip', () => {
+  it('array#zip', () => {
     // prettier-ignore
     const zip = (xs, ys) => wavematch(xs, ys)(
-      (xs, ys = []) => {
-        console.log('xs is:', xs)
-        console.log('ys is:', ys)
-        return []
-      },
+      (xs, ys = []) => [],
       (xs = [], ys) => [],
       (xs = Array, ys = Array) => {
-        return [xs[0], ys[0]].concat(wavematch(xs.slice(1), ys.slice(1)))
+        return [xs[0], ys[0]].concat(zip(xs.slice(1), ys.slice(1)))
       },
       _ => reject
     )
 
     // prettier-ignore
-    // assert.deepEqual(
-    //   zip([1, 2, 3], ['a', 'b', 'c']),
-    //   [1, 'a', 2, 'b', 3, 'c']
-    // )
+    assert.deepEqual(
+      zip([1, 2, 3], ['a', 'b', 'c']),
+      [1, 'a', 2, 'b', 3, 'c']
+    )
   })
 })
