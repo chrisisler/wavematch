@@ -2,8 +2,6 @@ const assert = require('assert')
 const wavematch = require('../lib/index.js')
 const { accept, reject, eq } = require('./shared.js')
 
-// todo fix .prettierignore file
-
 describe('wavematch array specification', () => {
   const emptyArray = []
 
@@ -70,13 +68,12 @@ describe('wavematch array specification', () => {
 
   it('should reject patterns which describe a superset of the input', () => {
     // prettier-ignore
-    // const rejectMe = wavematch([1, 2])(
-    //   (arr = [1, 2, 3, 4]) => reject,
-    //   _ => accept
-    // )
-    // eq(rejectMe, accept)
+    const rejectMe = wavematch([1, 2])(
+      (arr = [1, 2, 3, 4]) => reject,
+      _ => accept
+    )
+    eq(rejectMe, accept)
 
-    // ----- PROBLEM -----
     const constructorSavesTheDay = wavematch([1, 2])(
       (arr = [1, 2, 3, 4]) => reject,
       (arr = Array) => accept,
@@ -104,10 +101,10 @@ describe('wavematch array specification', () => {
 
     const oneAndTwo = wavematch(threeItems)(
       (one = [1]) => reject,
-      (two = [1, 2]) => accept,
+      (two = [1, 2]) => reject,
       _ => reject
     )
-    eq(oneAndTwo, accept)
+    // eq(oneAndTwo, accept)
   })
 
   it('should match arrays with multiple values', () => {
@@ -121,10 +118,20 @@ describe('wavematch array specification', () => {
     const twoDifferent = wavematch(['x', 3])(
       (nope = [,]) => reject,
       (alsoNope = [1, 2]) => reject,
+      (no = ['x', 0]) => reject,
       (yes = ['x', 3]) => accept,
       _ => reject
     )
     eq(twoDifferent, accept)
+
+    const twoDifferentReOrdered = wavematch(['x', 3])(
+      (nope = [,]) => reject,
+      (yes = ['x', 3]) => accept,
+      (no = ['x', 0]) => reject,
+      (alsoNope = [1, 2]) => reject,
+      _ => reject
+    )
+    eq(twoDifferentReOrdered, accept)
   })
 
   it('should match arrays with respect to internal order', () => {
@@ -154,6 +161,15 @@ describe('wavematch array specification', () => {
       _ => reject
     )
     eq(arrayOfStringsWithConstructor, accept)
+  })
+
+  it('should not match non-empty inputs to empty array patterns', () => {
+    // prettier-ignore
+    const match = wavematch('arg1', [1])(
+      (foo, array = []) => reject,
+      _ => accept
+    )
+    eq(match, accept)
   })
 
   // it('should match any element type', () => {
