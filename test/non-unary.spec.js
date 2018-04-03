@@ -2,14 +2,14 @@ const assert = require('assert')
 const wavematch = require('../lib/index.js')
 const { accept, reject, eq } = require('./shared.js')
 
-describe('wavematch multiple arguments specification', () => {
+describe('wavematch non-unary arguments specification', () => {
   it('array#reduce', () => {
     // prettier-ignore
     const reduce = (fn, reduced, array) => wavematch(fn, reduced, array)(
-      (fn = Function, reduced, array = Array) => array.reduce(fn, reduced),
+      (fn, reduced, array = Array) => array.reduce(fn, reduced),
       _ => reject
     )
-    const sum = numbers => reduce((reduced, num) => reduced + num, 0, numbers)
+    const sum = numbers => reduce((summed, num) => summed + num, 0, numbers)
 
     eq(sum([5, 5, 5]), 15)
   })
@@ -63,7 +63,7 @@ describe('wavematch multiple arguments specification', () => {
     const zip = (xs, ys) => wavematch(xs, ys)(
       (xs, ys = []) => [],
       (xs = [], ys) => [],
-      (xs = Array, ys = Array) => {
+      (xs, ys) => {
         return [xs[0], ys[0]].concat(zip(xs.slice(1), ys.slice(1)))
       },
       _ => reject
@@ -72,6 +72,31 @@ describe('wavematch multiple arguments specification', () => {
     // prettier-ignore
     assert.deepEqual(
       zip([1, 2, 3], ['a', 'b', 'c']),
+      [1, 'a', 2, 'b', 3, 'c']
+    )
+  })
+
+  it('array#zipWith', () => {
+    // prettier-ignore
+    const zipWith = (fn, xs, ys) => wavematch(fn, xs, ys)(
+      (fn, xs = [], ys) => [],
+      (fn, xs, ys = []) => [],
+      (fn, xs, ys) =>
+        [fn(xs[0], ys[0])].concat(zipWith(fn, xs.slice(1), ys.slice(1))),
+      _ => reject
+    )
+
+    // prettier-ignore
+    assert.deepEqual(
+      zipWith((x, y) => x + y, [1, 1, 1], [1, 1, 1]),
+      [2, 2, 2]
+    )
+
+    const zip = (xs, ys) => zipWith((x, y) => [x, y], xs, ys)
+    const flat = arr => arr.reduce((xs, x) => xs.concat(x), [])
+    // prettier-ignore
+    assert.deepEqual(
+      flat(zip([1, 2, 3], ['a', 'b', 'c'])),
       [1, 'a', 2, 'b', 3, 'c']
     )
   })

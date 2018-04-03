@@ -172,6 +172,24 @@ describe('wavematch array specification', () => {
     eq(match, accept)
   })
 
+  it('should reject invalid empty arrays', () => {
+    // prettier-ignore
+    const empty = array => wavematch(array)(
+      (array = []) => accept,
+      _ => reject
+    )
+
+    assert.deepEqual(empty(''), reject)
+    assert.deepEqual(empty(1), reject)
+    assert.deepEqual(empty([1]), reject)
+    assert.deepEqual(empty(['']), reject)
+    assert.deepEqual(empty([{}]), reject)
+    assert.deepEqual(empty([[]]), reject)
+    assert.deepEqual(empty([() => {}]), reject)
+
+    assert.deepEqual(empty([]), accept)
+  })
+
   // it('should match any element type', () => {
   //   const array = []
   //   const fn = _ => {} // cannot contain parenthesis or else SyntaxError

@@ -27,7 +27,7 @@ type ArrayConstructor = (...Array<mixed>) => Array<mixed>
 
 module.exports = wavematch
 function wavematch(...values: Array<any>): (...Array<Expression>) => ?mixed {
-  warning(
+  invariant(
     values.length === 0,
     'Please supply at least one argument to ' +
       'match function. Cannot match on zero parameters.'
@@ -42,6 +42,25 @@ function wavematch(...values: Array<any>): (...Array<Expression>) => ?mixed {
     )
 
     const rules: Array<Rule> = patterns.map(toRule)
+
+    // if any rule tries to destructure an undefined value then throw
+    // TODO group these errors together to avoid excessive error fixing by user
+    values.forEach((value: any, valueIndex) => {
+      rules.forEach((rule: Rule, ruleIndex) => {
+        // skip wildcard rule and skip rules that expect fewer args than given
+        if (ruleIsWildcard(rule) || valueIndex >= rule.arity) {
+          return
+        }
+
+        const reflectedArg: ReflectedArg = rule.allReflectedArgs[valueIndex]
+
+        invariant(
+          reflectedArg.isDestructured === true && value === void 0,
+          `Rule at index ${ruleIndex} attempts to destructure an ` +
+            `undefined value at argument index ${valueIndex}.`
+        )
+      })
+    })
 
     // provide warning for duplicate rules (tell user which index is duplicated)
     const duplicateRuleIndexes: Array<number> = rules.reduce(
@@ -58,12 +77,11 @@ function wavematch(...values: Array<any>): (...Array<Expression>) => ?mixed {
       },
       []
     )
-    if (duplicateRuleIndexes.length) {
-      warning(
-        true,
-        `Duplicate rules found at indexes ${duplicateRuleIndexes.join(' and ')}`
-      )
-    }
+
+    warning(
+      duplicateRuleIndexes.length !== 0,
+      `Duplicate rules found at indexes ${duplicateRuleIndexes.join(' and ')}`
+    )
 
     const indexOfRuleOverArity = rules.findIndex(r => r.arity > values.length)
     if (indexOfRuleOverArity !== -1) {
@@ -77,9 +95,7 @@ function wavematch(...values: Array<any>): (...Array<Expression>) => ?mixed {
 
     const indexOfWildcardRule: number = rules.findIndex((rule: Rule) =>
       rule.allReflectedArgs.some((reflectedArg: ReflectedArg, index) => {
-        // `reflectedArg.argName` is false if the argument is a
-        // destructured array or destructured object
-        if (reflectedArg.argName === false) {
+        if (reflectedArg.isDestructured) {
           return false
         } else if (!reflectedArg.argName.includes('_')) {
           return false
@@ -105,7 +121,13 @@ function wavematch(...values: Array<any>): (...Array<Expression>) => ?mixed {
       })
     )
 
-    const wildcardExists = indexOfWildcardRule > -1
+    const wildcardExists = indexOfWildcardRule !== -1
+
+    warning(
+      wildcardExists === false,
+      'Non-exhaustive pattern. Expected ' +
+        'wildcard rule: "_ => { expression }" as last rule.'
+    )
 
     if (wildcardExists) {
       warning(
@@ -130,12 +152,6 @@ function wavematch(...values: Array<any>): (...Array<Expression>) => ?mixed {
             wildcardArg.default
         )
       }
-    } else {
-      warning(
-        true,
-        'Non-exhaustive pattern. Expected ' +
-          'wildcard rule: "_ => { expression }" as last rule.'
-      )
     }
 
     for (let ruleIndex = 0; ruleIndex < rules.length; ruleIndex++) {
@@ -143,9 +159,11 @@ function wavematch(...values: Array<any>): (...Array<Expression>) => ?mixed {
       // 1) might not exist
       // 2) might not be at the last index like it's supposed to be
       if (ruleIndex !== indexOfWildcardRule) {
-        if (rules[ruleIndex].arity === values.length) {
-          if (doesMatch(rules[ruleIndex], values, ruleIndex, rules)) {
-            return rules[ruleIndex].expression(...values)
+        const rule = rules[ruleIndex]
+
+        if (rule.arity === values.length) {
+          if (doesMatch(rule, values, ruleIndex, rules)) {
+            return rule.expression(...values)
           }
         }
       }
@@ -161,10 +179,11 @@ function reflectArguments(fn: Function): Array<ReflectedArg> {
   const parsed: { args: Array<string>, defaults: Object } = functionParse(fn)
 
   if (parsed.args.length === 0) {
-    return []
+    const reflectedArguments = []
+    return reflectedArguments
   }
 
-  const reflectedArguments = parsed.args.map((argName, index) => {
+  return parsed.args.map((argName, index) => {
     const isDestructured = argName === false
     let pattern = parsed.defaults[argName]
 
@@ -211,12 +230,10 @@ function reflectArguments(fn: Function): Array<ReflectedArg> {
 
     return {
       argName: argName,
-      default: pattern,
-      isDestructured: isDestructured
+      isDestructured: isDestructured,
+      default: pattern
     }
   })
-
-  return reflectedArguments
 }
 
 function isType(constructor: string, value: any): boolean {
@@ -242,14 +259,15 @@ function toRule(pattern: Function, index: number): Rule {
     arity: reflectedArgs.length
   }
 
-  // warning(
-  //   rule.arity === 0,
-  //   `${
-  //     pattern.name === 'anonymous'
-  //       ? 'Anonymous pattern'
-  //       : `Pattern "${pattern.name}"`
-  //   } at index ${index} must accept one or more arguments.`
-  // )
+  warning(
+    rule.arity === 0,
+    `${
+      pattern.name === 'anonymous' || pattern.name === ''
+        ? 'Anonymous pattern'
+        : `Pattern "${pattern.name}"`
+    } at index ${index} must accept one or more arguments.`
+  )
+
   return rule
 }
 
@@ -296,8 +314,7 @@ function doesMatch(
 
       // eensy-teensy bit of type-coersion here (`arguments` -> array)
       // the `isArrayLike` predicate evaluates true for Strings, exclude those
-      const arrayMatched = isArrayLike(value) && !isType('String', value)
-      if (arrayMatched) {
+      if (isArrayLike(value) && !isType('String', value)) {
         const arrayValue = isType('Array', value) ? value : Array.from(value)
         return arrayMatch(arrayValue, valueIndex, rules, ruleIndex, pattern)
       }
@@ -333,15 +350,8 @@ function doesMatch(
 
       // `[].every(() => {})` evaluates to `true` for some reason... wtf js
       return false
-
-      // for `(value = Array) => { ... }` patterns
-      // if (constructors.includes(pattern)) {
-      //   return isType(pattern.name, value)
-      // }
     }
 
-    // todo
-    console.warn('----- `reflectedArg` does NOT have `default` -----')
     return true
   })
 }
@@ -368,6 +378,7 @@ function objectMatch(
             return reducedIndex
           }
           const reflectedArg = rule.allReflectedArgs[valueIndex]
+
           if ('default' in reflectedArg) {
             if (typeof reflectedArg.default === 'object') {
               if (Object.keys(reflectedArg.default).length > reducedIndex) {
@@ -375,6 +386,7 @@ function objectMatch(
               }
             }
           }
+
           return reducedIndex
         }, -1)
 
@@ -421,6 +433,7 @@ function objectMatch(
       return false
     }
   }
+
   return false
 }
 
@@ -436,6 +449,7 @@ function arrayMatch(
     // whose pattern/`.default` destructures an array input
     const indexOfDestructuringRule = rules.findIndex(rule => {
       const reflectedArgs = rule.allReflectedArgs[valueIndex]
+
       if (ruleIsWildcard(rule)) {
         return false
       }
@@ -449,9 +463,11 @@ function arrayMatch(
         return reflectedArgs.default.length <= arrayValue.length
       }
     })
+
     if (indexOfDestructuringRule !== -1) {
       return indexOfDestructuringRule < ruleIndex
     }
+
     return isType('Array', arrayValue)
   }
 
@@ -466,13 +482,16 @@ function arrayMatch(
     }
 
     const thisRuleIsOnlyDestructurer = rules.length === 2
+
     if (thisRuleIsOnlyDestructurer) {
       return arrayPattern.every((destructuredArrayValue, index) => {
         return isEqual(destructuredArrayValue, arrayValue[index])
       })
     }
+
     return isEqual(arrayPattern, arrayValue)
   }
+
   // fallback behavior
   return false
 }

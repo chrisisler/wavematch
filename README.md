@@ -28,7 +28,15 @@ let rendered = wavematch(this.state)(
 ```
 
 ```javascript
-// zip example
+let zip = (xs, ys) => wavematch(xs, ys)(
+  (xs, ys = []) => [],
+  (xs = [], ys) => [],
+  ([x, ...xs], [y, ...ys]) => [x, y].concat(zip(xs, ys)),
+  _ => reject
+)
+```
+
+```javascript
 // zipWith example
 // fibonnaci example
 // flatten example
