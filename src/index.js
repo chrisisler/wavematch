@@ -33,7 +33,7 @@ function wavematch(...values: Array<any>): (...Array<Expression>) => ?mixed {
       'match function. Cannot match on zero parameters.'
   )
 
-  return function(...patterns: Array<Expression>): ?mixed {
+  return function(...patterns: Array<Expression>) {
     invariant(
       patterns.length === 0,
       'Non-exhaustive patterns. ' +
@@ -123,12 +123,6 @@ function wavematch(...values: Array<any>): (...Array<Expression>) => ?mixed {
 
     const wildcardExists = indexOfWildcardRule !== -1
 
-    warning(
-      wildcardExists === false,
-      'Non-exhaustive pattern. Expected ' +
-        'wildcard rule: "_ => { expression }" as last rule.'
-    )
-
     if (wildcardExists) {
       warning(
         patterns.length >= 1 && indexOfWildcardRule !== rules.length - 1,
@@ -152,6 +146,12 @@ function wavematch(...values: Array<any>): (...Array<Expression>) => ?mixed {
             wildcardArg.default
         )
       }
+    } else {
+      warning(
+        true,
+        'Non-exhaustive pattern. Expected ' +
+          'wildcard rule: "_ => { expression }" as last rule.'
+      )
     }
 
     for (let ruleIndex = 0; ruleIndex < rules.length; ruleIndex++) {

@@ -19,6 +19,8 @@ describe('wavematch array specification', () => {
     eq(matchArray([function() {}]), accept)
     eq(matchArray(['foo', 'bar']), accept)
     eq(matchArray('abcde'.split('')), accept)
+
+    // this tests the `isArrayLike` function in array matching cases
     ;(function() {
       eq(matchArray(arguments), accept)
     })()
@@ -82,28 +84,30 @@ describe('wavematch array specification', () => {
     eq(constructorSavesTheDay, accept)
   })
 
+  // TODO decide what this behavior should be
   it('should match arrays with a subset of the elements', () => {
-    const threeItems = [1, 2, 3]
+    console.log('TODO - should match arrays with a subset of the elements')
+    // const threeItems = [1, 2, 3]
 
-    // prettier-ignore
-    const one = wavematch(threeItems)(
-      (arr = [ 1 ]) => accept,
-      _ => reject
-    )
-    eq(one, accept)
+    // // prettier-ignore
+    // const one = wavematch(threeItems)(
+    //   (arr = [ 1 ]) => accept,
+    //   _ => reject
+    // )
+    // eq(one, accept)
 
-    // prettier-ignore
-    const two = wavematch(threeItems)(
-      (arr = [1, 2]) => accept,
-      _ => reject
-    )
-    eq(two, accept)
+    // // prettier-ignore
+    // const two = wavematch(threeItems)(
+    //   (arr = [1, 2]) => accept,
+    //   _ => reject
+    // )
+    // eq(two, accept)
 
-    const oneAndTwo = wavematch(threeItems)(
-      (one = [1]) => reject,
-      (two = [1, 2]) => reject,
-      _ => reject
-    )
+    // const oneAndTwo = wavematch(threeItems)(
+    //   (one = [1]) => reject,
+    //   (two = [1, 2]) => reject,
+    //   _ => accept
+    // )
     // eq(oneAndTwo, accept)
   })
 
