@@ -4,14 +4,13 @@ const isNotProd = process.env.NODE_ENV !== 'production'
 
 let warned: Set<string> = new Set()
 
-let warning = function(condition: boolean, message: string): void {
-  // empty
-}
+let warning = function(condition: boolean, message: string): void {}
 
 if (isNotProd) {
   warning = function(condition: boolean, message: string): void {
     if (!warned.has(message)) {
       if (condition) {
+        // Do not repeat warning
         warned.add(message)
 
         if (typeof console !== 'undefined') {

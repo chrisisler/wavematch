@@ -14,9 +14,41 @@ describe('wavematch miscellaneous specification', () => {
     }, Error)
   })
 
+  it('should throw if invalid JSON5', () => {
+    assert.throws(() => {
+      wavematch('doesnt matter')(
+        (x = Function) => 0,
+        (o = { k: Error }) => 1,
+        _ => 2
+      )
+    }, Error)
+  })
+
+  it('null behavior', () => {
+    // prettier-ignore
+    let nullTest = (value, acceptOrReject) => eq(wavematch(value)(
+      (arg = null) => accept,
+      _ => reject
+    ), acceptOrReject)
+
+    nullTest(null, accept)
+    nullTest(undefined, reject)
+  })
+
+  it('undefined behavior', () => {
+    // prettier-ignore
+    let undefinedTest = (value, acceptOrReject) => eq(wavematch(value)(
+      (arg = undefined) => accept,
+      _ => reject
+    ), acceptOrReject)
+
+    undefinedTest(undefined, accept)
+    undefinedTest(null, reject)
+  })
+
   describe('should allow destructuring', () => {
+    // todo
     // describe('object destructuring', () => {
-    //   // todo
     // })
 
     describe('array destructuring', () => {

@@ -9,16 +9,32 @@ const { warning, invariant } = require('./errors.js')
 type ReflectedArg = $ReadOnly<{
   argName: string,
   default?: any,
-  isDestructured: boolean
+  isDestructured: boolean,
+  body: string, // only used for avoiding duplicate rules
+  predicate?: any => boolean // used for match guards
 }>
 
-type Expression = (...Array<mixed>) => ?mixed
+type RuleExpression = (...Array<mixed>) => ?mixed
 
 type Rule = $ReadOnly<{
   allReflectedArgs: Array<ReflectedArg>,
   arity: number,
-  expression: Expression
+  expression: RuleExpression
 }>
+
+const constructors = [
+  Object,
+  Number,
+  Function,
+  Array,
+  String,
+  RegExp,
+  Date,
+  Set,
+  Map,
+  Symbol,
+  Proxy
+]
 
 // stand-ins for the `Object` and `Array` constructors since flow reserves the
 // `Object` and `Array` keywords
@@ -26,25 +42,26 @@ type ObjectConstructor = (?mixed) => mixed | Object
 type ArrayConstructor = (...Array<mixed>) => Array<mixed>
 
 module.exports = wavematch
-function wavematch(...values: Array<any>): (...Array<Expression>) => ?mixed {
+function wavematch(
+  ...values: Array<any>
+): (...Array<RuleExpression>) => ?mixed {
   invariant(
     values.length === 0,
     'Please supply at least one argument to ' +
       'match function. Cannot match on zero parameters.'
   )
 
-  return function(...patterns: Array<Expression>) {
+  return function(...rawRules: Array<RuleExpression>) {
     invariant(
-      patterns.length === 0,
-      'Non-exhaustive patterns. ' +
-        'Please add the wildcard pattern "_ => { expression }" at the last ' +
-        'index.'
+      rawRules.length === 0,
+      'Non-exhaustive rules. ' +
+        'Please add a rule function, or at least the wildcard rule: ' +
+        '"_ => { /* expression */ }"'
     )
 
-    const rules: Array<Rule> = patterns.map(toRule)
+    let rules: Array<Rule> = rawRules.map(toRule)
 
     // if any rule tries to destructure an undefined value then throw
-    // TODO group these errors together to avoid excessive error fixing by user
     values.forEach((value: any, valueIndex) => {
       rules.forEach((rule: Rule, ruleIndex) => {
         // skip wildcard rule and skip rules that expect fewer args than given
@@ -57,26 +74,27 @@ function wavematch(...values: Array<any>): (...Array<Expression>) => ?mixed {
         invariant(
           reflectedArg.isDestructured === true && value === void 0,
           `Rule at index ${ruleIndex} attempts to destructure an ` +
-            `undefined value at argument index ${valueIndex}.`
+            `undefined value at parameter index ${valueIndex}.`
         )
       })
     })
 
-    // provide warning for duplicate rules (tell user which index is duplicated)
-    const duplicateRuleIndexes: Array<number> = rules.reduce(
-      (reducedIndexes: Array<number>, rule, index) => {
-        const duplicateRuleIndex = rules.findIndex((otherRule, otherIndex) => {
-          if (index !== otherIndex) {
-            return isEqual(otherRule.allReflectedArgs, rule.allReflectedArgs)
-          }
-        })
+    // warn about duplicate rules and tell user which rule indexes are duped
+    const duplicateRuleIndexes: Array<number> = rules
+      .filter(rule => !rule.allReflectedArgs.some(args => args.isDestructured))
+      .reduce((reducedIndexes, rule, index, nonDestructuredRules) => {
+        const duplicateRuleIndex = nonDestructuredRules.findIndex(
+          (otherRule, otherIndex) =>
+            index !== otherIndex &&
+            isEqual(otherRule.allReflectedArgs, rule.allReflectedArgs)
+        )
+
         if (duplicateRuleIndex !== -1) {
           reducedIndexes.push(index)
         }
+
         return reducedIndexes
-      },
-      []
-    )
+      }, [])
 
     warning(
       duplicateRuleIndexes.length !== 0,
@@ -125,14 +143,14 @@ function wavematch(...values: Array<any>): (...Array<Expression>) => ?mixed {
 
     if (wildcardExists) {
       warning(
-        patterns.length >= 1 && indexOfWildcardRule !== rules.length - 1,
+        rawRules.length >= 1 && indexOfWildcardRule !== rules.length - 1,
         'Wildcard pattern should be the ' +
           `last pattern. Instead is at index ${indexOfWildcardRule}.`
       )
 
       const wildcardArg: ?ReflectedArg = rules[
         indexOfWildcardRule
-      ].allReflectedArgs.find(r => r.argName === '_')
+      ].allReflectedArgs.find(({ argName }) => argName === '_')
 
       if (
         wildcardArg != null &&
@@ -146,13 +164,17 @@ function wavematch(...values: Array<any>): (...Array<Expression>) => ?mixed {
             wildcardArg.default
         )
       }
-    } else {
-      warning(
-        true,
-        'Non-exhaustive pattern. Expected ' +
-          'wildcard rule: "_ => { expression }" as last rule.'
-      )
     }
+
+    // remove all rules which have guards
+    // rules = rules.filter(rule =>
+    //   rule.allReflectedArgs.some((_, valueIndex) => {
+    //     const reflectedArg = rule.allReflectedArgs[valueIndex]
+    //     const pattern: any = reflectedArg.default
+
+    //     return !(isType('Function', pattern) && !constructors.includes(pattern))
+    //   })
+    // )
 
     for (let ruleIndex = 0; ruleIndex < rules.length; ruleIndex++) {
       // skip wildcard pattern as it:
@@ -175,15 +197,19 @@ function wavematch(...values: Array<any>): (...Array<Expression>) => ?mixed {
   }
 }
 
-function reflectArguments(fn: Function): Array<ReflectedArg> {
-  const parsed: { args: Array<string>, defaults: Object } = functionParse(fn)
+function reflectArguments(
+  rawRule: RuleExpression,
+  ruleIndex: number
+): Array<ReflectedArg> {
+  type Parsed = { args: Array<string>, defaults: Object, body: string }
+  const parsed: Parsed = functionParse(rawRule)
 
   if (parsed.args.length === 0) {
     const reflectedArguments = []
     return reflectedArguments
   }
 
-  return parsed.args.map((argName, index) => {
+  return parsed.args.map((argName, argIndex) => {
     const isDestructured = argName === false
     let pattern = parsed.defaults[argName]
 
@@ -192,20 +218,31 @@ function reflectArguments(fn: Function): Array<ReflectedArg> {
       if (isDestructured) {
         return {
           argName: 'destructured-argument-name',
-          isDestructured: isDestructured
+          isDestructured: isDestructured,
+          body: parsed.body
         }
       }
 
       return {
         argName: argName,
-        isDestructured: isDestructured
+        isDestructured: isDestructured,
+        body: parsed.body
       }
     }
 
     // default is an Object, parse it into an actual Object type
     if (pattern.startsWith('{')) {
-      // NOTE: pattern must be conformant to json5 spec
-      pattern = json5.parse(pattern)
+      try {
+        pattern = json5.parse(pattern) // `pattern` must conform to json5 spec
+      } catch (error) {
+        invariant(
+          error instanceof SyntaxError,
+          `Rule at index ${ruleIndex} has argument at parameter index ` +
+            `${argIndex} that has invalid JSON5.\n` +
+            `Read the spec at: https://github.com/json5/json5\n` +
+            `JSON5 error message is: ${error.message}\n`
+        )
+      }
     } else {
       try {
         pattern = eval(pattern)
@@ -213,7 +250,7 @@ function reflectArguments(fn: Function): Array<ReflectedArg> {
         // attempted to use an out-of-scope variable as a default/pattern
         invariant(
           error instanceof ReferenceError,
-          `For rule at index ${index}, cannot use out of scope variable as ` +
+          `For pattern at parameter index ${argIndex}, cannot use out of scope variable as ` +
             `default: ${pattern}.\nTry replacing the variable with its value.`
         )
       }
@@ -224,14 +261,16 @@ function reflectArguments(fn: Function): Array<ReflectedArg> {
       return {
         default: pattern,
         isDestructured: isDestructured,
-        argName: 'destructured-argument-name'
+        argName: 'destructured-argument-name',
+        body: parsed.body
       }
     }
 
     return {
       argName: argName,
       isDestructured: isDestructured,
-      default: pattern
+      default: pattern,
+      body: parsed.body
     }
   })
 }
@@ -244,28 +283,31 @@ function getType(value: any): string {
   return Object.prototype.toString.call(value)
 }
 
-function toRule(pattern: Function, index: number): Rule {
+function toRule(rawRule: RuleExpression, ruleIndex: number): Rule {
   warning(
-    !(typeof pattern === 'function'),
-    `Pattern at index ${index} is not a ` +
-      `Function, instead is: ${getType(pattern)}.`
+    !(typeof rawRule === 'function'),
+    `Rule at index ${ruleIndex} is not a ` +
+      `Function, instead is: ${getType(rawRule)}.`
   )
 
-  const reflectedArgs: Array<ReflectedArg> = reflectArguments(pattern)
+  const allReflectedArgs: Array<ReflectedArg> = reflectArguments(
+    rawRule,
+    ruleIndex
+  )
 
   const rule: Rule = {
-    allReflectedArgs: reflectedArgs,
-    expression: pattern,
-    arity: reflectedArgs.length
+    allReflectedArgs: allReflectedArgs,
+    expression: rawRule,
+    arity: allReflectedArgs.length
   }
 
   warning(
     rule.arity === 0,
     `${
-      pattern.name === 'anonymous' || pattern.name === ''
-        ? 'Anonymous pattern'
-        : `Pattern "${pattern.name}"`
-    } at index ${index} must accept one or more arguments.`
+      rawRule.name === 'anonymous' || rawRule.name === ''
+        ? 'Anonymous rule'
+        : `Rule "${rawRule.name}"`
+    } at index ${ruleIndex} must accept one or more arguments.`
   )
 
   return rule
@@ -286,8 +328,6 @@ function isArrayLike(value: any): boolean {
   )
 }
 
-const constructors = [Object, Number, Function, Array, String, Set, Map]
-
 function isFloat(value: any): boolean {
   return isType('Number', value) && value % 1 !== 0
 }
@@ -296,6 +336,9 @@ function ruleIsWildcard(rule: Rule): boolean {
   return rule.allReflectedArgs.some(arg => arg.argName === '_')
 }
 
+/**
+ * This is where the type-based checking happens.
+ */
 function doesMatch(
   rule: Rule,
   values: Array<any>,
@@ -312,11 +355,39 @@ function doesMatch(
     if ('default' in reflectedArg) {
       const pattern: any = reflectedArg.default
 
+      // `pattern` may be a match guard
+      if (isType('Function', pattern) && !constructors.includes(pattern)) {
+        let guardResult: any = pattern(value)
+        // console.log('pattern is:', pattern)
+        // console.log('guardResult is:', guardResult)
+
+        invariant(
+          !isType('Boolean', guardResult),
+          `Rule at rule index ${ruleIndex} has a guard function at parameter ` +
+            `index ${valueIndex} that does NOT return a Boolean value. ` +
+            `Expected a predicate (Boolean-returning function). Found ${getType(
+              guardResult
+            )}.`
+        )
+
+        if (guardResult) {
+          return true
+        }
+      }
+
       // eensy-teensy bit of type-coersion here (`arguments` -> array)
-      // the `isArrayLike` predicate evaluates true for Strings, exclude those
+      // the `isArrayLike` predicate evaluates true for Strings: exclude those
       if (isArrayLike(value) && !isType('String', value)) {
         const arrayValue = isType('Array', value) ? value : Array.from(value)
         return arrayMatch(arrayValue, valueIndex, rules, ruleIndex, pattern)
+      }
+
+      // detecting Date objects requires the `new` keyword
+      if (isType('Date', value)) {
+        if (Date === pattern) {
+          return true
+        }
+        // return isEqual(pattern, value)
       }
 
       if (isType('Object', value)) {
@@ -328,6 +399,26 @@ function doesMatch(
       }
 
       if (isType('Number', value)) {
+        if (Number === pattern) {
+          const otherRuleMatches = rules.some(rule => {
+            if (ruleIsWildcard(rule)) return false
+
+            const reflectedArgs = rule.allReflectedArgs[valueIndex]
+
+            if (
+              'default' in reflectedArgs &&
+              reflectedArgs.default != null &&
+              isType('Number', reflectedArgs.default)
+            ) {
+              return reflectedArgs.default === value
+            }
+          })
+
+          if (otherRuleMatches) {
+            return false
+          }
+          return true
+        }
         // whole numbers (includes 3, excludes 3.0)
         return value === pattern
       }
@@ -344,6 +435,52 @@ function doesMatch(
         }
 
         if (pattern === value) {
+          return true
+        }
+      }
+
+      if (isType('String', value)) {
+        if (String === pattern) {
+          const otherRuleMatches = rules.some(rule => {
+            if (ruleIsWildcard(rule)) return false
+
+            const reflectedArgs = rule.allReflectedArgs[valueIndex]
+
+            if (
+              'default' in reflectedArgs &&
+              reflectedArgs.default != null &&
+              isType('String', reflectedArgs.default)
+            ) {
+              return reflectedArgs.default === value
+            }
+          })
+
+          if (otherRuleMatches) {
+            return false
+          }
+          return true
+        }
+        // must use `toString` to support use of `new` keyword for String
+        if (pattern === value.toString()) {
+          return true
+        }
+        // return true
+      }
+
+      if (isType('Null', value)) {
+        if (value === pattern) {
+          return true
+        }
+      }
+
+      if (isType('Undefined', value)) {
+        if (value === pattern) {
+          return true
+        }
+      }
+
+      if (isType('RegExp', value)) {
+        if (RegExp === pattern) {
           return true
         }
       }
@@ -366,49 +503,29 @@ function objectMatch(
   ruleIndex: number,
   objectPattern: Object | ObjectConstructor
 ): boolean {
-  // gets the index of the rule that has a pattern for the corresponding
-  // input value (at `valueIndex`) with the highest number of keys (which
-  // may exceed the number of keys that `objectValue` has)
-  const mostSpecificRuleIndex =
-    rules.length === 2
-      ? 0
-      : rules.reduce((reducedIndex: number, rule: Rule, currentRuleIndex) => {
-          // skip the wildcard rule
-          if (ruleIsWildcard(rule)) {
-            return reducedIndex
-          }
-          const reflectedArg = rule.allReflectedArgs[valueIndex]
+  let mostSpecificRuleIndexes = rules.reduce((indexes, rule, index) => {
+    if (ruleIsWildcard(rule)) return indexes // skip
 
-          if ('default' in reflectedArg) {
-            if (typeof reflectedArg.default === 'object') {
-              if (Object.keys(reflectedArg.default).length > reducedIndex) {
-                return currentRuleIndex
-              }
-            }
-          }
+    const reflectedArg: ReflectedArg = rule.allReflectedArgs[valueIndex]
 
-          return reducedIndex
-        }, -1)
+    if ('default' in reflectedArg) {
+      if (typeof reflectedArg.default === 'object') {
+        if (
+          Object.keys(reflectedArg.default).length <=
+          Object.keys(objectValue).length
+        ) {
+          indexes.push(index)
+        }
+      }
+    }
+
+    return indexes
+  }, [])
+  // console.log('mostSpecificRuleIndexes is:', mostSpecificRuleIndexes)
 
   // pattern matches any object: `(argN = Object) => { ... }`
   if (Object === objectPattern) {
-    // show warning and skip constructor check if a rule with an `Object`
-    // constructor type check is provided before a rule with a destructured
-    // object pattern with the highest specificity (number of keys)
-    // example (this _will_ trigger a warning):
-    //   wavematch({ x: 1, y: 2 })(
-    //     (obj = Object) => foo,
-    //     (obj = { x: 1, y: 2 }) => bar,
-    //     _ => baz
-    //   )
-    if (mostSpecificRuleIndex > ruleIndex) {
-      // todo: this should warn/error
-      // warning(
-      //   true,
-      //   `Rule at index ${ruleIndex} uses \`Object\` constructor function (at parameter ` +
-      //     `index ${valueIndex}) to type check. This rule should preceed any ` +
-      //     'rules that destructure objects (due to increased specificity)'
-      // )
+    if (mostSpecificRuleIndexes.some(idx => idx > ruleIndex)) {
       return false
     } else {
       return true
@@ -418,8 +535,10 @@ function objectMatch(
 
     if (patternKeys.length === 0) {
       return isEqual(objectPattern, objectValue)
-    } else if (patternKeys.length <= Object.keys(objectValue).length) {
-      if (mostSpecificRuleIndex === ruleIndex) {
+    }
+
+    if (patternKeys.length <= Object.keys(objectValue).length) {
+      if (mostSpecificRuleIndexes.includes(ruleIndex)) {
         return patternKeys.every((key: string) => {
           // todo: support constructor type checks in object value positions (json5)
           // if (constructors.includes(objectPattern[key])) {
@@ -429,7 +548,7 @@ function objectMatch(
         })
       }
     } else {
-      // pattern has more keys than objectValue (do not warn)
+      // `pattern` has more keys than objectValue (do not warn)
       return false
     }
   }
@@ -446,13 +565,13 @@ function arrayMatch(
 ): boolean {
   if (Array === arrayPattern) {
     // index of a rule that is not this current rule (`rules[ruleIndex]`)
-    // whose pattern/`.default` destructures an array input
+    // whose pattern/`default` destructures an array input
     const indexOfDestructuringRule = rules.findIndex(rule => {
-      const reflectedArgs = rule.allReflectedArgs[valueIndex]
-
       if (ruleIsWildcard(rule)) {
         return false
       }
+
+      const reflectedArgs = rule.allReflectedArgs[valueIndex]
 
       if (
         'default' in reflectedArgs &&

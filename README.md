@@ -4,7 +4,7 @@
 ```javascript
 let factorial = n => wavematch(n)(
   (n = 0) => 1,
-  _       => n * factorial(n - 1)
+  n       => n * factorial(n - 1)
 )
 factorial(5) //=> 120
 ```
@@ -12,16 +12,16 @@ factorial(5) //=> 120
 ```javascript
 let isUsd = item => wavematch(item)(
   (arg = { options: { currency: 'USD' } }) => true,
-  _ => false
+  _                                        => false
 )
-isUsd({ value: 19.99, options: { currency: 'USD' } }) //=> true
-isUsd({ value: 19.99, options: { currency: 'ARS' } }) //=> false
+isUsd({ value: 42, options: { currency: 'USD' } }) //=> true
+isUsd({ value: 42, options: { currency: 'ARS' } }) //=> false
 ```
 
 ```javascript
 // In a React app
 let rendered = wavematch(this.state)(
-  (state = { error: Error })  => <ErrorView error={error} />,
+  (state = { error: true })  => <ErrorView />,
   (state = { loading: true }) => <LoadingView />,
   _                           => <SuccessView data={this.state.data} />
 )
@@ -31,16 +31,37 @@ let rendered = wavematch(this.state)(
 let zip = (xs, ys) => wavematch(xs, ys)(
   (xs, ys = []) => [],
   (xs = [], ys) => [],
-  ([x, ...xs], [y, ...ys]) => [x, y].concat(zip(xs, ys)),
-  _ => reject
+  ([x, ...xs], [y, ...ys]) => [x, y].concat(zip(xs, ys))
 )
 ```
 
 ```javascript
-// zipWith example
-// fibonnaci example
-// flatten example
-// non-function example
+let fib = n => wavematch(n)(
+  (n = 0) => 0,
+  (n = 1) => 1,
+  n       => fib(n - 1) + fib(n - 2)
+)
+```
+
+```javascript
+let zipWith = (f, xs, ys) => wavematch(f, xs, ys)(
+  (f, xs = [], ys) => [],
+  (f, xs, ys = []) => [],
+  (f, [x, ...xs], [y, ...ys]) => [f(x, y)].concat(zipWith(f, xs, ys))
+)
+```
+
+```javascript
+let response = wavematch(await fetch(url))(
+  (res = { status: 200 }) => 'request succeeded',
+  (res = { status: 404 }) => 'no value at url',
+  (res = res => res.status >= 400) => `unknown request status: ${res.status}`,
+  _ => 'who knows honestly'
+)
+```
+
+```javascript
+// Error example
 // nested example
 // async/await example
 // flow types example
@@ -51,12 +72,12 @@ let zip = (xs, ys) => wavematch(xs, ys)(
 Wavematch is a control flow operator for modern JavaScript.
 
 Compare values against a series of patterns and execute code based on which pattern matches.
-Patterns can be made up of literal values, type checks, and wildcards.
+Patterns can be made up of literal values, type checks, conditional guards, and wildcards.
 
 > How would it be used?
 
 
-# Background
+## Background
 [background]: #background
 
 What is pattern matching?
@@ -65,7 +86,7 @@ How is this different than before?
 What do you need to get started? Previous knowledge?
 
 
-# Motivation
+## Motivation
 [motivation]: #motivation
 
 Why are we doing this?
@@ -73,31 +94,26 @@ What use cases does it support?
 What is the expected outcome?
 (What problem does this (new thing/solution) solve?)
 
-# Syntax
-[syntax]: #syntax
+## Syntax
 
-Something from the Rust matching thingy here.
+The order of rules is important:
 
 ```javascript
-wavematch(VALUE)(
-  ARGUMENT => EXPRESSION,
-  (ARGUMENT = PATTERN) => EXPRESSION
+let result = wavematch(42)(
+  (n = Number) => 'yes',
+  (n = $ => $ === 42) => 'no'
 )
+result //=> 'yes'
 
-
-wavematch(VALUE_1, VALUE_2, ..., VALUE_N)(
-  (ARG_1 = PATTERN_1, ARG_2 = PATTERN_2, ..., ARG_N = PATTERN_N) => EXPRESSION
+let result = wavematch(42)(
+  (n = $ => $ === 42) => 'yes'
+  (n = Number) => 'no',
 )
-```
-
-Assuming your editor supports code snippets, here's a snippet for wavematch:
-```javascript
-wavematch(${1:value})(
-  (${2:arg} = ${3:pattern}) => ${4:expression}
-  _ => ${5:defaultExpression}
-)
+result //=> 'yes'
 ```
 
 ## Limitations
+[limitations]: #limitations
 
-All patterns which match and describe objects must be valid [JSON5](json5.org).
+- All patterns which describe objects must be valid [JSON5](json5.org)
+- Can't do much when argument is destructured

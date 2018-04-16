@@ -38,7 +38,7 @@ describe('wavematch object specification', () => {
     const notEnoughKeys = wavematch({ a: 1, b: 2, c: 3 })(
       (arg = { a: 1 }) => reject,
       (arg = { a: 1, b: 2 }) => accept,
-      _ => reject
+      _ => accept
     )
     eq(notEnoughKeys, accept)
   })
@@ -53,10 +53,14 @@ describe('wavematch object specification', () => {
 
   it('should match using constructor functions', () => {
     // prettier-ignore
-    const foo = wavematch({ foo: 'bar' })((o = Object) => accept, _ => reject)
+    const foo = wavematch({ foo: 'bar' })(
+      (o = Object) => accept,
+      _ => reject
+    )
     eq(foo, accept)
   })
 
+  // TODO .only
   it('should respect match specificity', () => {
     const lowSpecificity = wavematch({ x: 1, y: 2 })(
       (o = { x: 1 }) => accept,
@@ -116,6 +120,16 @@ describe('wavematch object specification', () => {
       _ => reject
     )
     eq(emptyInputObjectOnlyConstructor, accept)
+  })
+
+  it('specific example [wip]', () => {
+    // prettier-ignore
+    let render = mockState => wavematch(mockState)(
+      (state = { error: true })  => 'error-state',
+      (state = { loading: true }) => 'loading-state',
+      _                           => 'success-state'
+    )
+    eq(render({ error: true }), 'error-state')
   })
 
   // it.only('should ', () => {

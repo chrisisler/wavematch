@@ -22,4 +22,27 @@ describe('wavematch number specification', () => {
     )
     eq(integer, accept)
   })
+
+  it('should work with constructor', () => {
+    // prettier-ignore
+    const constructor = wavematch(3)(
+      (n = Number) => accept,
+      _ => reject
+    )
+    eq(constructor, accept)
+
+    const withOtherNums = wavematch(3)(
+      (n = 2) => reject,
+      (n = Number) => reject,
+      (n = 3) => accept,
+      _ => reject
+    )
+    eq(withOtherNums, accept)
+
+    const mixed = wavematch(0)(
+      (n = 1) => reject,
+      (n = Number) => accept,
+      _ => reject
+    )
+  })
 })
