@@ -107,7 +107,7 @@ function wavematch(
         true,
         `Rule at index ${indexOfRuleOverArity} tries to match ` +
           `${rules[indexOfRuleOverArity].arity} arguments. Expected only ` +
-          `${values.length}.`
+          `${values.length} parameters.`
       )
     }
 
