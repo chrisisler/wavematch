@@ -2,7 +2,7 @@ const assert = require('assert')
 const wavematch = require('../lib/index.js')
 const { accept, reject, eq } = require('./shared.js')
 
-describe.only('wavematch guard specification', () => {
+describe('wavematch guard specification', () => {
   it('should work', () => {
     // prettier-ignore
     eq(wavematch(42)(

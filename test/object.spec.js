@@ -21,9 +21,9 @@ describe('wavematch object specification', () => {
 
   it('should match object patterns with more keys', () => {
     const twoKeys = wavematch({ a: 1, b: 2 })(
-      (arg = { a: 1 }) => reject,
+      (arg = { a: 1 }) => 0,
       (arg = { a: 1, b: 2 }) => accept,
-      _ => reject
+      _ => 1
     )
     eq(twoKeys, accept)
 
@@ -38,9 +38,16 @@ describe('wavematch object specification', () => {
     const notEnoughKeys = wavematch({ a: 1, b: 2, c: 3 })(
       (arg = { a: 1 }) => reject,
       (arg = { a: 1, b: 2 }) => accept,
-      _ => accept
+      _ => reject
     )
     eq(notEnoughKeys, accept)
+
+    const tooManyKeys = wavematch({ a: 1 })(
+      (arg = {}) => reject,
+      (arg = { a: 1, b: 2 }) => reject,
+      _ => accept
+    )
+    eq(tooManyKeys, accept)
   })
 
   it('should match nested objects', () => {
@@ -124,18 +131,23 @@ describe('wavematch object specification', () => {
 
   it('specific example [wip]', () => {
     // prettier-ignore
-    let render = mockState => wavematch(mockState)(
-      (state = { error: true })  => 'error-state',
+    const mockRender = mockState => wavematch(mockState)(
+      (state = { error: true })   => 'error-state',
       (state = { loading: true }) => 'loading-state',
       _                           => 'success-state'
     )
-    eq(render({ error: true }), 'error-state')
+    eq(mockRender({ error: true }), 'error-state')
+    eq(mockRender({ loading: true }), 'loading-state')
+
+    eq(mockRender({}), 'success-state')
+    eq(mockRender({ foo: 'bar' }), 'success-state')
+    eq(mockRender({ a: 1 }), 'success-state')
   })
 
-  // it.only('should ', () => {
+  // it.only('should accept constructor as value', () => {
   //   const matched = wavematch({ error: new Error() })(
   //     // there has to be a way to do this
-  //     (obj = { error: { $type: 'Error' } }) => accept,
+  //     (obj = { error: Error }) => accept,
   //     (obj = { loading: true }) => reject,
   //     _ => reject
   //   )

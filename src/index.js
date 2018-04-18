@@ -8,33 +8,20 @@ const { warning, invariant } = require('./errors.js')
 
 type ReflectedArg = $ReadOnly<{
   argName: string,
-  default?: any,
   isDestructured: boolean,
   body: string, // only used for avoiding duplicate rules
-  predicate?: any => boolean // used for match guards
+  pattern?: any, // the default parameter
+  customTypeNames?: Array<string>, // for matching custom types (like 'Person' or 'Car')
+  subPatterns?: Array<any> // for OR patterns `(num = 2 | 4 | 6) => {}`
 }>
 
 type RuleExpression = (...Array<mixed>) => ?mixed
 
-type Rule = $ReadOnly<{
+type Rule = $ReadOnly<{|
   allReflectedArgs: Array<ReflectedArg>,
   arity: number,
   expression: RuleExpression
-}>
-
-const constructors = [
-  Object,
-  Number,
-  Function,
-  Array,
-  String,
-  RegExp,
-  Date,
-  Set,
-  Map,
-  Symbol,
-  Proxy
-]
+|}>
 
 // stand-ins for the `Object` and `Array` constructors since flow reserves the
 // `Object` and `Array` keywords
@@ -59,7 +46,7 @@ function wavematch(
         '"_ => { /* expression */ }"'
     )
 
-    let rules: Array<Rule> = rawRules.map(toRule)
+    const rules: Array<Rule> = rawRules.map(toRule)
 
     // if any rule tries to destructure an undefined value then throw
     values.forEach((value: any, valueIndex) => {
@@ -115,11 +102,10 @@ function wavematch(
       rule.allReflectedArgs.some((reflectedArg: ReflectedArg, index) => {
         if (reflectedArg.isDestructured) {
           return false
-        } else if (!reflectedArg.argName.includes('_')) {
+        }
+        if (!reflectedArg.argName.includes('_')) {
           return false
         }
-
-        const argNameLength: number = reflectedArg.argName.length
 
         warning(
           reflectedArg.argName.length > 1,
@@ -127,54 +113,9 @@ function wavematch(
             'underscore characters. Expected only one underscore.'
         )
 
-        const isWildcardRule = reflectedArg.argName === '_'
-
-        warning(
-          rule.arity > 1 && isWildcardRule,
-          'Wildcard pattern must be unary. ' +
-            `Expected one argument (named "_"). Found ${rule.arity} args.`
-        )
-
-        return isWildcardRule
+        return reflectedArg.argName.includes('_') && rule.arity === 1
       })
     )
-
-    const wildcardExists = indexOfWildcardRule !== -1
-
-    if (wildcardExists) {
-      warning(
-        rawRules.length >= 1 && indexOfWildcardRule !== rules.length - 1,
-        'Wildcard pattern should be the ' +
-          `last pattern. Instead is at index ${indexOfWildcardRule}.`
-      )
-
-      const wildcardArg: ?ReflectedArg = rules[
-        indexOfWildcardRule
-      ].allReflectedArgs.find(({ argName }) => argName === '_')
-
-      if (
-        wildcardArg != null &&
-        'default' in wildcardArg &&
-        wildcardArg.default != null
-      ) {
-        warning(
-          true,
-          'Wildcard pattern must not have a ' +
-            'default argument. Found default argument of: ' +
-            wildcardArg.default
-        )
-      }
-    }
-
-    // remove all rules which have guards
-    // rules = rules.filter(rule =>
-    //   rule.allReflectedArgs.some((_, valueIndex) => {
-    //     const reflectedArg = rule.allReflectedArgs[valueIndex]
-    //     const pattern: any = reflectedArg.default
-
-    //     return !(isType('Function', pattern) && !constructors.includes(pattern))
-    //   })
-    // )
 
     for (let ruleIndex = 0; ruleIndex < rules.length; ruleIndex++) {
       // skip wildcard pattern as it:
@@ -191,9 +132,14 @@ function wavematch(
       }
     }
 
-    if (wildcardExists) {
+    if (indexOfWildcardRule !== -1) {
       return rules[indexOfWildcardRule].expression()
     }
+
+    invariant(
+      true,
+      'Gotta throw an error - end of `wavematch` with an unhandled state!'
+    )
   }
 }
 
@@ -203,6 +149,7 @@ function reflectArguments(
 ): Array<ReflectedArg> {
   type Parsed = { args: Array<string>, defaults: Object, body: string }
   const parsed: Parsed = functionParse(rawRule)
+  // Note: no way to tell if an argument is a rest argument (like (...args) => {})
 
   if (parsed.args.length === 0) {
     const reflectedArguments = []
@@ -211,67 +158,38 @@ function reflectArguments(
 
   return parsed.args.map((argName, argIndex) => {
     const isDestructured = argName === false
-    let pattern = parsed.defaults[argName]
+    const pattern: string = parsed.defaults[argName]
 
-    // if no default then don't put `default` key in the returned object
-    if (pattern === void 0) {
-      if (isDestructured) {
-        return {
-          argName: 'destructured-argument-name',
-          isDestructured: isDestructured,
-          body: parsed.body
-        }
-      }
-
-      return {
-        argName: argName,
-        isDestructured: isDestructured,
-        body: parsed.body
-      }
-    }
-
-    // default is an Object, parse it into an actual Object type
-    if (pattern.startsWith('{')) {
-      try {
-        pattern = json5.parse(pattern) // `pattern` must conform to json5 spec
-      } catch (error) {
-        invariant(
-          error instanceof SyntaxError,
-          `Rule at index ${ruleIndex} has argument at parameter index ` +
-            `${argIndex} that has invalid JSON5.\n` +
-            `Read the spec at: https://github.com/json5/json5\n` +
-            `JSON5 error message is: ${error.message}\n`
-        )
-      }
-    } else {
-      try {
-        pattern = eval(pattern)
-      } catch (error) {
-        // attempted to use an out-of-scope variable as a default/pattern
-        invariant(
-          error instanceof ReferenceError,
-          `For pattern at parameter index ${argIndex}, cannot use out of scope variable as ` +
-            `default: ${pattern}.\nTry replacing the variable with its value.`
-        )
-      }
-    }
-
-    // destructured argument situation
-    if (isDestructured) {
-      return {
-        default: pattern,
-        isDestructured: isDestructured,
-        argName: 'destructured-argument-name',
-        body: parsed.body
-      }
-    }
-
-    return {
-      argName: argName,
+    const reflectedArg: ReflectedArg = {
       isDestructured: isDestructured,
-      default: pattern,
-      body: parsed.body
+      body: parsed.body,
+      argName: isDestructured ? '@@DESTRUCTURED' : argName
     }
+
+    // if no default then do not add optional keys
+    if (pattern === void 0) {
+      return reflectedArg
+    }
+
+    const { customTypeNames, reflectedPattern, subPatterns } = reflectPattern(
+      pattern,
+      ruleIndex,
+      argIndex
+    )
+
+    let optionalProps = {}
+    optionalProps.pattern = reflectedPattern
+
+    if (customTypeNames.length) {
+      optionalProps.customTypeNames = customTypeNames
+    }
+
+    if (subPatterns.length) {
+      optionalProps.subPatterns = subPatterns
+    }
+
+    const r = Object.assign({}, reflectedArg, optionalProps)
+    return r
   })
 }
 
@@ -284,7 +202,7 @@ function getType(value: any): string {
 }
 
 function toRule(rawRule: RuleExpression, ruleIndex: number): Rule {
-  warning(
+  invariant(
     !(typeof rawRule === 'function'),
     `Rule at index ${ruleIndex} is not a ` +
       `Function, instead is: ${getType(rawRule)}.`
@@ -336,6 +254,21 @@ function ruleIsWildcard(rule: Rule): boolean {
   return rule.allReflectedArgs.some(arg => arg.argName === '_')
 }
 
+const constructors = [
+  Object,
+  Boolean,
+  Number,
+  Function,
+  Array,
+  String,
+  RegExp,
+  Date,
+  Set,
+  Map,
+  Symbol,
+  Proxy
+]
+
 /**
  * This is where the type-based checking happens.
  */
@@ -352,14 +285,31 @@ function doesMatch(
       return true
     }
 
-    if ('default' in reflectedArg) {
-      const pattern: any = reflectedArg.default
+    if ('pattern' in reflectedArg) {
+      const pattern: any = reflectedArg.pattern
 
-      // `pattern` may be a match guard
+      if ('customTypeNames' in reflectedArg) {
+        if (
+          reflectedArg.customTypeNames != null &&
+          reflectedArg.customTypeNames.includes(value.constructor.name)
+        ) {
+          return true
+        }
+
+        // derived class matching
+        const valueParentTypeName = tryGetParentClassName(value)
+        if (
+          valueParentTypeName &&
+          reflectedArg.customTypeNames != null &&
+          reflectedArg.customTypeNames.includes(valueParentTypeName)
+        ) {
+          return true
+        }
+      }
+
       if (isType('Function', pattern) && !constructors.includes(pattern)) {
-        let guardResult: any = pattern(value)
-        // console.log('pattern is:', pattern)
-        // console.log('guardResult is:', guardResult)
+        // `pattern` may be a match guard
+        const guardResult: any = pattern(value)
 
         invariant(
           !isType('Boolean', guardResult),
@@ -406,11 +356,11 @@ function doesMatch(
             const reflectedArgs = rule.allReflectedArgs[valueIndex]
 
             if (
-              'default' in reflectedArgs &&
-              reflectedArgs.default != null &&
-              isType('Number', reflectedArgs.default)
+              'pattern' in reflectedArgs &&
+              reflectedArgs.pattern != null &&
+              isType('Number', reflectedArgs.pattern)
             ) {
-              return reflectedArgs.default === value
+              return reflectedArgs.pattern === value
             }
           })
 
@@ -447,11 +397,11 @@ function doesMatch(
             const reflectedArgs = rule.allReflectedArgs[valueIndex]
 
             if (
-              'default' in reflectedArgs &&
-              reflectedArgs.default != null &&
-              isType('String', reflectedArgs.default)
+              'pattern' in reflectedArgs &&
+              reflectedArgs.pattern != null &&
+              isType('String', reflectedArgs.pattern)
             ) {
-              return reflectedArgs.default === value
+              return reflectedArgs.pattern === value
             }
           })
 
@@ -503,33 +453,32 @@ function objectMatch(
   ruleIndex: number,
   objectPattern: Object | ObjectConstructor
 ): boolean {
-  let mostSpecificRuleIndexes = rules.reduce((indexes, rule, index) => {
-    if (ruleIsWildcard(rule)) return indexes // skip
+  const valueSize = Object.keys(objectValue).length
 
-    const reflectedArg: ReflectedArg = rule.allReflectedArgs[valueIndex]
+  type BestFitRules = Array<{| +index: number, +size: number |}> //
+  let bestFitRules: BestFitRules = rules.reduce(
+    (reduced: BestFitRules, rule: Rule, index: number) => {
+      if (ruleIsWildcard(rule)) return reduced // skip
 
-    if ('default' in reflectedArg) {
-      if (typeof reflectedArg.default === 'object') {
-        if (
-          Object.keys(reflectedArg.default).length <=
-          Object.keys(objectValue).length
-        ) {
-          indexes.push(index)
+      const r = rule.allReflectedArgs[valueIndex]
+
+      if ('pattern' in r && typeof r.pattern === 'object') {
+        const size = Object.keys(r.pattern).length
+
+        // cannot have more keys than the object we are trying to match
+        if (size <= valueSize) {
+          reduced.push({ size, index })
         }
       }
-    }
 
-    return indexes
-  }, [])
-  // console.log('mostSpecificRuleIndexes is:', mostSpecificRuleIndexes)
+      return reduced
+    },
+    ([]: BestFitRules)
+  )
 
-  // pattern matches any object: `(argN = Object) => { ... }`
+  // pattern matches any object: `(arg = Object) => { ... }`
   if (Object === objectPattern) {
-    if (mostSpecificRuleIndexes.some(idx => idx > ruleIndex)) {
-      return false
-    } else {
-      return true
-    }
+    return !bestFitRules.some(b => b.index > ruleIndex)
   } else if (isType('Object', objectPattern)) {
     const patternKeys = Object.keys(objectPattern)
 
@@ -537,10 +486,19 @@ function objectMatch(
       return isEqual(objectPattern, objectValue)
     }
 
-    if (patternKeys.length <= Object.keys(objectValue).length) {
-      if (mostSpecificRuleIndexes.includes(ruleIndex)) {
+    if (patternKeys.length <= valueSize) {
+      // get obj with highest number of keys (that's why it's named "best fit")
+      const bestFitRule = bestFitRules.sort(
+        (b1, b2) => (b1.size > b2.size ? -1 : 1)
+      )[0]
+
+      // retain only the rules that have the most keys
+      // this may not eliminate any rules, that is okay
+      bestFitRules = bestFitRules.filter(b => b.size >= bestFitRule.size)
+
+      if (bestFitRules.some(b => b.index === ruleIndex)) {
         return patternKeys.every((key: string) => {
-          // todo: support constructor type checks in object value positions (json5)
+          // TODO: support constructor type checks as object values (json5)
           // if (constructors.includes(objectPattern[key])) {
           //   return isType(objectPattern[key].name, objectValue)
           // }
@@ -565,7 +523,7 @@ function arrayMatch(
 ): boolean {
   if (Array === arrayPattern) {
     // index of a rule that is not this current rule (`rules[ruleIndex]`)
-    // whose pattern/`default` destructures an array input
+    // whose pattern destructures an array input
     const indexOfDestructuringRule = rules.findIndex(rule => {
       if (ruleIsWildcard(rule)) {
         return false
@@ -574,12 +532,12 @@ function arrayMatch(
       const reflectedArgs = rule.allReflectedArgs[valueIndex]
 
       if (
-        'default' in reflectedArgs &&
-        reflectedArgs.default != null &&
-        isType('Array', reflectedArgs.default)
+        'pattern' in reflectedArgs &&
+        reflectedArgs.pattern != null &&
+        isType('Array', reflectedArgs.pattern)
       ) {
-        // `reflArg.default` mismatches: too many elements
-        return reflectedArgs.default.length <= arrayValue.length
+        // `reflArg.pattern` mismatches: too many elements
+        return reflectedArgs.pattern.length <= arrayValue.length
       }
     })
 
@@ -613,4 +571,113 @@ function arrayMatch(
 
   // fallback behavior
   return false
+}
+
+/**
+ * For instances of custom types defined using `class Foo extends Bar` syntax.
+ * @example
+ *
+ * class A {}
+ * class B extends A {}
+ * tryGetParentClassName(new B()) //=> 'A'
+ * tryGetParentClassName(new A()) //=> null
+ */
+function tryGetParentClassName(instance: any): string | void {
+  const code = instance.constructor.toString()
+
+  if (!code.includes('class') || !code.includes('extends')) {
+    return void 0
+  }
+
+  const parts = code.split(/\s+/).slice(0, 4)
+
+  invariant(
+    parts[2] !== 'extends',
+    `Expected "class Foo extends Bar". Found "${parts.join(' ')}"`
+  )
+
+  const parentClassName = parts[3]
+  return parentClassName
+}
+
+// for `reflectArguments` only
+function reflectPattern(
+  pattern: any, // String type, actually (for the most part)
+  ruleIndex: number, // for error messages
+  argIndex: number // for error messages
+): {|
+  customTypeNames: Array<string>,
+  subPatterns: Array<any>,
+  reflectedPattern: any
+|} {
+  let customTypeNames = []
+  let subPatterns = []
+
+  // pattern is a plain object, parse it into an actual Object type
+  if (pattern.startsWith('{')) {
+    try {
+      // data must conform to json5 spec
+      pattern = json5.parse(pattern)
+    } catch (error) {
+      invariant(
+        error instanceof SyntaxError,
+        `Rule at index ${ruleIndex} has argument at parameter index ` +
+          `${argIndex} that has invalid JSON5.\n` +
+          `Read the spec at: https://github.com/json5/json5\n` +
+          `JSON5 error message is: ${error.message}\n`
+      )
+    }
+  } else {
+    // OR pattern
+    // ----------
+    // wavematch(random(0, 5))(
+    //   (n = 1 | 3 | 5) => 'odd!',
+    //   _ => 'even!'
+    // )
+    // Note: `pattern` = '1 | 3 | 5'
+    //   Must split then evaluate iteratively.
+    if (pattern.includes('|')) {
+      pattern.split(/\s*\|\s*/).forEach(subPattern => {
+        // When this function call hits the `if (pattern.includes('|'))` case
+        // again, this code will not run. In other words, this recursion happens
+        // a maximum of one times, potentially zero if no pattern has sub patterns.
+        const sub = reflectPattern(subPattern, ruleIndex, argIndex)
+        subPatterns.push(sub.reflectedPattern)
+
+        if (sub.customTypeNames.length) {
+          customTypeNames.push(...sub.customTypeNames)
+        }
+      })
+    }
+
+    try {
+      pattern = eval(pattern)
+    } catch (error) {
+      // NOTE: The following `if` statement and `invariant` call make assume
+      //   that the variable names passed to wavematch are not PascalCase for
+      //   identifiers that do not represent types.
+
+      // if `pattern` starts with an upper case character, assume it's a
+      // custom class type instance (like Person or Car)
+      if (
+        error instanceof ReferenceError &&
+        pattern[0].toUpperCase() === pattern[0]
+      ) {
+        // checking if the custom type actually matches is not our job here,
+        // that's done in `doesMatch`
+        customTypeNames.push(pattern)
+      }
+
+      // attempted to use an out-of-scope variable as a pattern
+      invariant(
+        error instanceof ReferenceError &&
+          pattern[0].toLowerCase() === pattern[0], // is valid var name
+        `For pattern at parameter index ${argIndex}, cannot use out of ` +
+          `scope variable as default: ${pattern}.\n` +
+          `If possible, try replacing the variable with its value.`
+      )
+    }
+  }
+
+  return { reflectedPattern: pattern, subPatterns, customTypeNames }
 }
