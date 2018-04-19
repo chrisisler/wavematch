@@ -5,8 +5,10 @@ const uglify = require('rollup-plugin-uglify')
 const env = process.env.NODE_ENV
 
 let config = {
-  // must be `lib` directory because flow types must be stripped
-  input: 'lib/index.js',
+  // must be `build` directory because 
+  // thats where js files go after removing flow types
+  // see `package.json`
+  input: 'build/index.js',
   plugins: []
 }
 

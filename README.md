@@ -39,6 +39,25 @@ let map = (fn, x) => wavematch(fn, x)(
 )
 ```
 
+## Matching Objects
+
+Use plain objects as parameter defaults to match object data.
+
+```javascript
+wavematch({ isDone: false, error: Error() })(
+  (obj = { isDone: Boolean }) => {
+    console.log('sick')
+  }
+)
+```
+
+```javascript
+let assertShape = obj => wavematch(obj)(
+  (shape = { foo: Number, bar: Object }) => {}, // noop
+  _ => throw Error('Unexpected data type')
+)
+```
+
 ## Match Guards
 
 Guards are boolean expressions for conditional behavior.
@@ -57,6 +76,25 @@ let fib = n => wavematch(n)(
 ```javascript
 let safeFetch = async (url) => wavematch(await fetch(url))(
   (response = { status: 200 }) => response,
+  (response = $ => $.status > 400) => Error(response)
+)
+```
+
+## Match Unions
+
+Use `|` within patterns to match multiple patterns.
+
+```javascript
+let value = random(0, 10)
+wavematch(value)(
+  (other = 2 | 4 | 6) => something,
+  _ => other thing
+)
+```
+
+```javascript
+wavematch(await fetch(url))(
+  (response = { status: 200 } | { ok: true }) => response,
   (response = $ => $.status > 400) => Error(response)
 )
 ```

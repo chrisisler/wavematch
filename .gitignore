@@ -3,8 +3,12 @@
 # dependencies
 node_modules
 
-# production
+# preproduction
 build
+
+# production
+dist
+lib
 
 # misc
 .DS_Store

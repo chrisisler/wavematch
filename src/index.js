@@ -165,7 +165,7 @@ function wavematch(...values: Array<any>): (...Array<RuleExpression>) => ?mixed 
       return rules[indexOfWildcardRule].expression()
     }
 
-    invariant(true, 'Gotta throw an error - end of `wavematch` with an unhandled state!')
+    warning(true, 'Gotta show a warning - end of `wavematch` with an unhandled state!')
   }
 }
 
@@ -319,7 +319,6 @@ function allValuesSatisfyRule(
         })
       )
     }
-    // console.log('lmao')
 
     if ('pattern' in reflectedArg) {
       return isPatternAcceptable(rules, ruleIndex, valueIndex, value, reflectedArg)
@@ -329,10 +328,7 @@ function allValuesSatisfyRule(
   })
 }
 
-/**
- * @returns {Boolean} - true: accept rule, false: reject rule and try next
- */
-function objectMatch(
+function ruleMatchesObjectValue(
   objectValue: Object,
   valueIndex: number,
   rules: Array<Rule>,
@@ -348,13 +344,21 @@ function objectMatch(
 
       const r = rule.allReflectedArgs[valueIndex]
 
-      if ('pattern' in r && typeof r.pattern === 'object') {
-        const size = Object.keys(r.pattern).length
+      function pushIfValidSize(pattern) {
+        const size = Object.keys(pattern).length
 
         // cannot have more keys than the object we are trying to match
         if (size <= valueSize) {
           reduced.push({ size, index })
         }
+      }
+
+      if ('pattern' in r && typeof r.pattern === 'object') {
+        pushIfValidSize(r.pattern)
+      } else if ('subPatterns' in r && typeof r.subPatterns !== 'undefined') {
+        r.subPatterns.forEach(subPattern => {
+          pushIfValidSize(subPattern)
+        })
       }
 
       return reduced
@@ -398,14 +402,14 @@ function objectMatch(
   return false
 }
 
-function arrayMatch(
+function ruleMatchesArrayValue(
   arrayValue: Array<mixed>,
   valueIndex: number,
   rules: Array<Rule>,
   ruleIndex: number,
-  arrayPattern: Array<mixed> | ArrayConstructor
+  pattern: any
 ): boolean {
-  if (Array === arrayPattern) {
+  if (Array === pattern) {
     // index of a rule that is not this current rule (`rules[ruleIndex]`)
     // whose pattern destructures an array input
     const indexOfDestructuringRule = rules.findIndex(rule => {
@@ -432,25 +436,28 @@ function arrayMatch(
     return isType('Array', arrayValue)
   }
 
-  if (arrayValue.length === 0) {
-    return isEqual(arrayPattern, arrayValue)
-  } else if (arrayPattern.length > arrayValue.length) {
-    return false
-  } else if (arrayPattern.length <= arrayValue.length) {
-    // pattern is `[]` but value is not
-    if (arrayPattern.length === 0) {
+  if (isType('Array', pattern)) {
+    if (arrayValue.length === 0) {
+      return isEqual(pattern, arrayValue)
+    } else if (pattern.length > arrayValue.length) {
       return false
+    } else if (pattern.length <= arrayValue.length) {
+      // pattern is `[]` but value is not
+      if (pattern.length === 0) {
+        return false
+      }
+
+      const thisRuleIsOnlyDestructurer = rules.length === 2
+
+      if (thisRuleIsOnlyDestructurer) {
+        if (pattern)
+          return pattern.every((destructuredArrayValue, index) => {
+            return isEqual(destructuredArrayValue, arrayValue[index])
+          })
+      }
+
+      return isEqual(pattern, arrayValue)
     }
-
-    const thisRuleIsOnlyDestructurer = rules.length === 2
-
-    if (thisRuleIsOnlyDestructurer) {
-      return arrayPattern.every((destructuredArrayValue, index) => {
-        return isEqual(destructuredArrayValue, arrayValue[index])
-      })
-    }
-
-    return isEqual(arrayPattern, arrayValue)
   }
 
   // fallback behavior
@@ -494,65 +501,65 @@ function reflectPattern(
   let customTypeNames = []
   let subPatterns = []
 
-  // pattern is a plain object, parse it into an actual Object type
-  if (pattern.startsWith('{')) {
-    try {
-      // data must conform to json5 spec
-      pattern = json5.parse(pattern)
-    } catch (error) {
-      invariant(
-        error instanceof SyntaxError,
-        `Rule at index ${ruleIndex} has argument at parameter index ` +
-          `${argIndex} that has invalid JSON5.\n` +
-          `Read the spec at: https://github.com/json5/json5\n` +
-          `JSON5 error message is: ${error.message}\n`
-      )
-    }
-  } else {
-    // OR pattern
-    // ----------
-    // wavematch(random(0, 5))(
-    //   (n = 1 | 3 | 5) => 'odd!',
-    //   _ => 'even!'
-    // )
-    // Note: `pattern` = '1 | 3 | 5'
-    //   Must split then evaluate iteratively.
-    if (pattern.includes('|')) {
-      pattern.split(/\s*\|\s*/).forEach(subPattern => {
-        // When this function call hits the `if (pattern.includes('|'))` case
-        // again, this code will not run. In other words, this recursion happens
-        // a maximum of one times, potentially zero if no pattern has sub patterns.
-        const sub = reflectPattern(subPattern, ruleIndex, argIndex)
-        subPatterns.push(sub.reflectedPattern)
+  // OR pattern
+  // ----------
+  // wavematch(random(0, 5))(
+  //   (n = 1 | 3 | 5) => 'odd!',
+  //   _ => 'even!'
+  // )
+  // Note: `pattern` = '1 | 3 | 5'
+  //   Must split then evaluate iteratively.
+  if (pattern.includes('|')) {
+    pattern.split(/\s*\|\s*/).forEach(subPattern => {
+      // When this function call hits the `if (pattern.includes('|'))` case
+      // again, this code will not run. In other words, this recursion happens
+      // a maximum of one times, potentially zero if no pattern has sub patterns.
+      const sub = reflectPattern(subPattern, ruleIndex, argIndex)
+      subPatterns.push(sub.reflectedPattern)
 
-        if (sub.customTypeNames.length) {
-          customTypeNames.push(...sub.customTypeNames)
-        }
-      })
-    }
-
-    try {
-      pattern = eval(pattern)
-    } catch (error) {
-      // NOTE: The following `if` statement and `invariant` call make assume
-      //   that the variable names passed to wavematch are not PascalCase for
-      //   identifiers that do not represent types.
-
-      // if `pattern` starts with an upper case character, assume it's a
-      // custom class type instance (like Person or Car)
-      if (error instanceof ReferenceError && pattern[0].toUpperCase() === pattern[0]) {
-        // checking if the custom type actually matches is not our job here,
-        // that's done in `allValuesSatisfyRule`
-        customTypeNames.push(pattern)
+      if (sub.customTypeNames.length) {
+        customTypeNames.push(...sub.customTypeNames)
       }
+    })
+  } else {
+    // pattern is a plain object, parse it into an actual Object type
+    if (pattern.includes('{')) {
+      try {
+        // data must conform to json5 spec
+        pattern = json5.parse(pattern)
+      } catch (error) {
+        invariant(
+          error instanceof SyntaxError,
+          `Rule at index ${ruleIndex} has argument at parameter index ` +
+            `${argIndex} that has invalid JSON5.\n` +
+            `Read the spec at: https://github.com/json5/json5\n` +
+            `JSON5 error message is: ${error.message}\n`
+        )
+      }
+    } else {
+      try {
+        pattern = eval(pattern)
+      } catch (error) {
+        // NOTE: The following `if` statement and `invariant` call make assume
+        //   that the variable names passed to wavematch are not PascalCase for
+        //   identifiers that do not represent types.
 
-      // attempted to use an out-of-scope variable as a pattern
-      invariant(
-        error instanceof ReferenceError && pattern[0].toLowerCase() === pattern[0], // is valid var name
-        `For pattern at parameter index ${argIndex}, cannot use out of ` +
-          `scope variable as default: ${pattern}.\n` +
-          `If possible, try replacing the variable with its value.`
-      )
+        // if `pattern` starts with an upper case character, assume it's a
+        // custom class type instance (like Person or Car)
+        if (error instanceof ReferenceError && pattern[0].toUpperCase() === pattern[0]) {
+          // checking if the custom type actually matches is not our job here,
+          // that's done in `allValuesSatisfyRule`
+          customTypeNames.push(pattern)
+        }
+
+        // attempted to use an out-of-scope variable as a pattern
+        invariant(
+          error instanceof ReferenceError && pattern[0].toLowerCase() === pattern[0], // is valid var name
+          `For pattern at parameter index ${argIndex}, cannot use out of ` +
+            `scope variable as default: ${pattern}.\n` +
+            `If possible, try replacing the variable with its value.`
+        )
+      }
     }
   }
 
@@ -609,7 +616,7 @@ function isPatternAcceptable(
   // the `isArrayLike` predicate evaluates true for Strings: exclude those
   if (isArrayLike(value) && !isType('String', value)) {
     const arrayValue = isType('Array', value) ? value : Array.from(value)
-    return arrayMatch(arrayValue, valueIndex, rules, ruleIndex, pattern)
+    return ruleMatchesArrayValue(arrayValue, valueIndex, rules, ruleIndex, pattern)
   }
 
   // detecting Date objects requires the `new` keyword
@@ -621,7 +628,7 @@ function isPatternAcceptable(
   }
 
   if (isType('Object', value)) {
-    return objectMatch(value, valueIndex, rules, ruleIndex, pattern)
+    return ruleMatchesObjectValue(value, valueIndex, rules, ruleIndex, pattern)
   }
 
   // generic case?

@@ -186,6 +186,15 @@ describe('wavematch array specification', () => {
     assert.deepEqual(empty([]), accept)
   })
 
+  // TODO: should not work with Boolean pattern
+  // it('should not work with Boolean pattern', () => {
+  //   let matched = wavematch([1])(
+  //     (x = Boolean) => accept,
+  //     _ => reject
+  //   )
+  //   eq(matched, accept)
+  // })
+
   // it('should match any element type', () => {
   //   const array = []
   //   const fn = _ => {} // cannot contain parenthesis or else SyntaxError

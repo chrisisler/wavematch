@@ -10,11 +10,12 @@
   ],
   "scripts": {
     "test": "yarn prebuild:types && NODE_ENV=development mocha --no-colors",
-    "prebuild:types": "flow-remove-types src/ -d lib/",
+    "prebuild:types": "flow-remove-types src/ -d build/",
+    "prebuild:format": "prettier --write \"build/*.js\"",
     "build:umd": "cross-env NODE_ENV=development rollup -c -o dist/wavematch.js",
     "build:umd:min": "cross-env NODE_ENV=production rollup -c -o dist/wavematch.min.js",
     "build:cjs": "cross-env NODE_ENV=cjs rollup -c -o lib/wavematch.js",
-    "build": "yarn prebuild:types && yarn build:cjs && yarn build:umd && yarn build:umd:min",
+    "build": "yarn prebuild:types && yarn prebuild:format && yarn build:cjs && yarn build:umd && yarn build:umd:min 2>/dev/null",
     "flow start": "flow start",
     "flow stop": "flow stop",
     "flow status": "flow status"
