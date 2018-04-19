@@ -4,7 +4,6 @@ const { accept, reject, eq } = require('./shared.js')
 
 describe('wavematch regular expression specification', () => {
   it('should match RegExp constructor', () => {
-    // prettier-ignore
     let testRegExpConstructor = value => eq(wavematch(value)(
       (re = RegExp) => accept,
       _ => reject

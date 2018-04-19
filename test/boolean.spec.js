@@ -4,14 +4,12 @@ const { accept, reject, eq } = require('./shared.js')
 
 describe('wavematch boolean specification', () => {
   it('should match Boolean constructor', () => {
-    // prettier-ignore
     const falseMatch = wavematch(false)(
       (input = Boolean) => accept,
       _ => reject
     )
     eq(falseMatch, accept)
 
-    // prettier-ignore
     const trueMatch = wavematch(true)(
       (input = Boolean) => accept,
       _ => reject
@@ -28,7 +26,6 @@ describe('wavematch boolean specification', () => {
   })
 
   it('should match true literal', () => {
-    // prettier-ignore
     const matchTrue = wavematch(true)(
       (condition = true) => accept,
       _ => reject
@@ -37,7 +34,6 @@ describe('wavematch boolean specification', () => {
   })
 
   it('should reject non-Boolean inputs with Boolean constructor', () => {
-    // prettier-ignore
     const matchBoolean = input => wavematch(input)(
       (arg = Boolean) => accept,
       _ => reject

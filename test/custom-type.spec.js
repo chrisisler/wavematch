@@ -7,7 +7,6 @@ describe('wavematch custom types specification', () => {
     class Person {}
     let person = new Person()
 
-    // prettier-ignore
     let matchPerson = wavematch(person)(
       (p = Person) => accept,
       _ => reject
@@ -20,7 +19,6 @@ describe('wavematch custom types specification', () => {
     function Car() {}
     let car = new Car()
 
-    // prettier-ignore
     eq(wavematch(car)(
       (car = Car) => accept,
       _ => reject
@@ -32,7 +30,6 @@ describe('wavematch custom types specification', () => {
     class B extends A {}
     let b = new B()
 
-    // prettier-ignore
     eq(wavematch(b)(
       (b = B) => accept,
       _ => reject
@@ -44,7 +41,6 @@ describe('wavematch custom types specification', () => {
     class B extends A {}
     let b = new B()
 
-    // prettier-ignore
     eq(wavematch(b)(
       (b = A) => accept,
       _ => reject

@@ -15,7 +15,6 @@ if (env === 'es' || env === 'cjs') {
     format: env,
     indent: false
   }
-  config.external = ['symbol-observable']
 }
 
 if (env === 'development' || env === 'production') {

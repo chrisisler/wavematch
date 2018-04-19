@@ -4,19 +4,27 @@
   "version": "0.4.0",
   "main": "lib/index.js",
   "files": [
+    "dist",
     "lib",
     "src"
   ],
   "scripts": {
     "test": "yarn prebuild:types && NODE_ENV=development mocha --no-colors",
     "prebuild:types": "flow-remove-types src/ -d lib/",
+    "build:umd": "cross-env NODE_ENV=development rollup -c -o dist/wavematch.js",
+    "build:umd:min": "cross-env NODE_ENV=production rollup -c -o dist/wavematch.min.js",
     "build:cjs": "cross-env NODE_ENV=cjs rollup -c -o lib/wavematch.js",
-    "build": "yarn prebuild:types && yarn build:cjs",
+    "build": "yarn prebuild:types && yarn build:cjs && yarn build:umd && yarn build:umd:min",
     "flow start": "flow start",
     "flow stop": "flow stop",
     "flow status": "flow status"
   },
   "repository": "git@github.com:chrisisler/wavematch.git",
+  "keywords": [
+    "pattern",
+    "match",
+    "wavematch"
+  ],
   "author": "chrisisler <christopherisler1@gmail.com>",
   "devDependencies": {
     "cross-env": "^5.1.4",
@@ -47,5 +55,15 @@
     "rules": {
       "prettier/prettier": "error"
     }
+  },
+  "prettierConfig": {
+    "singleQuote": true,
+    "printWidth": 80,
+    "bracketSpacing": true,
+    "tabWidth": 2,
+    "semi": false,
+    "parser": "flow",
+    "arrowParens": "avoid",
+    "requirePragma": true
   }
 }

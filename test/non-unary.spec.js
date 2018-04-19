@@ -4,7 +4,6 @@ const { accept, reject, eq } = require('./shared.js')
 
 describe('wavematch non-unary arguments specification', () => {
   it('array#reduce', () => {
-    // prettier-ignore
     const reduce = (fn, reduced, array) => wavematch(fn, reduced, array)(
       (fn, reduced, array = Array) => array.reduce(fn, reduced),
       _ => reject
@@ -15,7 +14,6 @@ describe('wavematch non-unary arguments specification', () => {
   })
 
   it('array#filter', () => {
-    // prettier-ignore
     const filter = (predicate, value) => wavematch(predicate, value)(
       (predicate = Function, value = Array) => {
         return value.filter(predicate)
@@ -31,13 +29,11 @@ describe('wavematch non-unary arguments specification', () => {
       _ => reject
     )
 
-    // prettier-ignore
     assert.deepEqual(
       filter((value, key) => value === 3 || key == 'id', { foo: 0, id: 'yes' }),
       { id: 'yes' }
     )
 
-    // prettier-ignore
     assert.deepEqual(
       filter(n => n % 2 === 0, [1, 1.5, 2].map(n => n * 2)),
       [2, 4]
@@ -45,13 +41,11 @@ describe('wavematch non-unary arguments specification', () => {
   })
 
   it('array#map', () => {
-    // prettier-ignore
     const map = (fn, array) => wavematch(fn, array)(
       (fn = Function, array = Array) => array.map(fn),
       _ => reject
     )
 
-    // prettier-ignore
     assert.deepEqual(
       map(x => x * 2, [1, 2, 3]),
       [2, 4, 6]
@@ -59,7 +53,6 @@ describe('wavematch non-unary arguments specification', () => {
   })
 
   it('array#zip', () => {
-    // prettier-ignore
     const zip = (xs, ys) => wavematch(xs, ys)(
       (xs, ys = []) => [],
       (xs = [], ys) => [],
@@ -69,7 +62,6 @@ describe('wavematch non-unary arguments specification', () => {
       _ => reject
     )
 
-    // prettier-ignore
     assert.deepEqual(
       zip([1, 2, 3], ['a', 'b', 'c']),
       [1, 'a', 2, 'b', 3, 'c']
@@ -77,7 +69,6 @@ describe('wavematch non-unary arguments specification', () => {
   })
 
   it('array#zipWith', () => {
-    // prettier-ignore
     const zipWith = (fn, xs, ys) => wavematch(fn, xs, ys)(
       (fn, xs = [], ys) => [],
       (fn, xs, ys = []) => [],
@@ -86,7 +77,6 @@ describe('wavematch non-unary arguments specification', () => {
       _ => reject
     )
 
-    // prettier-ignore
     assert.deepEqual(
       zipWith((x, y) => x + y, [1, 1, 1], [1, 1, 1]),
       [2, 2, 2]
@@ -94,7 +84,7 @@ describe('wavematch non-unary arguments specification', () => {
 
     const zip = (xs, ys) => zipWith((x, y) => [x, y], xs, ys)
     const flat = arr => arr.reduce((xs, x) => xs.concat(x), [])
-    // prettier-ignore
+
     assert.deepEqual(
       flat(zip([1, 2, 3], ['a', 'b', 'c'])),
       [1, 'a', 2, 'b', 3, 'c']

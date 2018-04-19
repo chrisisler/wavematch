@@ -3,7 +3,6 @@ const wavematch = require('../lib/index.js')
 const { accept, reject, eq } = require('./shared.js')
 
 describe('wavematch function specification', () => {
-  // prettier-ignore
   const matchFn = fn => wavematch(fn)(
     (arg = Function) => accept,
     _ => reject

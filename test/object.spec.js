@@ -59,7 +59,6 @@ describe('wavematch object specification', () => {
   })
 
   it('should match using constructor functions', () => {
-    // prettier-ignore
     const foo = wavematch({ foo: 'bar' })(
       (o = Object) => accept,
       _ => reject
@@ -110,7 +109,6 @@ describe('wavematch object specification', () => {
   })
 
   it('should work for nested matches with constructor functions', () => {
-    //prettier-ignore
     const result = wavematch({ obj: {} })(
       (a = Object) => wavematch(a.obj)(
         (b = Object) => accept,
@@ -130,7 +128,6 @@ describe('wavematch object specification', () => {
   })
 
   it('should match specific keys', () => {
-    // prettier-ignore
     const mockRender = mockState => wavematch(mockState)(
       (state = { error: true })   => 'error-state',
       (state = { loading: true }) => 'loading-state',

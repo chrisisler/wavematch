@@ -1,4 +1,7 @@
-// @flow
+/**
+ * @flow
+ * @prettier
+ */
 
 const json5: { parse: string => Object } = require('json5')
 const functionParse: Function => Object = require('parse-function')().parse
@@ -59,13 +62,10 @@ type ObjectConstructor = (?mixed) => mixed | Object
 type ArrayConstructor = (...Array<mixed>) => Array<mixed>
 
 module.exports = wavematch
-function wavematch(
-  ...values: Array<any>
-): (...Array<RuleExpression>) => ?mixed {
+function wavematch(...values: Array<any>): (...Array<RuleExpression>) => ?mixed {
   invariant(
     values.length === 0,
-    'Please supply at least one argument to ' +
-      'match function. Cannot match on zero parameters.'
+    'Please supply at least one argument to ' + 'match function. Cannot match on zero parameters.'
   )
 
   return function(...rawRules: Array<RuleExpression>) {
@@ -102,8 +102,7 @@ function wavematch(
       .reduce((reducedIndexes, rule, index, nonDestructuredRules) => {
         const duplicateRuleIndex = nonDestructuredRules.findIndex(
           (otherRule, otherIndex) =>
-            index !== otherIndex &&
-            isEqual(otherRule.allReflectedArgs, rule.allReflectedArgs)
+            index !== otherIndex && isEqual(otherRule.allReflectedArgs, rule.allReflectedArgs)
         )
 
         if (duplicateRuleIndex !== -1) {
@@ -166,17 +165,11 @@ function wavematch(
       return rules[indexOfWildcardRule].expression()
     }
 
-    invariant(
-      true,
-      'Gotta throw an error - end of `wavematch` with an unhandled state!'
-    )
+    invariant(true, 'Gotta throw an error - end of `wavematch` with an unhandled state!')
   }
 }
 
-function reflectArguments(
-  rawRule: RuleExpression,
-  ruleIndex: number
-): Array<ReflectedArg> {
+function reflectArguments(rawRule: RuleExpression, ruleIndex: number): Array<ReflectedArg> {
   type Parsed = { args: Array<string>, defaults: Object, body: string }
   const parsed: Parsed = functionParse(rawRule)
   // Note: no way to tell if an argument is a rest argument (like (...args) => {})
@@ -235,14 +228,10 @@ function getType(value: any): string {
 function toRule(rawRule: RuleExpression, ruleIndex: number): Rule {
   invariant(
     !(typeof rawRule === 'function'),
-    `Rule at index ${ruleIndex} is not a ` +
-      `Function, instead is: ${getType(rawRule)}.`
+    `Rule at index ${ruleIndex} is not a ` + `Function, instead is: ${getType(rawRule)}.`
   )
 
-  const allReflectedArgs: Array<ReflectedArg> = reflectArguments(
-    rawRule,
-    ruleIndex
-  )
+  const allReflectedArgs: Array<ReflectedArg> = reflectArguments(rawRule, ruleIndex)
 
   const rule: Rule = {
     allReflectedArgs: allReflectedArgs,
@@ -323,30 +312,17 @@ function allValuesSatisfyRule(
         reflectedArg.subPatterns.some(subPattern => {
           let subReflectedArg = {
             pattern: subPattern,
-            customTypeNames:
-              reflectedArg.pattern && reflectedArg.pattern.customTypeNames
+            customTypeNames: reflectedArg.pattern && reflectedArg.pattern.customTypeNames
           }
 
-          return isPatternAcceptable(
-            rules,
-            ruleIndex,
-            valueIndex,
-            value,
-            subReflectedArg
-          )
+          return isPatternAcceptable(rules, ruleIndex, valueIndex, value, subReflectedArg)
         })
       )
     }
     // console.log('lmao')
 
     if ('pattern' in reflectedArg) {
-      return isPatternAcceptable(
-        rules,
-        ruleIndex,
-        valueIndex,
-        value,
-        reflectedArg
-      )
+      return isPatternAcceptable(rules, ruleIndex, valueIndex, value, reflectedArg)
     }
 
     return true
@@ -398,9 +374,7 @@ function objectMatch(
 
     if (patternKeys.length <= valueSize) {
       // get obj with highest number of keys (that's why it's named "best fit")
-      const bestFitRule = bestFitRules.sort(
-        (b1, b2) => (b1.size > b2.size ? -1 : 1)
-      )[0]
+      const bestFitRule = bestFitRules.sort((b1, b2) => (b1.size > b2.size ? -1 : 1))[0]
 
       // retain only the rules that have the most keys
       // this may not eliminate any rules, that is okay
@@ -501,10 +475,7 @@ function tryGetParentClassName(instance: any): string | void {
 
   const parts = code.split(/\s+/).slice(0, 4)
 
-  invariant(
-    parts[2] !== 'extends',
-    `Expected "class Foo extends Bar". Found "${parts.join(' ')}"`
-  )
+  invariant(parts[2] !== 'extends', `Expected "class Foo extends Bar". Found "${parts.join(' ')}"`)
 
   const parentClassName = parts[3]
   return parentClassName
@@ -569,10 +540,7 @@ function reflectPattern(
 
       // if `pattern` starts with an upper case character, assume it's a
       // custom class type instance (like Person or Car)
-      if (
-        error instanceof ReferenceError &&
-        pattern[0].toUpperCase() === pattern[0]
-      ) {
+      if (error instanceof ReferenceError && pattern[0].toUpperCase() === pattern[0]) {
         // checking if the custom type actually matches is not our job here,
         // that's done in `allValuesSatisfyRule`
         customTypeNames.push(pattern)
@@ -580,8 +548,7 @@ function reflectPattern(
 
       // attempted to use an out-of-scope variable as a pattern
       invariant(
-        error instanceof ReferenceError &&
-          pattern[0].toLowerCase() === pattern[0], // is valid var name
+        error instanceof ReferenceError && pattern[0].toLowerCase() === pattern[0], // is valid var name
         `For pattern at parameter index ${argIndex}, cannot use out of ` +
           `scope variable as default: ${pattern}.\n` +
           `If possible, try replacing the variable with its value.`
@@ -600,9 +567,7 @@ function isPatternAcceptable(
   ruleIndex: number,
   valueIndex: number,
   value: any,
-  reflectedArg:
-    | ReflectedArg
-    | {| customTypeNames: ?Array<string>, pattern: any |}
+  reflectedArg: ReflectedArg | {| customTypeNames: ?Array<string>, pattern: any |}
 ): boolean {
   if ('customTypeNames' in reflectedArg) {
     if (
@@ -632,9 +597,7 @@ function isPatternAcceptable(
       !isType('Boolean', guardResult),
       `Rule at rule index ${ruleIndex} has a guard function at parameter ` +
         `index ${valueIndex} that does NOT return a Boolean value. ` +
-        `Expected a predicate (Boolean-returning function). Found ${getType(
-          guardResult
-        )}.`
+        `Expected a predicate (Boolean-returning function). Found ${getType(guardResult)}.`
     )
 
     if (guardResult) {

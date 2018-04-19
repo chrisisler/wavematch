@@ -6,7 +6,6 @@ describe('wavematch array specification', () => {
   const emptyArray = []
 
   it('should match Array constructor', () => {
-    // prettier-ignore
     const matchArray = array => wavematch(array)(
       (arg = Array) => accept,
       _ => reject
@@ -27,7 +26,6 @@ describe('wavematch array specification', () => {
   })
 
   it('should match empty array', () => {
-    // prettier-ignore
     const empty = _emptyArray => wavematch(_emptyArray)(
       (array = []) => accept,
       _ => reject
@@ -69,7 +67,6 @@ describe('wavematch array specification', () => {
   })
 
   it('should reject patterns which describe a superset of the input', () => {
-    // prettier-ignore
     const rejectMe = wavematch([1, 2])(
       (arr = [1, 2, 3, 4]) => reject,
       _ => accept
@@ -87,16 +84,14 @@ describe('wavematch array specification', () => {
   // TODO decide what this behavior should be
   it('should match arrays with a subset of the elements', () => {
     console.log('TODO - should match arrays with a subset of the elements')
-    // const threeItems = [1, 2, 3]
+    const threeItems = [1, 2, 3]
 
-    // // prettier-ignore
     // const one = wavematch(threeItems)(
     //   (arr = [ 1 ]) => accept,
     //   _ => reject
     // )
     // eq(one, accept)
 
-    // // prettier-ignore
     // const two = wavematch(threeItems)(
     //   (arr = [1, 2]) => accept,
     //   _ => reject
@@ -112,7 +107,6 @@ describe('wavematch array specification', () => {
   })
 
   it('should match arrays with multiple values', () => {
-    // prettier-ignore
     const twoSame = wavematch([ {}, {} ])(
       (xs = [ {}, {} ]) => accept,
       _ => reject
@@ -168,7 +162,6 @@ describe('wavematch array specification', () => {
   })
 
   it('should not match non-empty inputs to empty array patterns', () => {
-    // prettier-ignore
     const match = wavematch('arg1', [1])(
       (foo, array = []) => reject,
       _ => accept
@@ -177,7 +170,6 @@ describe('wavematch array specification', () => {
   })
 
   it('should reject invalid empty arrays', () => {
-    // prettier-ignore
     const empty = array => wavematch(array)(
       (array = []) => accept,
       _ => reject
@@ -217,7 +209,6 @@ describe('wavematch array specification', () => {
   //     eq(matchElement, accept)
   //   })
 
-  //   // prettier-ignore
   //   eq(wavematch(elements)(
   //     (args = Array) => accept,
   //     _ => reject

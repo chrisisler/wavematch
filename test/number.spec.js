@@ -5,7 +5,6 @@ const { accept, reject, eq } = require('./shared.js')
 describe('wavematch number specification', () => {
   it('should match default', () => {
     // not even sure if this test is useful
-    // prettier-ignore
     ;[ -1, -0, 0, +0, +1 ].forEach(num => {
       const _default = wavematch(num)(
         _ => accept,
@@ -15,7 +14,6 @@ describe('wavematch number specification', () => {
   })
 
   it('should match whole integers', () => {
-    // prettier-ignore
     const integer = wavematch(42)(
       (num = 42) => accept,
       _ => reject
@@ -24,7 +22,6 @@ describe('wavematch number specification', () => {
   })
 
   it('should work with constructor', () => {
-    // prettier-ignore
     const constructor = wavematch(3)(
       (n = Number) => accept,
       _ => reject
