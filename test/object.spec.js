@@ -129,7 +129,7 @@ describe('wavematch object specification', () => {
     eq(emptyInputObjectOnlyConstructor, accept)
   })
 
-  it('specific example [wip]', () => {
+  it('should match specific keys', () => {
     // prettier-ignore
     const mockRender = mockState => wavematch(mockState)(
       (state = { error: true })   => 'error-state',
