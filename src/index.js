@@ -5,7 +5,8 @@
 
 const json5: { parse: string => Object } = require('json5')
 const functionParse: Function => Object = require('parse-function')().parse
-const isEqual = require('lodash.isequal')
+// const isEqual = require('lodash.isequal')
+const isEqual = require('fast-deep-equal')
 
 const { warning, invariant } = require('./errors.js')
 
@@ -20,9 +21,11 @@ type ReflectedArg = $ReadOnly<{
 
   // wavematch(person)(
   //   ({ name }) => name
+  //   ([ head ]) => head
   // )
   isDestructured: boolean,
 
+  // the body of a given rule represented as a string
   // only used for warning about avoiding duplicate rules
   body: string,
 
