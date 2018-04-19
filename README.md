@@ -23,7 +23,7 @@ yarn add wavematch
 
 ## Matching Types
 
-Use constructors in place of patterns for type-based matching.
+Use constructors for type-based matching.
 
 ```javascript
 let toDate = dateString => wavematch(dateString)(
@@ -41,22 +41,23 @@ let map = (fn, x) => wavematch(fn, x)(
 
 ## Match Guards
 
-Guards are boolean expressions used to match certain conditions.
+Guards are boolean expressions for conditional behavior.
 
 ```javascript
-let number = wavematch(random(0, 100))(
-  (n = 99)          => 'ninety-nine',
-  (n = $ => $ > 30) => 'more than thirty',
-  _                 => 'who knows'
+let fib = n => wavematch(n)(
+
+  // if (n === 0 || n === 1)
+  (n = 0 | 1) => n,
+
+  // if (n > 1)
+  (n = $ => $ > 1) => fib(n - 1) + fib(n - 2)
 )
 ```
 
 ```javascript
-let fib = n => wavematch(n)(
-  (n = 0) => 0,
-  (n = 1) => 1,
-  // when n > 1
-  (n = $ => $ > 1) => fib(n - 1) + fib(n - 2)
+let safeFetch = async (url) => wavematch(await fetch(url))(
+  (response = { status: 200 }) => response,
+  (response = $ => $.status > 400) => Error(response)
 )
 ```
 
@@ -65,6 +66,14 @@ let fib = n => wavematch(n)(
 The wildcard pattern `_` matches all input arguments.
 It binds `undefined` to the underscore character.
 The wildcard pattern should be the last rule provided.
+
+```javascript
+let number = wavematch(random(0, 100))(
+  (n = 99)          => 'ninety-nine',
+  (n = $ => $ > 30) => 'more than thirty',
+  _                 => 'who knows'
+)
+```
 
 ## Limitations
 
@@ -88,22 +97,3 @@ let matched = wavematch('bar')(
 ```
 
 > Workaround: If possible, replace the function with a arrow function returning a boolean.
-
-## FAQ
-
-> I need a pattern for matching truthy values that aren't `true`.
-
-Example:
-
-```javascript
-if (typeof groupOptions === "string") {
-  groupOptions = { name: groupOptions };
-} else if (!groupOptions) {
-  groupOptions = { name: undefined };
-}
-
-groupOptions = wavematch(groupOptions)(
-  (x = String) => ({ name: groupOptions }),
-  (x = $ => !$) => ({ name: undefined })
-)
-```
