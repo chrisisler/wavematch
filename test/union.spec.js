@@ -1,5 +1,5 @@
 const assert = require('assert')
-const wavematch = require('../lib/index.js')
+const wavematch = require('../build/index.js')
 const { accept, reject, eq } = require('./shared.js')
 
 let randomBetween = (min, max) => Math.floor(Math.random() * (max - min + 1)) * min

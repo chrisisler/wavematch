@@ -44,7 +44,8 @@ let map = (fn, x) => wavematch(fn, x)(
 Use plain objects as parameter defaults to match object data.
 
 ```javascript
-wavematch({ isDone: false, error: Error() })(
+let data = { isDone: false, error: Error() }
+wavematch(data)(
   (obj = { isDone: Boolean }) => {
     console.log('sick')
   }
@@ -56,6 +57,8 @@ let assertShape = obj => wavematch(obj)(
   (shape = { foo: Number, bar: Object }) => {}, // noop
   _ => throw Error('Unexpected data type')
 )
+assertShape({ foo: 1, bar: {} })
+assertShape({ foo: 1, bar: 1 }) // Error!
 ```
 
 ## Match Guards

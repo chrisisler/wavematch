@@ -1,5 +1,5 @@
 const assert = require('assert')
-const wavematch = require('../lib/index.js')
+const wavematch = require('../build/index.js')
 const { accept, reject, eq } = require('./shared.js')
 
 // any object can be parsed by wavematch if it is valid json5
