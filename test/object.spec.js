@@ -141,13 +141,36 @@ describe('wavematch object specification', () => {
     eq(mockRender({ a: 1 }), 'success-state')
   })
 
-  // it.only('should accept constructor as value', () => {
-  //   const matched = wavematch({ error: new Error() })(
-  //     // there has to be a way to do this
-  //     (obj = { error: Error }) => accept,
-  //     (obj = { loading: true }) => reject,
-  //     _ => reject
-  //   )
-  //   eq(matched, accept)
-  // })
+  describe('should match object values if arg name is a key in the given object', () => {
+    // this is an equivalent way of doing:
+    // wavematch(x)(
+    //   (obj = { foo: Error }) => {},
+    //   (arg = { id: Number }) => {}
+    // )
+    it('should work [wip]', () => {
+      // this also does some `Error` type constructor testing
+      let matchObj = obj => wavematch(obj)(
+        (error = Error) => 'err',
+        (loading = Boolean) => 'load',
+        _ => 'default'
+      )
+
+      // these are 'err' result because the `(error = Error) => ` rule is first in order
+      eq(matchObj({ loading: false, error: Error() }), 'err')
+      eq(matchObj({ loading: true, error: Error() }), 'err')
+      eq(matchObj({ a: 1, error: Error() }), 'err')
+      eq(matchObj({ error: Error() }), 'err')
+
+      // must not have `error` key that has a value that is an instance of Error
+      eq(matchObj({ loading: true }), 'load')
+      eq(matchObj({ loading: false }), 'load')
+      eq(matchObj({ loading: true }), 'load')
+
+      eq(matchObj({ loading: Error() }), 'default')
+      eq(matchObj({ loading: SyntaxError() }), 'default')
+      eq(matchObj({ error: false }), 'default')
+      eq(matchObj({ error: true }), 'default')
+    })
+
+  })
 })

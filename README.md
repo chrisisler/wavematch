@@ -45,6 +45,7 @@ Use plain objects as parameter defaults to match object data.
 
 ```javascript
 let data = { isDone: false, error: Error() }
+
 wavematch(data)(
   (obj = { isDone: Boolean }) => {
     console.log('sick')
@@ -59,6 +60,26 @@ let assertShape = obj => wavematch(obj)(
 )
 assertShape({ foo: 1, bar: {} })
 assertShape({ foo: 1, bar: 1 }) // Error!
+```
+
+> Objects must be [valid JSON5](https://json5.org/).
+
+## Matching Classes
+
+Use custom type constructors to match custom types.
+
+```javascript
+class Person {}
+let alex = new Person()
+
+wavematch(alex)(
+  (p = Person) => {
+    console.log('Is a Person')
+  }
+  _ => {
+    console.log('Not a Person')
+  }
+)
 ```
 
 ## Match Guards
@@ -85,13 +106,16 @@ let safeFetch = async (url) => wavematch(await fetch(url))(
 
 ## Match Unions
 
-Use `|` within patterns to match multiple patterns.
+Use `|` to match multiple patterns.
 
 ```javascript
 let value = random(0, 10)
+
 wavematch(value)(
-  (other = 2 | 4 | 6) => something,
-  _ => other thing
+  (other = 2 | 4 | 6) => 'two four six',
+  other => {
+    console.log('not two or four or six')
+  }
 )
 ```
 
@@ -105,8 +129,8 @@ wavematch(await fetch(url))(
 ## Wildcard Pattern
 
 The wildcard pattern `_` matches all input arguments.
-It binds `undefined` to the underscore character.
-The wildcard pattern should be the last rule provided.
+- Binds `undefined` to the underscore character
+- Should be the last rule provided
 
 ```javascript
 let number = wavematch(random(0, 100))(
@@ -118,7 +142,7 @@ let number = wavematch(random(0, 100))(
 
 ## Limitations
 
-These are all examples of things that can _not_ be done.
+Things that can **not** be done.
 
 ```javascript
 let value = 3
@@ -128,7 +152,7 @@ let matched = wavematch(77)(
 )
 ```
 
-> Workaround: If possible, replace the variable with its value.
+> _Workaround:_ If possible, replace the variable with its value.
 
 ```javascript
 function fn() {}
@@ -137,4 +161,4 @@ let matched = wavematch('bar')(
 )
 ```
 
-> Workaround: If possible, replace the function with a arrow function returning a boolean.
+> _Workaround:_ If possible, replace the function with a arrow function returning a boolean.

@@ -62,24 +62,13 @@ let zipWith = (f, xs, ys) => wavematch(f, xs, ys)(
 
 ## To Do
 
-- if doing object destructuring for a rule, check in `src/index.js` that the input values actually has that key at that object at that argument index.
-- remove all the `// prettier-ignore` from test files
-- support constructors as values for patterns that attempt to match/describe a type
-- Support multiple options:
-  ```javascript
-  wavematch(number)(
-    (num = 3 or 4) => foo,
-  )
-  ```
-- if any rule has any arg that has a function as its default value, `reflect` that function (why?)
 - decide on a version of Node to support (the one with rest/spread operator?)
 
 ```javascript
 // nested example
-// flow types example
+// flow example
 // typescript example
 ```
-
 
 ## Reading
 
