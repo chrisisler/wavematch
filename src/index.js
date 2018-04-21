@@ -797,36 +797,24 @@ function isPatternAcceptable(
     if (pattern === input.toString()) {
       return true
     }
-    // return true
   }
 
   // does not work for custom errors like `class MyError extends Error {}`
   //   (besides, custom types should be handled earlier in this function)
   // `input` must be a standard built-in error type
   if (isType('Error', input)) {
-    // `(arg = Error) => {}` will match an input value that is an instance
+    // `(arg = Error) => {}` will match an input value that is any instance
     // of standard (built-in) error type (SyntaxError, RangeError, etc.)
     if (pattern === Error) {
       return true
     }
+
     // we know `input` is an Error instance, but what type of error?
-    // this is for handling SyntaxError, RangeError, etc. -> this handles
-    // all Error types that are not the base `Error` class
-    // if (input.constructor.name !== Error) {
-    //   // todo
-    // }
-
-    // pattern = SyntaxError
-    // input = Error()
-
+    // this is for handling all Error types that are not the base `Error` class
     return Object.keys(ERROR_TYPES_DICTIONARY).some(errorTypeName => {
       const errorType: Function = ERROR_TYPES_DICTIONARY[errorTypeName]
-      return errorType === pattern
+      return errorType === pattern && input.constructor.name === errorTypeName
     })
-
-    // if (Object.keys(ERROR_TYPES_DICTIONARY).includes(pattern)) {
-    //   return true
-    // }
   }
 
   if (isType('Null', input)) {

@@ -13,8 +13,8 @@ const allErrorTypes = [
 ]
 
 describe('wavematch Error type specification', () => {
-  it('should allow `Error` to match all other standard Error types', () => {
-    let matchStandardError = standardErrorType => wavematch(standardErrorType)(
+  it('should allow `Error` as pattern to accept all other standard Error types', () => {
+    const matchStandardError = standardErrorType => wavematch(standardErrorType)(
       (e = Error) => accept,
       _ => reject
     )
@@ -22,5 +22,18 @@ describe('wavematch Error type specification', () => {
     allErrorTypes.forEach(errorType => {
       eq(matchStandardError(errorType()), accept)
     })
+  })
+
+  // now just gotta write tests for all of the other Error subtypes
+  // RangeError, ReferenceError, TypeError, URIError, EvalError ...
+  it('should accept specific Error subtypes via that constructor', () => {
+    let match = wavematch(SyntaxError())(
+      (e = RangeError) => reject,
+      (e = SyntaxError) => accept,
+      (e = URIError) => reject,
+      _ => reject
+    )
+
+    eq(match, accept)
   })
 })

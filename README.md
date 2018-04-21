@@ -3,7 +3,7 @@
 > Control flow operator for matching values against patterns.
 
 ```javascript
-let number = wavematch(random(0, 5))(
+let result = wavematch(random(0, 5))(
   (n = 0) => 'zero',
   (n = 1) => 'one',
   (n = 2) => 'two',
@@ -41,15 +41,13 @@ let map = (fn, x) => wavematch(fn, x)(
 
 ## Matching Objects
 
-Use plain objects as parameter defaults to match object data.
+Use plain objects as parameter defaults to match object properties.
 
 ```javascript
 let data = { isDone: false, error: Error() }
 
 wavematch(data)(
-  (obj = { isDone: Boolean }) => {
-    console.log('sick')
-  }
+  (obj = { isDone: true }) => awesome()
 )
 ```
 
@@ -64,6 +62,17 @@ assertShape({ foo: 1, bar: 1 }) // Error!
 
 > Objects must be [valid JSON5](https://json5.org/).
 
+```javascript
+let data = { isDone: false, error: Error() }
+
+wavematch(data)(
+  (obj = { isDone: true }) => awesome(),
+
+  // destructure the object using the desired key as the argument name
+  (isDone = true) => awesome()
+)
+```
+
 ## Matching Classes
 
 Use custom type constructors to match custom types.
@@ -75,7 +84,7 @@ let alex = new Person()
 wavematch(alex)(
   (p = Person) => {
     console.log('Is a Person')
-  }
+  },
   _ => {
     console.log('Not a Person')
   }
@@ -112,7 +121,9 @@ Use `|` to match multiple patterns.
 let value = random(0, 10)
 
 wavematch(value)(
-  (other = 2 | 4 | 6) => 'two four six',
+  (other = 2 | 4 | 6) => {
+    console.log('two or four or six!')
+  },
   other => {
     console.log('not two or four or six')
   }
@@ -162,3 +173,12 @@ let matched = wavematch('bar')(
 ```
 
 > _Workaround:_ If possible, replace the function with a arrow function returning a boolean.
+
+```javascript
+wavematch({ age: 21 })(
+  (obj = { age: Number }) => 'got a number', // invalid JSON5
+
+  // Workaround: Use desired object key to match on that property
+  (age = Number) => 'got a number!'
+)
+```

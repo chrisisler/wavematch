@@ -22,6 +22,17 @@ describe('wavematch union specification', () => {
   // object
   // regexp
 
+  it.only('should work for regexp and array', () => {
+    let match = value => wavematch(value)(
+      (x = RegExp | Array) => accept,
+      _ => reject
+    )
+    eq(match(/foo/), accept)
+    eq(match(/./g), accept)
+    eq(match([]), accept)
+    eq(match([1]), accept)
+  })
+
   it('should work for two plain objects and a guard rule', () => {
     let namingIsHard = object => wavematch(object)(
       (response = { status: 200 } | { ok: true }) => accept,
