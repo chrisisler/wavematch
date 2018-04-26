@@ -4,7 +4,7 @@ const uglify = require('rollup-plugin-uglify')
 
 const env = process.env.NODE_ENV
 
-let config = {
+const config = {
   // must be `build` directory because 
   // thats where js files go after removing flow types
   // see `package.json`
@@ -12,7 +12,7 @@ let config = {
   plugins: []
 }
 
-if (env === 'es' || env === 'cjs') {
+if (env === 'cjs') {
   config.output = {
     format: env,
     indent: false
@@ -25,6 +25,7 @@ if (env === 'development' || env === 'production') {
     name: 'Wavematch',
     indent: false
   }
+
   config.plugins.push(
     nodeResolve({
       jsnext: true

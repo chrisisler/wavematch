@@ -1,7 +1,7 @@
 {
   "name": "wavematch",
   "license": "MIT",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "main": "lib/wavematch.js",
   "files": [
     "dist",
@@ -14,8 +14,8 @@
     "prebuild:format": "prettier --write \"build/*.js\"",
     "build:umd": "cross-env NODE_ENV=development rollup -c -o dist/wavematch.js",
     "build:umd:min": "cross-env NODE_ENV=production rollup -c -o dist/wavematch.min.js",
-    "build:cjs": "cross-env NODE_ENV=cjs rollup -c -o lib/wavematch.js",
-    "build": "yarn prebuild:types && yarn prebuild:format && yarn build:cjs && yarn build:umd && yarn build:umd:min",
+    "build:commonjs": "cross-env NODE_ENV=cjs rollup -c -o lib/wavematch.js",
+    "build": "yarn prebuild:types && yarn prebuild:format && yarn build:commonjs && yarn build:umd && yarn build:umd:min",
     "flow start": "flow start",
     "flow stop": "flow stop",
     "flow status": "flow status"
