@@ -182,3 +182,21 @@ wavematch({ age: 21 })(
   (age = Number) => 'got a number!'
 )
 ```
+
+## Examples
+
+```javascript
+let zip = (xs, ys) => wavematch(xs, ys)(
+  (xs, ys = []) => [],
+  (xs = [], ys) => [],
+  ([x, ...xs], [y, ...ys]) => [x, y].concat(zip(xs, ys))
+)
+```
+
+```javascript
+let zipWith = (f, xs, ys) => wavematch(f, xs, ys)(
+  (f, xs = [], ys) => [],
+  (f, xs, ys = []) => [],
+  (f, [x, ...xs], [y, ...ys]) => [f(x, y)].concat(zipWith(f, xs, ys))
+)
+```

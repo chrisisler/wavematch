@@ -94,6 +94,13 @@ function wavematch(
 
         const reflectedArg: ReflectedArg = rule.allReflectedArgs[inputIndex]
 
+        // console.log('input is:', input)
+
+        if ('customTypeNames' in reflectedArg) {
+          const keys = Object.keys(input)
+          console.log('keys is:', keys)
+        }
+
         invariant(
           reflectedArg.isDestructured === true && input === void 0,
           `Rule at index ${ruleIndex} attempts to destructure an ` +
@@ -225,7 +232,7 @@ function reflectArguments(
       optionalProps.pattern = reflectedPattern
     }
 
-    const r = Object.assign({}, reflectedArg, optionalProps)
+    const r: ReflectedArg = Object.assign({}, reflectedArg, optionalProps)
     return r
   })
 }
@@ -327,7 +334,7 @@ function allInputsSatisfyRule(
   ruleIndex: number,
   rules: Array<Rule>
 ): boolean {
-  return inputs.every((input: any, inputIndex: number) => {
+  return every(inputs, (input: any, inputIndex: number) => {
     const reflectedArg: ReflectedArg = rule.allReflectedArgs[inputIndex]
 
     if (reflectedArg.isDestructured === true) {
@@ -336,9 +343,8 @@ function allInputsSatisfyRule(
 
     // ReflectedArg type cannot have both `subPatterns` and `patterns` keys
     if ('subPatterns' in reflectedArg && !('patterns' in reflectedArg)) {
-      return (
-        reflectedArg.subPatterns &&
-        reflectedArg.subPatterns.some(subPattern => {
+      if (reflectedArg.subPatterns != null) {
+        return reflectedArg.subPatterns.some(subPattern => {
           let subReflectedArg = {
             pattern: subPattern,
             customTypeNames:
@@ -353,7 +359,7 @@ function allInputsSatisfyRule(
             subReflectedArg
           )
         })
-      )
+      }
     }
 
     if ('pattern' in reflectedArg) {
@@ -431,7 +437,7 @@ function ruleMatchesObjectInput(
       bestFitRules = bestFitRules.filter(b => b.size >= bestFitRule.size)
 
       if (bestFitRules.some(b => b.index === ruleIndex)) {
-        return patternKeys.every((key: string) => {
+        return every(patternKeys, (key: string) => {
           // TODO: support constructor type checks as object values (json5)
           // if (TYPES.includes(objectPattern[key])) {
           //   return isType(objectPattern[key].name, objectInput)
@@ -518,7 +524,7 @@ function ruleMatchesArrayInput(
 
       if (thisRuleIsOnlyDestructurer) {
         if (pattern)
-          return pattern.every((destructuredArrayValue, index) => {
+          return every(pattern, (destructuredArrayValue, index) => {
             return isEqual(destructuredArrayValue, arrayInput[index])
           })
       }
@@ -560,7 +566,7 @@ function tryGetParentClassName(instance: any): string | void {
 
 // for `reflectArguments` only
 function reflectPattern(
-  pattern: any, // String type, actually (for the most part)
+  pattern: any, // String type, actually (until `eval`uated or `json5.parse`d)
   ruleIndex: number, // for error messages
   argIndex: number // for error messages
 ): {|
@@ -835,6 +841,25 @@ function isPatternAcceptable(
     }
   }
 
-  // `[].every(() => {})` evaluates to `true` for some reason... wtf js
   return false
+}
+
+function every(
+  values: Array<any>,
+  predicate: (any, number, Array<any>) => boolean
+): boolean {
+  const length = values == null ? 0 : values.length
+  let index = -1
+
+  if (length === 0) {
+    return false
+  }
+
+  while (++index < length) {
+    if (!predicate(values[index], index, values)) {
+      return false
+    }
+  }
+
+  return true
 }

@@ -22,7 +22,7 @@ describe('wavematch union specification', () => {
   // object
   // regexp
 
-  it.only('should work for regexp and array', () => {
+  it('should work for regexp and array', () => {
     let match = value => wavematch(value)(
       (x = RegExp | Array) => accept,
       _ => reject
