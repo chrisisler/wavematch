@@ -5,7 +5,6 @@
 
 const json5: { parse: string => Object } = require('json5')
 const functionParse: Function => Object = require('parse-function')().parse
-// const isEqual = require('lodash.isequal')
 const isEqual = require('fast-deep-equal')
 
 const { warning, invariant } = require('./errors.js')
