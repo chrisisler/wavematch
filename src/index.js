@@ -94,13 +94,6 @@ function wavematch(
 
         const reflectedArg: ReflectedArg = rule.allReflectedArgs[inputIndex]
 
-        // console.log('input is:', input)
-
-        if ('customTypeNames' in reflectedArg) {
-          const keys = Object.keys(input)
-          console.log('keys is:', keys)
-        }
-
         invariant(
           reflectedArg.isDestructured === true && input === void 0,
           `Rule at index ${ruleIndex} attempts to destructure an ` +
@@ -438,10 +431,6 @@ function ruleMatchesObjectInput(
 
       if (bestFitRules.some(b => b.index === ruleIndex)) {
         return every(patternKeys, (key: string) => {
-          // TODO: support constructor type checks as object values (json5)
-          // if (TYPES.includes(objectPattern[key])) {
-          //   return isType(objectPattern[key].name, objectInput)
-          // }
           return isEqual(objectPattern[key], objectInput[key])
         })
       }
@@ -453,7 +442,7 @@ function ruleMatchesObjectInput(
 
   const reflectedArg = rules[ruleIndex].allReflectedArgs[inputIndex]
 
-  // TODO: add forgiveness for mispelling and missed capitalization,
+  // TODO add forgiveness for mispelling and missed capitalization,
   //   and provide a warning for it.
   if (desiredKeys.includes(reflectedArg.argName)) {
     const anyValueSatisfiesPattern = Object.keys(objectInput).some(
@@ -468,7 +457,6 @@ function ruleMatchesObjectInput(
         )
       }
     )
-    // console.log('anyValueSatisfiesPattern is:', anyValueSatisfiesPattern)
     return anyValueSatisfiesPattern
   }
 
@@ -646,8 +634,7 @@ function reflectPattern(
   return { reflectedPattern: pattern, subPatterns, customTypeNames }
 }
 
-// TODO:
-// Extract conditionals to a separate function (like Yegor says).
+// TODO Extract conditionals to a separate function (like Yegor256 says).
 function isPatternAcceptable(
   rules: Array<Rule>,
   ruleIndex: number,
