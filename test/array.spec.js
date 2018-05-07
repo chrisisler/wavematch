@@ -1,5 +1,5 @@
 const assert = require('assert')
-const wavematch = require('../build/index.js')
+const wavematch = require('../lib/wavematch.js')
 const { accept, reject, eq } = require('./shared.js')
 
 describe('wavematch array specification', () => {

@@ -11,7 +11,7 @@
   ],
   "scripts": {
     "clean": "rimraf build lib dist yarn-error.log .DS_Store",
-    "test": "yarn prebuild:types && NODE_ENV=development mocha --no-colors",
+    "test": "yarn prebuild:types && yarn build:commonjs && NODE_ENV=development mocha --no-colors",
     "prebuild:types": "flow-remove-types --quiet src/ --out-dir build/",
     "prebuild:format": "prettier --write \"build/*.js\"",
     "build:umd": "cross-env NODE_ENV=development rollup --config --file dist/wavematch.js",
