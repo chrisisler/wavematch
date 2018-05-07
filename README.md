@@ -11,10 +11,6 @@ let result = wavematch(random(0, 5))(
 )
 ```
 
-The input value is a random number between 0 and 5.
-`number` is assigned to the result of whichever rule matches the input first.
-Four rules are given, the last being a wildcard rule providing default behavior.
-
 ## Install
 
 ```sh

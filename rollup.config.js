@@ -1,10 +1,11 @@
-const nodeResolve = require('rollup-plugin-node-resolve')
-const replace = require('rollup-plugin-replace')
-const uglify = require('rollup-plugin-uglify')
+import nodeResolve from 'rollup-plugin-node-resolve'
+import babel from 'rollup-plugin-babel'
+import replace from 'rollup-plugin-replace'
+import uglify from 'rollup-plugin-uglify'
 
 const env = process.env.NODE_ENV
 
-const config = {
+let config = {
   // must be `build` directory because 
   // thats where js files go after removing flow types
   // see `package.json`
@@ -17,6 +18,10 @@ if (env === 'cjs') {
     format: env,
     indent: false
   }
+
+  config.plugins.push(
+    babel()
+  )
 }
 
 if (env === 'development' || env === 'production') {
@@ -29,6 +34,9 @@ if (env === 'development' || env === 'production') {
   config.plugins.push(
     nodeResolve({
       jsnext: true
+    }),
+    babel({
+      exclude: 'node_modules/**'
     }),
     replace({
       'process.env.NODE_ENV': JSON.stringify(env)
@@ -49,4 +57,4 @@ if (env === 'production') {
   )
 }
 
-module.exports = config
+export default config
