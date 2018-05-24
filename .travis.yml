@@ -1,0 +1,10 @@
+language: node_js
+node_js:
+  - "node"
+install:
+  - sudo apt-get update
+  - sudo apt-get install --no-install-recommends yarn
+  - yarn --version
+  - npm ci
+before_script:
+  - npm run lint

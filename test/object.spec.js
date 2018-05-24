@@ -4,7 +4,6 @@ const { accept, reject, eq } = require('./shared.js')
 
 // any object can be parsed by wavematch if it is valid json5
 describe('wavematch object specification', () => {
-  // equality comparisons are handled by lodash's `isEqual`
   it('should match destructured defaults with exact values', () => {
     const matchedUnary = wavematch({ x: 1, y: 2 })(
       (value = { x: 1, y: 2 }) => accept,
@@ -66,7 +65,6 @@ describe('wavematch object specification', () => {
     eq(foo, accept)
   })
 
-  // TODO .only
   it('should respect match specificity', () => {
     const lowSpecificity = wavematch({ x: 1, y: 2 })(
       (o = { x: 1 }) => accept,

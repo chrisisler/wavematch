@@ -4,7 +4,7 @@
  */
 
 // external dependencies
-import json5 from 'json5'
+import JSON5 from 'json5'
 import isEqual from 'fast-deep-equal'
 import makeFunctionParse from 'parse-function'
 let functionParse = makeFunctionParse().parse
@@ -359,7 +359,7 @@ export function tryGetParentClassName(instance: any): string | void {
 
 // for `reflectArguments` only
 export function reflectPattern(
-  pattern: any, // String type, actually (until `eval`uated or `json5.parse`d)
+  pattern: any, // String type, actually (until `eval`uated or `JSON.parse`d)
   ruleIndex: number, // for error messages
   argIndex: number // for error messages
 ): {|
@@ -395,14 +395,13 @@ export function reflectPattern(
     if (pattern.includes('{')) {
       try {
         // data must conform to json5 spec
-        pattern = json5.parse(pattern)
+        pattern = JSON5.parse(pattern)
       } catch (error) {
         invariant(
           error instanceof SyntaxError,
           `Rule at index ${ruleIndex} has argument at parameter index ` +
-            `${argIndex} that has invalid JSON5.\n` +
-            `Read the spec at: https://github.com/json5/json5\n` +
-            `JSON5 error message is: ${error.message}\n`
+            `${argIndex} that has invalid JSON.\n` +
+            `JSON error message is: ${error.message}\n`
         )
       }
     } else {

@@ -31,7 +31,7 @@ let toDate = dateString => wavematch(dateString)(
 ```javascript
 let map = (fn, x) => wavematch(fn, x)(
   (fn, x = Array)  => x.map(fn),
-  (fn, x = Object) => Object.keys(x).map(key => fn(x[key]))
+  (fn, x = Object) => Object.values(x).map(fn)
 )
 ```
 
@@ -49,11 +49,11 @@ wavematch(data)(
 
 ```javascript
 let assertShape = obj => wavematch(obj)(
-  (shape = { foo: Number, bar: Object }) => {}, // noop
-  _ => throw Error('Unexpected data type')
+  (shape = { foo: Number }) => {},
+  _ => throw Error()
 )
-assertShape({ foo: 1, bar: {} })
-assertShape({ foo: 1, bar: 1 }) // Error!
+assertShape({ foo: 1 })
+assertShape({ foo: {} }) // Error!
 ```
 
 > Objects must be [valid JSON5](https://json5.org/).

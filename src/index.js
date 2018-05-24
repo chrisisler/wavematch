@@ -4,7 +4,6 @@
  */
 
 // external dependencies
-import json5 from 'json5'
 import isEqual from 'fast-deep-equal'
 import makeFunctionParse from 'parse-function'
 let functionParse = makeFunctionParse().parse

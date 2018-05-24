@@ -2,26 +2,10 @@ const assert = require('assert')
 const wavematch = require('../lib/wavematch.js')
 const { accept, reject, eq } = require('./shared.js')
 
-let randomBetween = (min, max) => Math.floor(Math.random() * (max - min + 1)) * min
-let randomFrom = array => randomBetween(0, array.length)
+// number string array boolean custom-type date
+// guard non-unary object regexp function
 
-// let someStrings = [ 'foo', 'bar', 'pizza', '', 'AAHHH!', '42' ]
-// let someNumbers = [ -100, -10, -1, 0, 1, 10, 100 ]
-
-// all these tests are very important for unhandled cases/states
 describe('wavematch union specification', () => {
-  // number
-  // string
-  // array
-  // boolean
-  // custom-type
-  // date
-  // function?
-  // guard?
-  // non-unary
-  // object
-  // regexp
-
   it('should work for regexp and array', () => {
     let match = value => wavematch(value)(
       (x = RegExp | Array) => accept,
