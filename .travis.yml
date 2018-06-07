@@ -2,9 +2,16 @@ language: node_js
 node_js:
   - "node"
 install:
-  - sudo apt-get update
-  - sudo apt-get install --no-install-recommends yarn
-  - yarn --version
+  - npm i -g npm@5.8.0
   - npm ci
+script:
+  - npm run test
+branches:
+  only:
+    - master
+    - dev
 before_script:
   - npm run lint
+cache:
+  directories:
+    - "$HOME/.npm"

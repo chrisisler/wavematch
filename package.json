@@ -10,6 +10,7 @@
     "src"
   ],
   "scripts": {
+    "lint": "eslint src test build lib",
     "clean": "rimraf build lib dist yarn-error.log .DS_Store",
     "test": "yarn prebuild:types && yarn build:cjs && NODE_ENV=development mocha --no-colors",
     "prebuild:types": "flow-remove-types --quiet src/ --out-dir build/",
