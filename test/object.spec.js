@@ -145,7 +145,7 @@ describe('wavematch object specification', () => {
     //   (obj = { foo: Error }) => {},
     //   (arg = { id: Number }) => {}
     // )
-    it('should work [wip]', () => {
+    it('should work', () => {
       // this also does some `Error` type constructor testing
       let matchObj = obj => wavematch(obj)(
         (error = Error) => 'err',

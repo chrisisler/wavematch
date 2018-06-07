@@ -3,15 +3,14 @@
  * @prettier
  */
 
-// external dependencies
 import isEqual from 'fast-deep-equal'
 import makeFunctionParse from 'parse-function'
 let functionParse = makeFunctionParse().parse
 
-// internal dependencies
 import type { RuleExpression, ReflectedArg, Rule } from './flow-types'
 import { warning, invariant } from './error'
 import { toRule, ruleIsWildcard, allInputsSatisfyRule } from './match'
+import { isType } from './shared'
 
 module.exports = function wavematch(...inputs: Array<any>): Function {
   invariant(
@@ -71,6 +70,7 @@ module.exports = function wavematch(...inputs: Array<any>): Function {
     )
 
     const indexOfRuleOverArity = rules.findIndex(r => r.arity > inputs.length)
+
     if (indexOfRuleOverArity !== -1) {
       warning(
         true,

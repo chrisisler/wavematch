@@ -3,14 +3,12 @@
  * @prettier
  */
 
-// external dependencies
 import JSON5 from 'json5'
 import isEqual from 'fast-deep-equal'
 import makeFunctionParse from 'parse-function'
 let functionParse = makeFunctionParse().parse
 
 import type { RuleExpression, ReflectedArg, Rule } from './flow-types'
-
 import { warning, invariant } from './error'
 import { isFloat, isArrayLike, getType, isType, every } from './shared'
 
@@ -253,6 +251,7 @@ export function ruleMatchesObjectInput(
     const anyValueSatisfiesPattern = Object.keys(objectInput).some(
       (objectInputKey, index) => {
         const objectInputValue = objectInput[objectInputKey]
+
         return isPatternAcceptable(
           rules,
           ruleIndex,
@@ -262,6 +261,7 @@ export function ruleMatchesObjectInput(
         )
       }
     )
+
     return anyValueSatisfiesPattern
   }
 
@@ -444,6 +444,7 @@ export function isPatternAcceptable(
   ruleIndex: number,
   inputIndex: number,
   input: any,
+  // ReflectedArg or SubReflectedArg
   reflectedArg:
     | ReflectedArg
     | {| customTypeNames: ?Array<string>, pattern: any |}
@@ -462,6 +463,7 @@ export function isPatternAcceptable(
 
     // derived class matching
     const inputParentTypeName: ?string = tryGetParentClassName(input)
+
     if (
       inputParentTypeName &&
       reflectedArg.customTypeNames != null &&
@@ -474,7 +476,10 @@ export function isPatternAcceptable(
   const pattern: any = reflectedArg.pattern
 
   if (!TYPES.includes(pattern)) {
-    if (isType('Function', pattern)) {
+    if (isType('Promise', pattern) && typeof pattern.then === 'function') {
+      return true
+      // return pattern.then(promised => isPatternAcceptable(rules, ruleIndex, inputIndex, input, promised))
+    } else if (isType('Function', pattern)) {
       // `pattern` may be a match guard
       const guardResult: any = pattern(input)
 
@@ -517,12 +522,6 @@ export function isPatternAcceptable(
   if (isType('Object', input)) {
     return ruleMatchesObjectInput(input, inputIndex, rules, ruleIndex, pattern)
   }
-
-  // generic case?
-  // let mightBeConstructorPattern = p => {}
-  // if (isType(pattern, input) && mightBeConstructorPattern(pattern)) {
-
-  // }
 
   if (isFloat(input)) {
     return isEqual(pattern, input)
@@ -631,6 +630,18 @@ export function isPatternAcceptable(
       return true
     }
   }
+
+  // TODO support property based name destructuring
+  // wavematch(await fetch(url)) (
+  //   size = { ... }
+  //   status = { ... }
+  // )
+  //
+  // if (Object.prototype.hasOwnProperty.call(input, reflectedArg.argName)) {
+  //   let property = input[reflectedArg.argName]
+  //   console.log('property is:', property)
+  //   return true
+  // }
 
   return false
 }

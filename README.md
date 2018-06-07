@@ -103,9 +103,9 @@ let fib = n => wavematch(n)(
 ```
 
 ```javascript
-let safeFetch = async (url) => wavematch(await fetch(url))(
-  (response = { status: 200 }) => response,
-  (response = $ => $.status > 400) => Error(response)
+let fetchy = async url => wavematch(await fetch(url))(
+  (res = { status: 200 }) => res,
+  (res = $ => $.status > 400) => Error(res)
 )
 ```
 

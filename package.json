@@ -11,13 +11,14 @@
   ],
   "scripts": {
     "clean": "rimraf build lib dist yarn-error.log .DS_Store",
-    "test": "yarn prebuild:types && yarn build:commonjs && NODE_ENV=development mocha --no-colors",
+    "test": "yarn prebuild:types && yarn build:cjs && NODE_ENV=development mocha --no-colors",
     "prebuild:types": "flow-remove-types --quiet src/ --out-dir build/",
     "prebuild:format": "prettier --write \"build/*.js\"",
+    "predemo": "yarn prebuild:types",
     "build:umd": "cross-env NODE_ENV=development rollup --config --file dist/wavematch.js",
     "build:umd:min": "cross-env NODE_ENV=production rollup --config --file dist/wavematch.min.js",
-    "build:commonjs": "cross-env NODE_ENV=cjs rollup --silent --config --file lib/wavematch.js",
-    "build": "yarn prebuild:types && yarn prebuild:format && yarn build:commonjs && yarn build:umd && yarn build:umd:min",
+    "build:cjs": "cross-env NODE_ENV=cjs rollup --silent --config --file lib/wavematch.js",
+    "build": "yarn prebuild:types && yarn prebuild:format && yarn build:cjs && yarn build:umd && yarn build:umd:min",
     "prepublish": "yarn clean && yarn test && yarn build",
     "flow start": "flow start",
     "flow stop": "flow stop",
@@ -68,7 +69,7 @@
     }
   },
   "dependencies": {
-    "fast-deep-equal": "^1.1.0",
+    "fast-deep-equal": "^2.0.1",
     "json5": "^1.0.1",
     "parse-function": "^5.2.9"
   }

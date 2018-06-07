@@ -9,7 +9,7 @@ let config = {
   // must be `build` directory because 
   // thats where js files go after removing flow types
   // see `package.json`
-  input: 'build/index.js',
+  input: 'build/wavematch.js',
   plugins: []
 }
 
