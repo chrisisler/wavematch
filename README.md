@@ -22,15 +22,15 @@ yarn add wavematch
 Use constructors for type-based matching.
 
 ```javascript
-let toDate = dateString => wavematch(dateString)(
-  (value = Date)   => value,
+let toDate = s => wavematch(s)(
+  (value = Date) => value,
   (value = String) => new Date(value)
 )
 ```
 
 ```javascript
 let map = (fn, x) => wavematch(fn, x)(
-  (fn, x = Array)  => x.map(fn),
+  (fn, x = Array) => x.map(fn),
   (fn, x = Object) => Object.values(x).map(fn)
 )
 ```
@@ -64,7 +64,7 @@ let data = { isDone: false, error: Error() }
 wavematch(data)(
   (obj = { isDone: true }) => awesome(),
 
-  // destructure the object using the desired key as the argument name
+  // or destructure the object using the desired key as the argument name
   (isDone = true) => awesome()
 )
 ```
