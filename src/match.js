@@ -4,7 +4,7 @@
  */
 
 import JSON5 from 'json5'
-import isEqual from 'fast-deep-equal'
+let isEqual = require('fast-deep-equal') // must `require`
 import makeFunctionParse from 'parse-function'
 let functionParse = makeFunctionParse().parse
 
