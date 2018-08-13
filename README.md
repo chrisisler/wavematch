@@ -109,6 +109,8 @@ let fetchy = async url => wavematch(await fetch(url))(
 )
 ```
 
+> The `({ prop }) => {}` syntax can _not_ be used for guard functions (due to being invalid [json5](https://json5.org/)).
+
 ## Match Unions
 
 Use `|` to match multiple patterns.
@@ -147,14 +149,16 @@ let number = wavematch(random(0, 100))(
 )
 ```
 
+**More complex examples are included in the [tests](test/) directory.**
+
 ## Limitations
 
-Things that can **not** be done.
+Things that can **not** be done:
 
 ```javascript
 let value = 3
 let matched = wavematch(77)(
-  (arg = value) => 'a', // `value` causes a ReferenceError
+  (arg = value) => 'a', // `value` throws a ReferenceError
   _ => 'b'
 )
 ```
@@ -164,17 +168,17 @@ let matched = wavematch(77)(
 ```javascript
 function fn() {}
 let matched = wavematch('bar')(
-  (arg = fn) => 'hello', // `fn` causes a ReferenceError
+  (arg = fn) => 'hello', // `fn` throws a ReferenceError
 )
 ```
 
-> _Workaround:_ If possible, replace the function with a arrow function returning a boolean.
+> _Workaround:_ If possible, replace the function with an inline arrow function returning a boolean.
 
 ```javascript
 wavematch({ age: 21 })(
   (obj = { age: Number }) => 'got a number', // invalid JSON5
 
-  // Workaround: Use desired object key to match on that property
+  // Workaround: To extract a prop from an object, use the key name as the argument name.
   (age = Number) => 'got a number!'
 )
 ```
@@ -187,6 +191,7 @@ let zip = (xs, ys) => wavematch(xs, ys)(
   (xs = [], ys) => [],
   ([x, ...xs], [y, ...ys]) => [x, y].concat(zip(xs, ys))
 )
+zip(['a', 'b'], [1, 2]) //=> ['a', 1, 'b', 2]
 ```
 
 ```javascript
@@ -195,4 +200,20 @@ let zipWith = (f, xs, ys) => wavematch(f, xs, ys)(
   (f, xs, ys = []) => [],
   (f, [x, ...xs], [y, ...ys]) => [f(x, y)].concat(zipWith(f, xs, ys))
 )
+zipWith((x, y) => x + y, [1, 3], [2, 4]) //=> [3, 7]
 ```
+
+```javascript
+wavematch([ 1, 2, 3 ].find(num => num === 5)) (
+  
+)
+```
+
+## Roadmap
+
+- Fix array tests
+- Fix union tests: (`(value = null | Person) => {}`)
+- Write void tests (for matching null and undefined together)
+- Support esmodules
+- Update config
+  - Remove flow-remove-types dependency and use babel instead (see github.com/chrisisler/task)

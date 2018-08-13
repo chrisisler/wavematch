@@ -3,7 +3,8 @@
  * @prettier
  */
 
-import JSON5 from 'json5'
+// import JSON5 from 'json5'
+let JSON5 = require('json5')
 let isEqual = require('fast-deep-equal') // must `require`
 import makeFunctionParse from 'parse-function'
 let functionParse = makeFunctionParse().parse
@@ -130,21 +131,21 @@ export function allInputsSatisfyRule(
   ruleIndex: number,
   rules: Array<Rule>
 ): boolean {
-  return every(inputs, (input: any, inputIndex: number) => {
+  return every(inputs, (input: any, inputIndex) => {
     const reflectedArg: ReflectedArg = rule.allReflectedArgs[inputIndex]
 
     if (reflectedArg.isDestructured === true) {
       return true
     }
 
-    // ReflectedArg type cannot have both `subPatterns` and `patterns` keys
-    if ('subPatterns' in reflectedArg && !('patterns' in reflectedArg)) {
+    // ReflectedArg type may either have `subPatterns` or `pattern` key,
+    // but not both at the same time.
+    if ('subPatterns' in reflectedArg && !('pattern' in reflectedArg)) {
       if (reflectedArg.subPatterns != null) {
         return reflectedArg.subPatterns.some(subPattern => {
           let subReflectedArg = {
             pattern: subPattern,
-            customTypeNames:
-              reflectedArg.pattern && reflectedArg.pattern.customTypeNames
+            customTypeNames: reflectedArg.customTypeNames
           }
 
           return isPatternAcceptable(
@@ -191,20 +192,20 @@ export function ruleMatchesObjectInput(
       const r = rule.allReflectedArgs[inputIndex]
 
       function pushIfValidSize(pattern) {
-        const size = Object.keys(pattern).length
+        if (isPlainObject(pattern)) {
+          const size = Object.keys(pattern).length
 
-        // cannot have more keys than the object we are trying to match
-        if (size <= inputSize) {
-          reduced.push({ size, index })
+          // cannot have more keys than the object we are trying to match
+          if (size <= inputSize) {
+            reduced.push({ size, index })
+          }
         }
       }
 
       if ('pattern' in r && typeof r.pattern === 'object') {
         pushIfValidSize(r.pattern)
       } else if ('subPatterns' in r && typeof r.subPatterns !== 'undefined') {
-        r.subPatterns.forEach(subPattern => {
-          pushIfValidSize(subPattern)
-        })
+        r.subPatterns.forEach(pushIfValidSize)
       }
 
       return reduced
@@ -223,7 +224,7 @@ export function ruleMatchesObjectInput(
     }
 
     if (patternKeys.length <= inputSize) {
-      // get obj with highest number of keys (that's why it's named "best fit")
+      // get obj with highest number of keys (hence the name "best fit")
       const bestFitRule = bestFitRules.sort(
         (b1, b2) => (b1.size > b2.size ? -1 : 1)
       )[0]
@@ -339,11 +340,15 @@ export function ruleMatchesArrayInput(
  * tryGetParentClassName(new B()) //=> 'A'
  * tryGetParentClassName(new A()) //=> null
  */
-export function tryGetParentClassName(instance: any): string | void {
+export function tryGetParentClassName(instance: any | void): string | void {
+  if (isType('Null', instance) || isType('Undefined', instance)) {
+    return
+  }
+
   const code = instance.constructor.toString()
 
   if (!code.includes('class') || !code.includes('extends')) {
-    return void 0
+    return
   }
 
   const parts = code.split(/\s+/).slice(0, 4)
@@ -379,17 +384,33 @@ export function reflectPattern(
   // Note: `pattern` = '1 | 3 | 5'
   //   Must split then evaluate iteratively.
   if (pattern.includes('|')) {
-    pattern.split(/\s*\|\s*/).forEach(subPattern => {
+    const patterns = pattern.split(/\s*\|\s*/)
+    patterns.forEach(subPattern => {
       // When this function call hits the `if (pattern.includes('|'))` case
       // again, this code will not run. In other words, this recursion happens
       // a maximum of one times, potentially zero if no pattern has sub patterns.
       const sub = reflectPattern(subPattern, ruleIndex, argIndex)
       subPatterns.push(sub.reflectedPattern)
 
+      // Extract all custom types from the union.
       if (sub.customTypeNames.length) {
         customTypeNames.push(...sub.customTypeNames)
       }
     })
+
+    // https://stackoverflow.com/questions/840781
+    // I don't slice() before sort() because mutating order doesn't matter here.
+    const duplicates = patterns
+      .sort()
+      .filter((value, index, sorted) => sorted[index + 1] === value)
+    if (duplicates.length > 0) {
+      warning(
+        true,
+        `Rule at index ${ruleIndex} contains duplicate pattern(s): ${duplicates
+          .map(duplicated => `\`${duplicated}\``)
+          .join(' and ')}`
+      )
+    }
   } else {
     // pattern is a plain object, parse it into an actual Object type
     if (pattern.includes('{')) {
@@ -408,25 +429,22 @@ export function reflectPattern(
       try {
         pattern = eval(pattern)
       } catch (error) {
-        // NOTE: The following `if` statement and `invariant` call make assume
-        //   that the variable names passed to wavematch are not PascalCase for
-        //   identifiers that do not represent types.
-
-        // if `pattern` starts with an upper case character, assume it's a
-        // custom class type instance (like Person or Car)
-        if (
-          error instanceof ReferenceError &&
-          pattern[0].toUpperCase() === pattern[0]
-        ) {
+        // This `catch` block occurs when a var name is used as a pattern,
+        // causing a ReferenceError.
+        // The following code MAKES A DANGEROUS ASSUMPTION that the
+        // names/identifiers used as patterns are not PascalCase when the
+        // name/identifier is NOT a class (because class names (Car, Person,
+        // Queue, etc.) represent type-matching).
+        const identifierOutOfScope = error instanceof ReferenceError
+        const identifierIsUpperCase = pattern[0].toUpperCase() === pattern[0]
+        if (identifierOutOfScope && identifierIsUpperCase) {
           // checking if the custom type actually matches is not our job here,
           // that's done in `allInputsSatisfyRule`
           customTypeNames.push(pattern)
         }
 
-        // attempted to use an out-of-scope variable as a pattern
         invariant(
-          error instanceof ReferenceError &&
-            pattern[0].toLowerCase() === pattern[0], // is valid var name
+          identifierOutOfScope && pattern[0].toLowerCase() === pattern[0],
           `For pattern at parameter index ${argIndex}, cannot use out of ` +
             `scope variable as default: ${pattern}.\n` +
             `If possible, try replacing the variable with its value.`
@@ -435,7 +453,32 @@ export function reflectPattern(
     }
   }
 
-  return { reflectedPattern: pattern, subPatterns, customTypeNames }
+  return {
+    reflectedPattern: pattern,
+    subPatterns,
+    customTypeNames
+  }
+}
+
+// isPlainObject(new MyClass()) //=> false
+// isPlainObject([]) //=> false
+// isPlainObject({}) //=> true
+// isPlainObject({ x: 2 }) //=> true
+// isPlainObject(Object.create(null)) //=> false
+// https://github.com/reduxjs/redux/blob/master/src/utils/isPlainObject.js
+// Only used for `isPatternAcceptable()` function in this file.
+function isPlainObject(obj) {
+  if (typeof obj !== 'object' || obj === null) {
+    return false
+  }
+
+  let proto = obj
+
+  while (Object.getPrototypeOf(proto) !== null) {
+    proto = Object.getPrototypeOf(proto)
+  }
+
+  return Object.getPrototypeOf(obj) === proto
 }
 
 // TODO Extract conditionals to a separate function (like Yegor256 says).
@@ -447,9 +490,10 @@ export function isPatternAcceptable(
   // ReflectedArg or SubReflectedArg
   reflectedArg:
     | ReflectedArg
-    | {| customTypeNames: ?Array<string>, pattern: any |}
+    | {| customTypeNames?: ?Array<string>, pattern: any |}
 ): boolean {
-  // handle custom classes situation:
+  // The following `if` statement handles the custom classes situation, like:
+  // class Person {}
   // wavematch(new Person())(
   //   (x = Person) => 'awesome'
   // )
@@ -478,7 +522,10 @@ export function isPatternAcceptable(
   if (!TYPES.includes(pattern)) {
     if (isType('Promise', pattern) && typeof pattern.then === 'function') {
       return true
-      // return pattern.then(promised => isPatternAcceptable(rules, ruleIndex, inputIndex, input, promised))
+      // Support promises?
+      // return pattern.then(promised =>
+      //   isPatternAcceptable(rules, ruleIndex, inputIndex, input, promised)
+      // )
     } else if (isType('Function', pattern)) {
       // `pattern` may be a match guard
       const guardResult: any = pattern(input)
@@ -519,7 +566,7 @@ export function isPatternAcceptable(
     // return isEqual(pattern, input)
   }
 
-  if (isType('Object', input)) {
+  if (isPlainObject(input)) {
     return ruleMatchesObjectInput(input, inputIndex, rules, ruleIndex, pattern)
   }
 
@@ -529,7 +576,7 @@ export function isPatternAcceptable(
 
   if (isType('Number', input)) {
     if (Number === pattern) {
-      const otherRuleMatches = rules.some(rule => {
+      const otherRuleMatches: boolean = rules.some(rule => {
         if (ruleIsWildcard(rule)) return false
 
         const reflectedArgs = rule.allReflectedArgs[inputIndex]
@@ -630,18 +677,6 @@ export function isPatternAcceptable(
       return true
     }
   }
-
-  // TODO support property based name destructuring
-  // wavematch(await fetch(url)) (
-  //   size = { ... }
-  //   status = { ... }
-  // )
-  //
-  // if (Object.prototype.hasOwnProperty.call(input, reflectedArg.argName)) {
-  //   let property = input[reflectedArg.argName]
-  //   console.log('property is:', property)
-  //   return true
-  // }
 
   return false
 }

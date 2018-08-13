@@ -2,10 +2,21 @@ const assert = require('assert')
 const wavematch = require('../lib/wavematch.js')
 const { accept, reject, eq } = require('./shared.js')
 
-// number string array boolean custom-type date
+// number string array boolean null undefined custom-type date
 // guard non-unary object regexp function
 
 describe('wavematch union specification', () => {
+  it('should work for a custom class and null', () => {
+    class Person {}
+
+    let matched = wavematch(new Person())(
+      (value = null | Person) => accept,
+      _ => reject
+    )
+
+    eq(matched, accept)
+  })
+
   it('should work for regexp and array', () => {
     let match = value => wavematch(value)(
       (x = RegExp | Array) => accept,

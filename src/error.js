@@ -3,14 +3,14 @@
  * @prettier
  */
 
-const isNotProd = process.env.NODE_ENV !== 'production'
+const DEV = process.env.NODE_ENV !== 'production'
 
 // no duplicate warnings
 let warned: Set<string> = new Set()
 
 export let warning = function(condition: boolean, message: string): void {}
 
-if (isNotProd) {
+if (DEV) {
   warning = function(condition: boolean, message: string): void {
     if (!warned.has(message)) {
       if (condition) {
@@ -18,7 +18,8 @@ if (isNotProd) {
         warned.add(message)
 
         if (typeof console !== 'undefined') {
-          console.warn('Warning: ' + message)
+          message = message.endsWith('.') ? message : message + '.'
+          console.warn('Wavematch Warning: ' + message)
         }
 
         try {

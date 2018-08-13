@@ -2,7 +2,7 @@
   "name": "wavematch",
   "license": "MIT",
   "description": "JS Pattern Matching",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "main": "lib/wavematch.js",
   "files": [
     "dist",
@@ -10,12 +10,12 @@
     "src"
   ],
   "scripts": {
-    "lint": "eslint src test build lib",
+    "lint": "eslint src test",
     "clean": "rimraf build lib dist yarn-error.log .DS_Store",
     "test": "yarn prebuild:types && yarn build:cjs && NODE_ENV=development mocha --no-colors",
     "prebuild:types": "flow-remove-types --quiet src/ --out-dir build/",
     "prebuild:format": "prettier --write \"build/*.js\"",
-    "predemo": "yarn prebuild:types",
+    "predemo": "rimraf lib && yarn prebuild:types && yarn build:cjs",
     "build:umd": "cross-env NODE_ENV=development rollup --config --file dist/wavematch.js",
     "build:umd:min": "cross-env NODE_ENV=production rollup --config --file dist/wavematch.min.js",
     "build:cjs": "cross-env NODE_ENV=cjs rollup --silent --config --file lib/wavematch.js",
@@ -36,7 +36,8 @@
     "functional",
     "pattern",
     "match",
-    "wavematch"
+    "wavematch",
+    "rematch"
   ],
   "author": "chrisisler <christopherisler1@gmail.com> (https://github.com/chrisisler)",
   "devDependencies": {

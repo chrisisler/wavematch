@@ -18,6 +18,28 @@ describe('wavematch object specification', () => {
     eq(matchedName, accept)
   })
 
+  it('should reject non-object patterns', () => {
+    const objMatchNull = wavematch({})(
+      (arg = null) => reject,
+      _ => accept
+    )
+    eq(objMatchNull, accept)
+
+    const objMatchUndefined = wavematch({})(
+      (arg = undefined) => reject,
+      _ => accept
+    )
+    eq(objMatchUndefined, accept)
+
+    const objMatchVoid0 = wavematch({})(
+      (arg = (void 0)) => reject,
+      _ => accept
+    )
+    eq(objMatchVoid0, accept)
+  })
+
+
+
   it('should match object patterns with more keys', () => {
     const twoKeys = wavematch({ a: 1, b: 2 })(
       (arg = { a: 1 }) => 0,

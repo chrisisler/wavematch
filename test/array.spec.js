@@ -82,9 +82,9 @@ describe('wavematch array specification', () => {
   })
 
   // TODO decide what this behavior should be
-  it.only('should match arrays with a subset of the elements', () => {
+  it('should match arrays with a subset of the elements', () => {
     console.log('TODO - should match arrays with a subset of the elements')
-    const threeItems = [1, 2, 3]
+    // const threeItems = [1, 2, 3]
 
     // const one = wavematch(threeItems)(
     //   (arr = [ 1 ]) => accept,

@@ -1,9 +1,12 @@
 /**
  * @flow
  * @prettier
+ *
+ * Ideas:
+ * - Consider using `instanceof` operator for Class cases.
  */
 
-let isEqual = require('fast-deep-equal') // must `require`
+let isEqual = require('fast-deep-equal') // must `require` for some reason
 import makeFunctionParse from 'parse-function'
 let functionParse = makeFunctionParse().parse
 
@@ -47,7 +50,7 @@ module.exports = function wavematch(...inputs: Array<any>): Function {
       })
     })
 
-    // warn about duplicate rules and tell user which rule indexes are duped
+    // warn about duplicate rules and tell user which rule indexes are duplicates
     const duplicateRuleIndexes: Array<number> = rules
       .filter(rule => !rule.allReflectedArgs.some(args => args.isDestructured))
       .reduce((reducedIndexes, rule, index, nonDestructuredRules) => {
