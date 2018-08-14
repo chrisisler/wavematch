@@ -10,6 +10,15 @@ describe('wavematch guard specification', () => {
       (num = $ => 99 > $) => accept,
       _ => reject
     ), accept)
+
+    wavematch({ status: 401 })(
+      (x = $ => $.status > 400) => {
+        console.log('wtf')
+      },
+      _ => {
+        console.log('DEFALUTED')
+      }
+    )
   })
 
   it('should be compatible with constructor matching', () => {
@@ -23,8 +32,10 @@ describe('wavematch guard specification', () => {
 
     eq(wavematch(42)(
       (num = 3) => reject,
+
       // this rule wins only because it is BEFORE the Number pattern
       (num = $ => $ > 41) => accept,
+
       (num = Number) => 3,
       _ => reject
     ), accept)

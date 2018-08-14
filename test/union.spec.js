@@ -6,15 +6,20 @@ const { accept, reject, eq } = require('./shared.js')
 // guard non-unary object regexp function
 
 describe('wavematch union specification', () => {
-  it('should work for a custom class and null', () => {
+  it('should work for a custom class with null and undefined', () => {
     class Person {}
 
-    let matched = wavematch(new Person())(
+    let nullMatched = wavematch(new Person())(
       (value = null | Person) => accept,
       _ => reject
     )
+    eq(nullMatched, accept)
 
-    eq(matched, accept)
+    let undefinedMatched = wavematch(new Person())(
+      (value = undefined | Person) => accept,
+      _ => reject
+    )
+    eq(undefinedMatched, accept)
   })
 
   it('should work for regexp and array', () => {

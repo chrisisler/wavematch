@@ -345,7 +345,11 @@ export function tryGetParentClassName(instance: any | void): string | void {
     return
   }
 
+  // Flow (version ^0.66.0) cannot follow the isType() calls unfortunately.
+  // $FlowFixMe
   const code = instance.constructor.toString()
+  // // TODO: Support subclassing this way (see `demo.js`).
+  // console.log('code is:', code)
 
   if (!code.includes('class') || !code.includes('extends')) {
     return
@@ -421,8 +425,7 @@ export function reflectPattern(
         invariant(
           error instanceof SyntaxError,
           `Rule at index ${ruleIndex} has argument at parameter index ` +
-            `${argIndex} that has invalid JSON.\n` +
-            `JSON error message is: ${error.message}\n`
+            `${argIndex} that has invalid JSON.\n${error.message || error}\n`
         )
       }
     } else {

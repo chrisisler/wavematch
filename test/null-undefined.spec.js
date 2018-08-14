@@ -28,23 +28,3 @@ describe('wavematch undefined specification', () => {
     eq(match, accept)
   })
 })
-
-// describe.only('wavematch void 0 specification', () => {
-//   it('should match null', () => {
-//     const match = wavematch(null) (
-//       (input = void 0) => accept,
-//       _ => reject
-//     )
-//   })
-
-//   it('should match undefined', () => {
-//   })
-
-//   it('should match void 0', () => {
-//     // const matchTrue = wavematch(true)(
-//     //   (condition = true) => accept,
-//     //   _ => reject
-//     // )
-//     // eq(matchTrue, accept)
-//   })
-// })

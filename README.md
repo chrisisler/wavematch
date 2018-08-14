@@ -37,35 +37,40 @@ let map = (fn, x) => wavematch(fn, x)(
 
 ## Matching Objects
 
-Use plain objects as parameter defaults to match object properties.
+Use plain objects as an argument default to match on object properties.
+
+> Objects must be [valid JSON5](https://json5.org/).
 
 ```javascript
-let data = { isDone: false, error: Error() }
+let obj = {
+  isDone: false,
+  error: Error()
+}
 
-wavematch(data)(
-  (obj = { isDone: true }) => awesome()
+wavematch(obj)(
+  (obj = { isDone: true }) => {}
 )
 ```
 
 ```javascript
 let assertShape = obj => wavematch(obj)(
-  (shape = { foo: Number }) => {},
+  (shape = { foo: Number }) => {}, // no-op function skips the match
   _ => throw Error()
 )
 assertShape({ foo: 1 })
-assertShape({ foo: {} }) // Error!
+assertShape({ foo: {} }) // Error due to `foo` prop not being a Number
 ```
 
-> Objects must be [valid JSON5](https://json5.org/).
+##### Destructure the object using the desired key as the argument name
 
 ```javascript
 let data = { isDone: false, error: Error() }
 
 wavematch(data)(
-  (obj = { isDone: true }) => awesome(),
+  (obj = { isDone: true }) => {},
 
-  // or destructure the object using the desired key as the argument name
-  (isDone = true) => awesome()
+  // Destructure happens here via the argument name `isDone`
+  (isDone = true) => {}
 )
 ```
 
@@ -75,15 +80,26 @@ Use custom type constructors to match custom types.
 
 ```javascript
 class Person {}
-let alex = new Person()
 
-wavematch(alex)(
+wavematch(new Person())(
   (p = Person) => {
     console.log('Is a Person')
   },
   _ => {
     console.log('Not a Person')
   }
+)
+```
+
+Using function prototypes to define data works too:
+
+```javascript
+function Car() {}
+
+let carInstance = new Car()
+
+wavematch(carInstance)(
+  (car = Car) => {}
 )
 ```
 
@@ -119,10 +135,11 @@ Use `|` to match multiple patterns.
 let value = random(0, 10)
 
 wavematch(value)(
+  // Equivalent to (other === 2 || other === 4 || other === 6)
   (other = 2 | 4 | 6) => {
     console.log('two or four or six!')
   },
-  other => {
+  _ => {
     console.log('not two or four or six')
   }
 )
@@ -211,9 +228,6 @@ wavematch([ 1, 2, 3 ].find(num => num === 5)) (
 
 ## Roadmap
 
-- Fix array tests
-- Fix union tests: (`(value = null | Person) => {}`)
-- Write void tests (for matching null and undefined together)
-- Support esmodules
-- Update config
-  - Remove flow-remove-types dependency and use babel instead (see github.com/chrisisler/task)
+1. Fix and update config/build to esmodules and rollup, use babel (see github.com/chrisisler/task)
+2. Fix array tests
+3. Fix the following: `wavematch(42)((n = 42.0) => 1, _ => 2) //=> 2`
