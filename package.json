@@ -12,6 +12,7 @@
   ],
   "scripts": {
     "lint": "eslint src test lib es",
+    "lint:check": "eslint --print-config . | eslint-config-prettier-check",
     "clean": "rm -rf lib es",
     "test": "yarn build && NODE_ENV=development mocha --no-colors",
     "build": "rollup -c",

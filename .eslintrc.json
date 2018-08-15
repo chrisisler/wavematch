@@ -2,7 +2,9 @@
   "parser": "babel-eslint",
   "extends": [
     "prettier",
-    "plugin:prettier/recommended"
+    "plugin:prettier/recommended",
+    "prettier/flowtype",
+    "prettier/standard"
   ],
   "plugins": [
     "prettier",
