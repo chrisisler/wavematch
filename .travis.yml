@@ -10,7 +10,7 @@ branches:
     - master
     - dev
 before_script:
-  - npm run lint
+  # - npm run lint
 cache:
   directories:
     - "$HOME/.npm"
