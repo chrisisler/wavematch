@@ -121,7 +121,9 @@ export function toRule(rawRule: RuleExpression, ruleIndex: number): Rule {
 }
 
 export function ruleIsWildcard(rule: Rule): boolean {
-  return rule.allReflectedArgs.some(arg => arg.argName === '_')
+  return (
+    rule.allReflectedArgs.some(arg => arg.argName === '_') && rule.arity === 1
+  )
 }
 
 export function allInputsSatisfyRule(

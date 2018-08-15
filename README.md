@@ -22,17 +22,13 @@ yarn add wavematch
 Use constructors for type-based matching.
 
 ```javascript
-let toDate = s => wavematch(s)(
-  (value = Date) => value,
-  (value = String) => new Date(value)
-)
-```
-
-```javascript
 let map = (fn, x) => wavematch(fn, x)(
   (fn, x = Array) => x.map(fn),
   (fn, x = Object) => Object.values(x).map(fn)
 )
+
+map(value => doSomething(value), { a: 1 })
+map(value => doSomething(value), [ 1 ])
 ```
 
 ## Matching Objects
@@ -218,6 +214,14 @@ let zipWith = (f, xs, ys) => wavematch(f, xs, ys)(
   (f, [x, ...xs], [y, ...ys]) => [f(x, y)].concat(zipWith(f, xs, ys))
 )
 zipWith((x, y) => x + y, [1, 3], [2, 4]) //=> [3, 7]
+```
+
+```javascript
+wavematch([1, 2].find(n => n === 5))(
+  (value = !undefined) => {
+
+  }
+)
 ```
 
 ## Roadmap

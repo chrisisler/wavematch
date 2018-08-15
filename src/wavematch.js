@@ -10,6 +10,9 @@ import { warning, invariant } from './error'
 import { toRule, ruleIsWildcard, allInputsSatisfyRule } from './match'
 import { isType } from './shared'
 
+// Avoid calculating the same thing twice
+// let cache: Map<*, $Call<RuleExpression>> = new Map()
+
 export default function wavematch(...inputs: Array<any>): Function {
   invariant(
     inputs.length === 0,
@@ -17,13 +20,19 @@ export default function wavematch(...inputs: Array<any>): Function {
       'match function. Cannot match on zero parameters.'
   )
 
-  return function(...rawRules: Array<RuleExpression>) {
+  return function(...rawRules: Array<RuleExpression>): $Call<RuleExpression> {
     invariant(
       rawRules.length === 0,
       'Non-exhaustive rules. ' +
         'Please add a rule function, or at least the wildcard rule: ' +
         '"_ => { /* expression */ }"'
     )
+
+    // TODO(cache)
+    // let previous = cache.get(inputs.toString() + rawRules.toString())
+    // if (previous !== undefined) {
+    //   return previous
+    // }
 
     const rules: Array<Rule> = rawRules.map(toRule)
 
@@ -48,18 +57,18 @@ export default function wavematch(...inputs: Array<any>): Function {
     // warn about duplicate rules and tell user which rule indexes are duplicates
     const duplicateRuleIndexes: Array<number> = rules
       .filter(rule => !rule.allReflectedArgs.some(args => args.isDestructured))
-      .reduce((reducedIndexes, rule, index, nonDestructuredRules) => {
-        const duplicateRuleIndex = nonDestructuredRules.findIndex(
+      .reduce((reduced, rule, index, filtered) => {
+        const duplicateRuleIndex = filtered.findIndex(
           (otherRule, otherIndex) =>
             index !== otherIndex &&
             isEqual(otherRule.allReflectedArgs, rule.allReflectedArgs)
         )
 
         if (duplicateRuleIndex !== -1) {
-          reducedIndexes.push(index)
+          reduced.push(index)
         }
 
-        return reducedIndexes
+        return reduced
       }, [])
 
     warning(
@@ -106,7 +115,12 @@ export default function wavematch(...inputs: Array<any>): Function {
 
         if (rule.arity === inputs.length) {
           if (allInputsSatisfyRule(rule, inputs, ruleIndex, rules)) {
-            return rule.expression(...inputs)
+            let calculation = rule.expression(...inputs)
+            // TODO(cache)
+            // if (calculation !== undefined) {
+            //   cache.set(inputs.toString() + rawRules.toString(), calculation)
+            // }
+            return calculation
           }
         }
       }
