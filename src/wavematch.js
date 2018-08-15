@@ -1,14 +1,9 @@
 /**
  * @flow
  * @prettier
- *
- * Ideas:
- * - Consider using `instanceof` operator for Class cases.
  */
 
-let isEqual = require('fast-deep-equal') // must `require` for some reason
-import makeFunctionParse from 'parse-function'
-let functionParse = makeFunctionParse().parse
+import isEqual from 'fast-deep-equal'
 
 import type { RuleExpression, ReflectedArg, Rule } from './flow-types'
 import { warning, invariant } from './error'

@@ -1,60 +1,61 @@
-import nodeResolve from 'rollup-plugin-node-resolve'
-import babel from 'rollup-plugin-babel'
 import replace from 'rollup-plugin-replace'
-import uglify from 'rollup-plugin-uglify'
+import babel from 'rollup-plugin-babel'
+import pkg from './package.json'
 
-const env = process.env.NODE_ENV
-
-let config = {
-  // must be `build` directory because 
-  // thats where js files go after removing flow types
-  // see `package.json`
-  input: 'build/wavematch.js',
-  plugins: []
-}
-
-if (env === 'cjs') {
-  config.output = {
-    format: env,
-    indent: false
-  }
-
-  config.plugins.push(
-    babel()
-  )
-}
-
-if (env === 'development' || env === 'production') {
-  config.output = {
-    format: 'umd',
-    name: 'Wavematch',
-    indent: false
-  }
-
-  config.plugins.push(
-    nodeResolve({
-      jsnext: true
-    }),
-    babel({
-      exclude: 'node_modules/**'
-    }),
-    replace({
-      'process.env.NODE_ENV': JSON.stringify(env)
-    })
-  )
-}
-
-if (env === 'production') {
-  config.plugins.push(
-    uglify({
-      compress: {
-        pure_getters: true,
-        unsafe: true,
-        unsafe_comps: true,
-        warnings: false
+export default async function getConfig() {
+  let env = process.env.NODE_ENV
+  let config = {
+    plugins: [
+      babel({
+        exclude: 'node_modules/**'
+      }),
+      replace({
+        'process.env.NODE_ENV': JSON.stringify(env)
+      })
+    ],
+    input: 'src/wavematch.js',
+    output: [
+      {
+        file: pkg.main,
+        format: 'cjs'
+      },
+      {
+        file: pkg.module,
+        format: 'es'
       }
-    })
-  )
-}
+    ],
+    // tell rollup we depend on external deps
+    external: [
+      ...Object.keys(pkg.dependencies)
+    ],
+    watch: {
+      include: 'src/**.js',
+      exclude: 'node_modules/**'
+    }
+  }
 
-export default config
+  // if (env === 'development' || env === 'production') {
+  //   config.plugins.push(
+  //     babel({
+  //       exclude: 'node_modules/**'
+  //     })
+  //   )
+  // }
+
+
+  if (env === 'production') {
+    let uglify = await import('rollup-plugin-uglify')
+    config.plugins.push(
+      uglify({
+        compress: {
+          pure_getters: true,
+          unsafe: true,
+          unsafe_comps: true,
+          warnings: false
+        }
+      })
+    )
+  }
+
+  return config
+}

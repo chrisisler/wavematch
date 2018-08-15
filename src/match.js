@@ -3,9 +3,8 @@
  * @prettier
  */
 
-// import JSON5 from 'json5'
-let JSON5 = require('json5')
-let isEqual = require('fast-deep-equal') // must `require`
+import JSON5 from 'json5'
+import isEqual from 'fast-deep-equal'
 import makeFunctionParse from 'parse-function'
 let functionParse = makeFunctionParse().parse
 
@@ -68,7 +67,7 @@ export function reflectArguments(
       return reflectedArg
     }
 
-    const { customTypeNames, reflectedPattern, subPatterns } = reflectPattern(
+    const { customTypeNames, evaulatedPattern, subPatterns } = reflectPattern(
       pattern,
       ruleIndex,
       argIndex
@@ -83,7 +82,7 @@ export function reflectArguments(
     if (subPatterns.length) {
       optionalProps.subPatterns = subPatterns
     } else {
-      optionalProps.pattern = reflectedPattern
+      optionalProps.pattern = evaulatedPattern
     }
 
     const r: ReflectedArg = Object.assign({}, reflectedArg, optionalProps)
@@ -374,7 +373,7 @@ export function reflectPattern(
 ): {|
   customTypeNames: Array<string>,
   subPatterns: Array<any>,
-  reflectedPattern: any
+  evaulatedPattern: any
 |} {
   let customTypeNames = []
   let subPatterns = []
@@ -394,7 +393,7 @@ export function reflectPattern(
       // again, this code will not run. In other words, this recursion happens
       // a maximum of one times, potentially zero if no pattern has sub patterns.
       const sub = reflectPattern(subPattern, ruleIndex, argIndex)
-      subPatterns.push(sub.reflectedPattern)
+      subPatterns.push(sub.evaulatedPattern)
 
       // Extract all custom types from the union.
       if (sub.customTypeNames.length) {
@@ -457,7 +456,7 @@ export function reflectPattern(
   }
 
   return {
-    reflectedPattern: pattern,
+    evaulatedPattern: pattern,
     subPatterns,
     customTypeNames
   }
