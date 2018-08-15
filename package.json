@@ -15,10 +15,10 @@
     "lint:check": "eslint --print-config . | eslint-config-prettier-check",
     "clean": "rm -rf lib es",
     "test": "yarn build && NODE_ENV=development mocha --no-colors",
-    "build": "rollup -c",
-    "format": "prettier --write src/**/*.js",
-    "dev": "rollup -c --watch",
-    "prepublish": "yarn clean && yarn build"
+    "build": "rollup --silent --config",
+    "build:watch": "rollup --silent --config --watch",
+    "format": "prettier --write {src,lib,es}/**.js",
+    "prepublish": "yarn clean && yarn build && yarn format"
   },
   "repository": {
     "type": "git",

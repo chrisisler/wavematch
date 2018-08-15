@@ -10,7 +10,7 @@ import { warning, invariant } from './error'
 import { toRule, ruleIsWildcard, allInputsSatisfyRule } from './match'
 import { isType } from './shared'
 
-module.exports = function wavematch(...inputs: Array<any>): Function {
+export default function wavematch(...inputs: Array<any>): Function {
   invariant(
     inputs.length === 0,
     'Please supply at least one argument to ' +

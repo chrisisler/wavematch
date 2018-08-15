@@ -192,8 +192,8 @@ let matched = wavematch('bar')(
 > _Workaround:_ If possible, replace the function with an inline arrow function returning a boolean.
 
 ```javascript
-wavematch({ age: 21 })(
-  (obj = { age: Number }) => 'got a number', // invalid JSON5
+wavematch({ age: 21.5 })(
+  (obj = { age: Number }) => 'got a number', // invalid JSON5, throws error!
 
   // Workaround: To extract a prop from an object, use the key name as the argument name.
   (age = Number) => 'got a number!'
@@ -220,14 +220,6 @@ let zipWith = (f, xs, ys) => wavematch(f, xs, ys)(
 zipWith((x, y) => x + y, [1, 3], [2, 4]) //=> [3, 7]
 ```
 
-```javascript
-wavematch([ 1, 2, 3 ].find(num => num === 5)) (
-  
-)
-```
-
 ## Roadmap
 
-1. Fix and update config/build to esmodules and rollup, use babel (see github.com/chrisisler/task)
-2. Fix array tests
-3. Fix the following: `wavematch(42)((n = 42.0) => 1, _ => 2) //=> 2`
+1. Fix array tests

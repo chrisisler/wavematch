@@ -3,16 +3,6 @@ const wavematch = require('../lib/wavematch.js')
 const { accept, reject, eq } = require('./shared.js')
 
 describe('wavematch number specification', () => {
-  it('should match default', () => {
-    // not even sure if this test is useful
-    ;[ -1, -0, 0, +0, +1 ].forEach(num => {
-      const _default = wavematch(num)(
-        _ => accept,
-      )
-      eq(_default, accept)
-    })
-  })
-
   it('should match whole integers', () => {
     const integer = wavematch(42)(
       (num = 42) => accept,

@@ -172,6 +172,67 @@ export function allInputsSatisfyRule(
   })
 }
 
+// Note: If float ends in .0 (like 2.0) it's automatically converted to
+// whole numbers when the parameter is passed to the wavematch function.
+// This means we never know if someone entered Num.0 or just Num.
+function ruleMatchesNumberInput(
+  numberInput: Number,
+  pattern: any,
+  rules: Array<Rule>,
+  inputIndex: number
+): boolean {
+  if (isFloat(numberInput)) {
+    if (Number === pattern) {
+      const otherRuleMatches: boolean = rules.some(rule => {
+        if (ruleIsWildcard(rule)) return false
+
+        const reflectedArgs = rule.allReflectedArgs[inputIndex]
+
+        if (
+          'pattern' in reflectedArgs &&
+          reflectedArgs.pattern != null &&
+          isType('Number', reflectedArgs.pattern)
+        ) {
+          return reflectedArgs.pattern === numberInput
+        }
+      })
+
+      if (otherRuleMatches) {
+        return false
+      }
+      return true
+    }
+    return isEqual(pattern, numberInput)
+  }
+
+  if (isType('Number', numberInput)) {
+    if (Number === pattern) {
+      const otherRuleMatches: boolean = rules.some(rule => {
+        if (ruleIsWildcard(rule)) return false
+
+        const reflectedArgs = rule.allReflectedArgs[inputIndex]
+
+        if (
+          'pattern' in reflectedArgs &&
+          reflectedArgs.pattern != null &&
+          isType('Number', reflectedArgs.pattern)
+        ) {
+          return reflectedArgs.pattern === numberInput
+        }
+      })
+
+      if (otherRuleMatches) {
+        return false
+      }
+      return true
+    }
+    // whole numbers (includes 3, excludes 3.0)
+    return numberInput === pattern
+  }
+
+  return false
+}
+
 // when the input value at `valueIndex` is of type Object
 export function ruleMatchesObjectInput(
   objectInput: Object,
@@ -572,33 +633,14 @@ export function isPatternAcceptable(
     return ruleMatchesObjectInput(input, inputIndex, rules, ruleIndex, pattern)
   }
 
-  if (isFloat(input)) {
-    return isEqual(pattern, input)
-  }
-
-  if (isType('Number', input)) {
-    if (Number === pattern) {
-      const otherRuleMatches: boolean = rules.some(rule => {
-        if (ruleIsWildcard(rule)) return false
-
-        const reflectedArgs = rule.allReflectedArgs[inputIndex]
-
-        if (
-          'pattern' in reflectedArgs &&
-          reflectedArgs.pattern != null &&
-          isType('Number', reflectedArgs.pattern)
-        ) {
-          return reflectedArgs.pattern === input
-        }
-      })
-
-      if (otherRuleMatches) {
-        return false
-      }
-      return true
-    }
-    // whole numbers (includes 3, excludes 3.0)
-    return input === pattern
+  let numberMatch: boolean = ruleMatchesNumberInput(
+    input,
+    pattern,
+    rules,
+    inputIndex
+  )
+  if (numberMatch) {
+    return true
   }
 
   if (isType('Function', input) || isType('GeneratorFunction', input)) {
