@@ -122,7 +122,13 @@ export function toRule(rawRule: RuleExpression, ruleIndex: number): Rule {
 
 export function ruleIsWildcard(rule: Rule): boolean {
   return (
-    rule.allReflectedArgs.some(arg => arg.argName === '_') && rule.arity === 1
+    rule.allReflectedArgs.some(
+      arg =>
+        arg.argName === '_' &&
+        !('pattern' in arg) &&
+        !('subPatterns' in arg) &&
+        arg.isDestructured === false
+    ) && rule.arity === 1
   )
 }
 

@@ -8,7 +8,6 @@ import isEqual from 'fast-deep-equal'
 import type { RuleExpression, ReflectedArg, Rule } from './flow-types'
 import { warning, invariant } from './error'
 import { toRule, ruleIsWildcard, allInputsSatisfyRule } from './match'
-import { isType } from './shared'
 
 // Avoid calculating the same thing twice
 // let cache: Map<*, $Call<RuleExpression>> = new Map()
@@ -88,7 +87,7 @@ export default function wavematch(...inputs: Array<any>): Function {
     }
 
     const indexOfWildcardRule: number = rules.findIndex((rule: Rule) =>
-      rule.allReflectedArgs.some((reflectedArg: ReflectedArg, index) => {
+      rule.allReflectedArgs.some((reflectedArg: ReflectedArg) => {
         if (reflectedArg.isDestructured) {
           return false
         }
@@ -101,8 +100,7 @@ export default function wavematch(...inputs: Array<any>): Function {
           `Wildcard argument name contains ${reflectedArg.argName.length} ` +
             'underscore characters. Expected only one underscore.'
         )
-
-        return reflectedArg.argName.includes('_') && rule.arity === 1
+        return ruleIsWildcard(rule)
       })
     )
 

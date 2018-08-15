@@ -115,6 +115,14 @@ let fib = n => wavematch(n)(
 ```
 
 ```javascript
+let parseArgument = arg = wavematch(arg)(
+  (arg = '-h' | '--help') => displayHelp(),
+  (arg = '-v' | '--version') => displayVersion(),
+  _ => unknownArgument(arg)
+)
+```
+
+```javascript
 let fetchy = async url => wavematch(await fetch(url))(
   (res = { status: 200 }) => res,
   (res = $ => $.status > 400) => Error(res)

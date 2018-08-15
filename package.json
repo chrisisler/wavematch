@@ -16,6 +16,7 @@
     "clean": "rm -rf lib es",
     "test": "yarn build && NODE_ENV=development mocha --no-colors",
     "build": "rollup --silent --config",
+    "build:demo": "yarn clean && yarn build",
     "build:watch": "rollup --silent --config --watch",
     "format": "prettier --write {src,lib,es}/**.js",
     "prepublish": "yarn clean && yarn build && yarn lint && yarn format"

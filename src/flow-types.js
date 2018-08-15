@@ -26,6 +26,7 @@ export type ReflectedArg = $ReadOnly<{
   pattern?: any,
 
   // for matching custom types (like 'Person' or 'Car')
+  // if this key is present then so is either `.pattern` or `.subPattern`
   customTypeNames?: Array<string>,
 
   // Patterns can be unions of patterns, like an OR expression:
