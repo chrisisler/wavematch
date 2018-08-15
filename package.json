@@ -18,7 +18,7 @@
     "build": "rollup --silent --config",
     "build:watch": "rollup --silent --config --watch",
     "format": "prettier --write {src,lib,es}/**.js",
-    "prepublish": "yarn clean && yarn build && yarn format"
+    "prepublish": "yarn clean && yarn build && yarn lint && yarn format"
   },
   "repository": {
     "type": "git",
