@@ -115,7 +115,7 @@ let fib = n => wavematch(n)(
 ```
 
 ```javascript
-let parseArgument = arg = wavematch(arg)(
+let parseArgument = arg => wavematch(arg)(
   (arg = '-h' | '--help') => displayHelp(),
   (arg = '-v' | '--version') => displayVersion(),
   _ => unknownArgument(arg)
