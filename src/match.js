@@ -39,26 +39,26 @@ const TYPES: Array<Function> = [
   Proxy
 ].concat(values(ERROR_TYPES_DICTIONARY))
 
+// Note: no way to tell if an argument is a rest argument (like (...args) => {})
 export function reflectArguments(
   rawRule: RuleExpression,
   ruleIndex: number
-): Array<ReflectedArg> {
+): {| allReflectedArgs: Array<ReflectedArg>, body: string |} {
   type Parsed = { args: Array<string>, defaults: Object, body: string }
   const parsed: Parsed = functionParse(rawRule)
-  // Note: no way to tell if an argument is a rest argument (like (...args) => {})
 
   if (parsed.args.length === 0) {
-    const reflectedArguments = []
+    const reflectedArguments: Array<ReflectedArg> = []
     return reflectedArguments
   }
 
-  return parsed.args.map((argName, argIndex) => {
+  const allReflectedArgs = parsed.args.map((argName, argIndex) => {
     const isDestructured = argName === false
     const pattern: string = parsed.defaults[argName]
 
+    // DEV: `parsed.body` needs to go on the Rule instance not the ReflectedArg instance.
     const reflectedArg: ReflectedArg = {
       isDestructured: isDestructured,
-      body: parsed.body,
       argName: isDestructured ? '@@DESTRUCTURED' : argName
     }
 
@@ -88,23 +88,26 @@ export function reflectArguments(
     const r: ReflectedArg = Object.assign({}, reflectedArg, optionalProps)
     return r
   })
+
+  return {
+    allReflectedArgs,
+    body: parsed.body
+  }
 }
 
 export function toRule(rawRule: RuleExpression, ruleIndex: number): Rule {
   invariant(
-    !(typeof rawRule === 'function'),
+    typeof rawRule !== 'function',
     `Rule at index ${ruleIndex} is not a ` +
-      `Function, instead is: ${getType(rawRule)}.`
+      `function, instead is: ${getType(rawRule)}.`
   )
 
-  const allReflectedArgs: Array<ReflectedArg> = reflectArguments(
-    rawRule,
-    ruleIndex
-  )
+  const { allReflectedArgs, body } = reflectArguments(rawRule, ruleIndex)
 
   const rule: Rule = {
     allReflectedArgs: allReflectedArgs,
     expression: rawRule,
+    body: body,
     arity: allReflectedArgs.length
   }
 

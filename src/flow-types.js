@@ -15,10 +15,6 @@ export type ReflectedArg = $ReadOnly<{
   // )
   isDestructured: boolean,
 
-  // the body of a given rule represented as a string
-  // only used for warning about avoiding duplicate rules
-  body: string,
-
   // the default parameter of a given Rule
   // wavematch(x)(
   //   (argName = pattern) => {}
@@ -35,7 +31,7 @@ export type ReflectedArg = $ReadOnly<{
   //   _ => 'even!'
   // )
   // If `subPatterns` is present on the instance, then `patterns` is not.
-  subPatterns?: Array<any>
+  subPatterns?: Array<?mixed>
 }>
 
 export type RuleExpression = (...Array<mixed>) => ?mixed
@@ -47,5 +43,9 @@ export type Rule = $ReadOnly<{|
   arity: number,
 
   // the body of a given rule - this is a callable function
-  expression: RuleExpression
+  expression: RuleExpression,
+
+  // the body of a given rule represented as a string
+  // only used for warning about avoiding duplicate rules
+  body: string
 |}>

@@ -115,17 +115,9 @@ let fib = n => wavematch(n)(
 ```
 
 ```javascript
-let parseArgument = arg => wavematch(arg)(
-  (arg = '-h' | '--help') => displayHelp(),
-  (arg = '-v' | '--version') => displayVersion(),
-  _ => unknownArgument(arg)
-)
-```
-
-```javascript
-let fetchy = async url => wavematch(await fetch(url))(
-  (res = { status: 200 }) => res,
-  (res = $ => $.status > 400) => Error(res)
+wavematch(await fetch(url))(
+  (response = { status: 200 }) => response,
+  (response = $ => $.status > 400) => Error(response)
 )
 ```
 
@@ -155,6 +147,15 @@ wavematch(await fetch(url))(
   (response = $ => $.status > 400) => Error(response)
 )
 ```
+
+```javascript
+let parseArgument = arg => wavematch(arg)(
+  (arg = '-h' | '--help') => displayHelp(),
+  (arg = '-v' | '--version') => displayVersion(),
+  _ => unknownArgument(arg)
+)
+```
+
 
 ## Wildcard Pattern
 
