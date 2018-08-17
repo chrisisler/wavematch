@@ -113,14 +113,22 @@ export default function wavematch(...inputs: Array<any>): Function {
 
         if (rule.arity === inputs.length) {
           if (allInputsSatisfyRule(rule, inputs, ruleIndex, rules)) {
-            let argNames = rule.allReflectedArgs.map(_ => _.argName)
+            // DEV: The problem now is the function body doesn't capture vars
+            // from outside scope. The below example throws ReferenceError.
+            // How do we inject/capture those vars?
+            // let x = 'foo'
+            // wavematch(1)(_ => x)
+            // let argNames = rule.allReflectedArgs.map(_ => _.argName)
             // $FlowFixMe Flow doesn't know that `...stringArray` type = string
-            let expressionWithoutDefaults = new Function(...argNames, rule.body)
-            let calculation = expressionWithoutDefaults(...inputs)
+            // let expressionWithoutDefaults = new Function(...argNames, rule.body)
+            // let calculation = expressionWithoutDefaults(...inputs)
+
             // TODO(cache)
             // if (calculation !== undefined) {
             //   cache.set(inputs.toString() + rawRules.toString(), calculation)
             // }
+
+            const calculation = rule.expression(...inputs)
             return calculation
           }
         }
