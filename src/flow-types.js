@@ -46,6 +46,6 @@ export type Rule = $ReadOnly<{|
   expression: RuleExpression,
 
   // the body of a given rule represented as a string
-  // only used for warning about avoiding duplicate rules
+  // only used for warning about avoiding duplicate rules (I think)
   body: string
 |}>

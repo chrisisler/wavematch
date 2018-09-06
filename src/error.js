@@ -19,7 +19,7 @@ if (DEV) {
 
         if (typeof console !== 'undefined') {
           message = message.endsWith('.') ? message : message + '.'
-          console.warn('Wavematch Warning: ' + message)
+          console.warn('Warning: ' + message)
         }
 
         try {

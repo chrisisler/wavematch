@@ -412,6 +412,8 @@ export function ruleMatchesArrayInput(
  * tryGetParentClassName(new A()) //=> null
  */
 export function tryGetParentClassName(instance: any | void): string | void {
+  // TODO: If `Symbol` exists then the result of Object.prototype.toString.call
+  // can be modified, possibly breaking the logic used for class type checks.
   if (isType('Null', instance) || isType('Undefined', instance)) {
     return
   }

@@ -12,6 +12,8 @@ import { toRule, ruleIsWildcard, allInputsSatisfyRule } from './match'
 // Avoid calculating the same thing twice
 // let cache: Map<*, $Call<RuleExpression>> = new Map()
 
+const onlyUnderscoresIdentifier = /\b_+\b/
+
 export default function wavematch(...inputs: Array<any>): Function {
   invariant(
     inputs.length === 0,
@@ -128,8 +130,15 @@ export default function wavematch(...inputs: Array<any>): Function {
             //   cache.set(inputs.toString() + rawRules.toString(), calculation)
             // }
 
-            const calculation = rule.expression(...inputs)
-            return calculation
+            // TODO: Write tests for `boundInputs`.
+            // If arg name is _ then bind void 0 to that arg for the closure:
+            // wavematch(42, 7)((_, n) => _) //=> undefined
+            const boundInputs = inputs.map((input, index) => {
+              let { argName } = rule.allReflectedArgs[index]
+              return onlyUnderscoresIdentifier.test(argName) ? void 0 : input
+            })
+
+            return rule.expression(...boundInputs)
           }
         }
       }
