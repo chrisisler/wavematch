@@ -2,7 +2,7 @@
   "name": "wavematch",
   "license": "MIT",
   "description": "JS Pattern Matching",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "main": "lib/wavematch.js",
   "module": "es/wavematch.js",
   "files": [
