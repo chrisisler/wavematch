@@ -225,14 +225,7 @@ let zipWith = (f, xs, ys) => wavematch(f, xs, ys)(
 zipWith((x, y) => x + y, [1, 3], [2, 4]) //=> [3, 7]
 ```
 
-```javascript
-wavematch([1, 2].find(n => n === 5))(
-  (value = !undefined) => {
-
-  }
-)
-```
-
-## Roadmap
+## Goals
 
 1. Fix array tests
+2. Write tests for binding `undefined` to underscore-named parameters.
