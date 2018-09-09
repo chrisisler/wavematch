@@ -409,17 +409,14 @@ export function ruleMatchesArrayInput(
  * tryGetParentClassName(new A()) //=> null
  */
 export function tryGetParentClassName(instance: any | void): string | void {
-  // TODO: If `Symbol` exists then the result of Object.prototype.toString.call
+  // Note: If `Symbol` exists then the result of Object.prototype.toString.call
   // can be modified, possibly breaking the logic used for class type checks.
   if (isType('Null', instance) || isType('Undefined', instance)) {
     return
   }
 
-  // Flow (version ^0.66.0) cannot follow the isType() calls unfortunately.
-  // $FlowFixMe
+  // $FlowFixMe - Flow (version ^0.66.0) cannot follow the isType() calls unfortunately.
   const code = instance.constructor.toString()
-  // // TODO: Support subclassing this way (see `demo.js`).
-  // console.log('code is:', code)
 
   if (!code.includes('class') || !code.includes('extends')) {
     return
@@ -570,29 +567,41 @@ export function isPatternAcceptable(
   // wavematch(new Person())(
   //   (x = Person) => 'awesome'
   // )
-  if ('customTypeNames' in reflectedArg) {
-    if (
-      reflectedArg.customTypeNames != null &&
-      reflectedArg.customTypeNames.includes(input.constructor.name)
-    ) {
+  if (
+    'customTypeNames' in reflectedArg &&
+    Array.isArray(reflectedArg.customTypeNames)
+  ) {
+    const inputDataType: string = input.constructor.name
+
+    if (reflectedArg.customTypeNames.includes(inputDataType)) {
       return true
     }
 
-    // derived class matching
+    // sub class matching (see test/custom-type.spec.js)
     const inputParentTypeName: ?string = tryGetParentClassName(input)
-
     if (
-      inputParentTypeName &&
-      reflectedArg.customTypeNames != null &&
+      inputParentTypeName != null &&
+      // $FlowFixMe - Flow thinks `reflectedArg.customTypeNames` may be void 0.
       reflectedArg.customTypeNames.includes(inputParentTypeName)
     ) {
       return true
+    } else if (
+      reflectedArg.pattern != null &&
+      reflectedArg.pattern.toString() !== inputDataType
+    ) {
+      throw ReferenceError(
+        `Out of scope variable name used as pattern: ${reflectedArg.pattern}`
+      )
     }
   }
 
   const pattern: any = reflectedArg.pattern
 
   if (!TYPES.includes(pattern)) {
+    // Improvable: The below if statement checks for native ES6 promises,
+    // not supporting userland solutions like Bluebird or Q. It would be better
+    // if it check for object/function typeof and .then property instead of
+    // just ES6 Promises.
     if (isType('Promise', pattern) && typeof pattern.then === 'function') {
       return true
       // Support promises?

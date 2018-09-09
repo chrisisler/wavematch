@@ -20,7 +20,7 @@ describe('wavematch custom types specification', () => {
     let car = new Car()
 
     eq(wavematch(car)(
-      (car = Car) => accept,
+      (arg = Car) => accept,
       _ => reject
     ), accept)
   })
@@ -31,7 +31,7 @@ describe('wavematch custom types specification', () => {
     let b = new B()
 
     eq(wavematch(b)(
-      (b = B) => accept,
+      (arg = B) => accept,
       _ => reject
     ), accept)
   })
@@ -42,7 +42,7 @@ describe('wavematch custom types specification', () => {
     let b = new B()
 
     eq(wavematch(b)(
-      (b = A) => accept,
+      (arg = A) => accept,
       _ => reject
     ), accept)
   })

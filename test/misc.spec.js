@@ -131,5 +131,13 @@ describe('wavematch miscellaneous specification', () => {
       (_ = willCauseErr) => {}
     )
     assert.throws(fn2)
+
+    let capitalLetter = () => wavematch('qux')(
+      // wavematch thinks variable names used as a default parameter
+      // (as a pattern) is a custom class name when the variable name
+      // starts with acapital letter.
+      (capitalized = NotAClassThisShouldThrow) => {}
+    )
+    assert.throws(capitalLetter)
   })
 })

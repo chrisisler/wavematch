@@ -190,7 +190,8 @@ let matched = wavematch(77)(
 ```javascript
 function fn() {}
 let matched = wavematch('bar')(
-  (arg = fn) => 'hello', // `fn` throws a ReferenceError
+  (arg = fn) => 'hello',
+      // ^^ `fn` throws a ReferenceError
 )
 ```
 
@@ -198,9 +199,11 @@ let matched = wavematch('bar')(
 
 ```javascript
 wavematch({ age: 21.5 })(
-  (obj = { age: Number }) => 'got a number', // invalid JSON5, throws error!
+  (obj = { age: Number }) => 'got a number',
+             // ^^^^^^ Invalid JSON5 here throws the error!
 
-  // Workaround: To extract a prop from an object, use the key name as the argument name.
+  // Workaround: To destructure a property, use the desired key name
+  // (only works for keys that are valid variable names).
   (age = Number) => 'got a number!'
 )
 ```
@@ -209,18 +212,19 @@ wavematch({ age: 21.5 })(
 
 ```javascript
 let zip = (xs, ys) => wavematch(xs, ys)(
-  (xs, ys = []) => [],
-  (xs = [], ys) => [],
+  (_, ys = []) => [],
+  (xs = [], _) => [],
   ([x, ...xs], [y, ...ys]) => [x, y].concat(zip(xs, ys))
 )
 zip(['a', 'b'], [1, 2]) //=> ['a', 1, 'b', 2]
 ```
 
 ```javascript
-let zipWith = (f, xs, ys) => wavematch(f, xs, ys)(
-  (f, xs = [], ys) => [],
-  (f, xs, ys = []) => [],
-  (f, [x, ...xs], [y, ...ys]) => [f(x, y)].concat(zipWith(f, xs, ys))
+let zipWith = (fn, xs, ys) => wavematch(fn, xs, ys)(
+  (_, xs = [], __) => [],
+// ^           ^^ use underscores for variables that don't get used.
+  (_, __, ys = []) => [],
+  (fn, [x, ...xs], [y, ...ys]) => [fn(x, y)].concat(zipWith(fn, xs, ys))
 )
 zipWith((x, y) => x + y, [1, 3], [2, 4]) //=> [3, 7]
 ```
