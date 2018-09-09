@@ -97,11 +97,11 @@ export default function wavematch(...inputs: Array<any>): Function {
           return false
         }
 
-        warning(
-          reflectedArg.argName.length > 1,
-          `Wildcard argument name contains ${reflectedArg.argName.length} ` +
-            'underscore characters. Expected only one underscore.'
-        )
+        // warning(
+        //   reflectedArg.argName.length > 1,
+        //   `Wildcard argument name contains ${reflectedArg.argName.length} ` +
+        //     'underscore characters. Expected only one underscore.'
+        // )
         return ruleIsWildcard(rule)
       })
     )
@@ -130,9 +130,7 @@ export default function wavematch(...inputs: Array<any>): Function {
             //   cache.set(inputs.toString() + rawRules.toString(), calculation)
             // }
 
-            // TODO: Write tests for `boundInputs`.
-            // If arg name is _ then bind void 0 to that arg for the closure:
-            // wavematch(42, 7)((_, n) => _) //=> undefined
+            // If arg name is `_` then bind void 0 to that arg for the closure:
             const boundInputs = inputs.map((input, index) => {
               let { argName } = rule.allReflectedArgs[index]
               return onlyUnderscoresIdentifier.test(argName) ? void 0 : input

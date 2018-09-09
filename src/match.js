@@ -380,18 +380,15 @@ export function ruleMatchesArrayInput(
     } else if (pattern.length > arrayInput.length) {
       return false
     } else if (pattern.length <= arrayInput.length) {
-      // pattern is `[]` but value is not
       if (pattern.length === 0) {
         return false
       }
 
       const thisRuleIsOnlyDestructurer = rules.length === 2
-
       if (thisRuleIsOnlyDestructurer) {
-        if (pattern)
-          return every(pattern, (destructuredArrayValue, index) => {
-            return isEqual(destructuredArrayValue, arrayInput[index])
-          })
+        return every(arrayInput, (inputElement, index) => {
+          return isEqual(pattern[index], inputElement)
+        })
       }
 
       return isEqual(pattern, arrayInput)

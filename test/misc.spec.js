@@ -88,13 +88,48 @@ describe('wavematch miscellaneous specification', () => {
         })
 
         const zip = (xs, ys) => zipWith((x, y) => [x, y], xs, ys)
-        const flat = arr => arr.reduce((xs, x) => xs.concat(x), [])
+        const flattenOnce = arr => arr.reduce((xs, x) => xs.concat(x), [])
 
         assert.deepEqual(
-          flat(zip([1, 2, 3], ['a', 'b', 'c'])),
+          flattenOnce(zip([1, 2, 3], ['a', 'b', 'c'])),
           [1, 'a', 2, 'b', 3, 'c']
         )
       })
     })
+  })
+
+  it('should bind undefined to underscore named parameters', () => {
+    let match = wavematch(1, 2, 3)(
+      (n1, _, n3) => {
+        if (_ === void 0) {
+          return accept
+        }
+      },
+      _ => reject
+    )
+    eq(match, accept)
+
+    let match2 = wavematch(1, 2, 3)(
+      (n1, _, __) => {
+        if (_ === void 0 && __ === void 0) {
+          return accept
+        }
+      },
+      _ => reject
+    )
+    eq(match2, accept)
+  })
+
+  it('should throw for out of scope variables used as pattern', () => {
+    let fn = () => wavematch('foo')(
+      (irrelevant = outOfScopeVarNameWillCauseError) => 42,
+      _ => 147
+    )
+    assert.throws(fn)
+
+    let fn2 = () => wavematch('bar')(
+      (_ = willCauseErr) => {}
+    )
+    assert.throws(fn2)
   })
 })

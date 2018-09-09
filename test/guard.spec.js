@@ -11,14 +11,11 @@ describe('wavematch guard specification', () => {
       _ => reject
     ), accept)
 
-    wavematch({ status: 401 })(
-      (x = $ => $.status > 400) => {
-        console.log('wtf')
-      },
-      _ => {
-        console.log('DEFALUTED')
-      }
+    let m = wavematch({ status: 401 })(
+      (x = $ => $.status > 400) => accept,
+      _ => reject
     )
+    eq(m, accept)
   })
 
   it('should be compatible with constructor matching', () => {

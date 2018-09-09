@@ -81,29 +81,35 @@ describe('wavematch array specification', () => {
     eq(constructorSavesTheDay, accept)
   })
 
-  // TODO decide what this behavior should be
   it('should match arrays with a subset of the elements', () => {
-    console.log('TODO - should match arrays with a subset of the elements')
-    // const threeItems = [1, 2, 3]
+    const threeItems = [1, 2, 3]
 
-    // const one = wavematch(threeItems)(
-    //   (arr = [ 1 ]) => accept,
-    //   _ => reject
-    // )
-    // eq(one, accept)
+    const one = wavematch(threeItems)(
+      (arr = [ 1 ]) => reject,
+      _ => accept
+    )
+    eq(one, accept)
 
-    // const two = wavematch(threeItems)(
-    //   (arr = [1, 2]) => accept,
-    //   _ => reject
-    // )
-    // eq(two, accept)
+    const two = wavematch(threeItems)(
+      (arr = [1, 2]) => reject,
+      _ => accept
+    )
+    eq(two, accept)
 
-    // const oneAndTwo = wavematch(threeItems)(
-    //   (one = [1]) => reject,
-    //   (two = [1, 2]) => reject,
-    //   _ => accept
-    // )
-    // eq(oneAndTwo, accept)
+    const oneAndTwo = wavematch(threeItems)(
+      (one = [1]) => reject,
+      (two = [1, 2]) => reject,
+      _ => accept
+    )
+    eq(oneAndTwo, accept)
+
+    const all = wavematch(threeItems)(
+      (one = [1]) => reject,
+      (two = [1, 2]) => reject,
+      (three = [1, 2, 3]) => accept,
+      _ => reject
+    )
+    eq(all, accept)
   })
 
   it('should match arrays with multiple values', () => {
