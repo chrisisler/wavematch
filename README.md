@@ -210,7 +210,7 @@ zip(['a', 'b'], [1, 2]) //=> ['a', 1, 'b', 2]
 ```
 
 ```javascript
-let zipWith = (fn, xs, ys) => wavematch(fn, xs, ys)(
+let zipWith = wavematch.create(
   (_, xs = [], __) => [],
   (_, __, ys = []) => [],
   (fn, [x, ...xs], [y, ...ys]) => [fn(x, y)].concat(zipWith(fn, xs, ys))
@@ -220,8 +220,8 @@ zipWith((x, y) => x + y, [1, 3], [2, 4]) //=> [3, 7]
 
 *More examples are in the [test](test/) directory.*
 
-## Next
+### Next
 
 - Fix Flow errors
-- Fix TODOs in codebase
-- File issue about RuleExpressions not being able to use rest/spread operator
+- Fix todos in codebase
+- File issue about branch bodies not being able to use rest/spread operator
