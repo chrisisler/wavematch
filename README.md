@@ -1,6 +1,6 @@
-# Wavematch
+## Introduction
 
-> Control flow operator for matching values against patterns.
+Wavematch is a control flow mechanism . It provides a kind of type testing.
 
 ```javascript
 let result = wavematch(random(0, 5))(
@@ -19,7 +19,7 @@ yarn add wavematch
 
 ## Matching Types
 
-Use constructors for type-based matching.
+Use constructors for type-based matching:
 
 ```javascript
 let map = (fn, x) => wavematch(fn, x)(
@@ -33,7 +33,7 @@ map(value => doSomething(value), [ 1 ])
 
 ## Matching Objects
 
-Use plain objects as an argument default to match on object properties.
+Use plain objects as an argument default to match on object properties:
 
 > Objects must be [valid JSON5](https://json5.org/).
 
@@ -57,22 +57,20 @@ assertShape({ foo: 1 })
 assertShape({ foo: {} }) // Error due to `foo` prop not being a Number
 ```
 
-##### Destructure the object using the desired key as the argument name
+<small>Destructure the object using the desired key as the argument name.</small>
 
 ```javascript
 let data = { isDone: false, error: Error() }
 
 wavematch(data)(
-  (obj = { isDone: true }) => {},
-
-  // Destructure happens here via the argument name `isDone`
-  (isDone = true) => {}
+  (obj = { isDone: false }) => neverInvoked(),
+  (isDone = true) => getsInvoked()
 )
 ```
 
 ## Matching Classes
 
-Use custom type constructors to match custom types.
+Use custom type constructors to match custom types:
 
 ```javascript
 class Person {}
@@ -101,7 +99,7 @@ wavematch(carInstance)(
 
 ## Match Guards
 
-Guards are boolean expressions for conditional behavior.
+Guards are boolean expressions for conditional behavior:
 
 ```javascript
 let fib = n => wavematch(n)(
@@ -125,7 +123,7 @@ wavematch(await fetch(url))(
 
 ## Match Unions
 
-Use `|` to match multiple patterns.
+Use `|` to match multiple patterns:
 
 ```javascript
 let value = random(0, 10)
@@ -160,7 +158,7 @@ let parseArgument = arg => wavematch(arg)(
 ## Wildcard Pattern
 
 The wildcard pattern `_` matches all input arguments.
-- Binds `undefined` to the underscore character
+- Binds `undefined` to the parameter
 - Should be the last rule provided
 
 ```javascript
@@ -170,8 +168,6 @@ let number = wavematch(random(0, 100))(
   _                 => 'who knows'
 )
 ```
-
-**More complex examples are included in the [tests](test/) directory.**
 
 ## Limitations
 
@@ -185,7 +181,7 @@ let matched = wavematch(77)(
 )
 ```
 
-> _Workaround:_ If possible, replace the variable with its value.
+> **Fix:** If possible, replace the variable with its value.
 
 ```javascript
 function fn() {}
@@ -195,15 +191,13 @@ let matched = wavematch('bar')(
 )
 ```
 
-> _Workaround:_ If possible, replace the function with an inline arrow function returning a boolean.
+> **Fix:** If possible, replace the function with an arrow function returning a boolean.
 
 ```javascript
 wavematch({ age: 21.5 })(
   (obj = { age: Number }) => 'got a number',
              // ^^^^^^ Invalid JSON5 here throws the error!
-
-  // Workaround: To destructure a property, use the desired key name
-  // (only works for keys that are valid variable names).
+  // Fix: Use desired key name to match and destructure
   (age = Number) => 'got a number!'
 )
 ```
@@ -222,9 +216,10 @@ zip(['a', 'b'], [1, 2]) //=> ['a', 1, 'b', 2]
 ```javascript
 let zipWith = (fn, xs, ys) => wavematch(fn, xs, ys)(
   (_, xs = [], __) => [],
-// ^           ^^ use underscores for variables that don't get used.
   (_, __, ys = []) => [],
   (fn, [x, ...xs], [y, ...ys]) => [fn(x, y)].concat(zipWith(fn, xs, ys))
 )
 zipWith((x, y) => x + y, [1, 3], [2, 4]) //=> [3, 7]
 ```
+
+**More examples are found in the [test](test/) directory.**

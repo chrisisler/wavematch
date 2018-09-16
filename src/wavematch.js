@@ -7,7 +7,12 @@ import isEqual from 'fast-deep-equal'
 
 import type { RuleExpression, ReflectedArg, Rule } from './flow-types'
 import { warning, invariant } from './error'
-import { toRule, ruleIsWildcard, allInputsSatisfyRule } from './match'
+import {
+  toRule,
+  ruleIsWildcard,
+  allInputsSatisfyRule,
+  isPlainObject
+} from './match'
 
 // Avoid calculating the same thing twice
 // let cache: Map<*, $Call<RuleExpression>> = new Map()
@@ -130,8 +135,14 @@ export default function wavematch(...inputs: Array<any>): Function {
             //   cache.set(inputs.toString() + rawRules.toString(), calculation)
             // }
 
-            // If arg name is `_` then bind void 0 to that arg for the closure:
+            // TODO: There has got to be a better way to track which inputs
+            // need to be mutated. Mapping them all is lazy and invites hacks.
             const boundInputs = inputs.map((input, index) => {
+              if (isPlainObject(input) && '__SECRET_MUTATION' in input) {
+                return input.__SECRET_MUTATION
+              }
+
+              // If arg name is `_` then bind void 0 to that arg for the rule:
               let { argName } = rule.allReflectedArgs[index]
               return onlyUnderscoresIdentifier.test(argName) ? void 0 : input
             })

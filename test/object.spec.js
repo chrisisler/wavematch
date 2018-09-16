@@ -4,6 +4,17 @@ const { accept, reject, eq } = require('./shared.js')
 
 // any object can be parsed by wavematch if it is valid json5
 describe('wavematch object specification', () => {
+  it('should bind the destructured property value', () => {
+    wavematch({ foo: 42 })(
+      (foo = Number) => {
+        eq(foo, 42)
+      },
+      _ => {
+        throw Error()
+      }
+    )
+  })
+
   it('should match destructured defaults with exact values', () => {
     const matchedUnary = wavematch({ x: 1, y: 2 })(
       (value = { x: 1, y: 2 }) => accept,

@@ -40,7 +40,7 @@ const TYPES: Array<Function> = [
 ].concat(values(ERROR_TYPES_DICTIONARY))
 
 // Note: no way to tell if an argument is a rest argument (like (...args) => {})
-export function reflectArguments(
+function reflectArguments(
   rawRule: RuleExpression,
   ruleIndex: number
 ): {| allReflectedArgs: Array<ReflectedArg>, body: string |} {
@@ -245,7 +245,7 @@ function ruleMatchesNumberInput(
 }
 
 // when the input value at `valueIndex` is of type Object
-export function ruleMatchesObjectInput(
+function ruleMatchesObjectInput(
   objectInput: Object,
   inputIndex: number,
   rules: Array<Rule>,
@@ -264,6 +264,7 @@ export function ruleMatchesObjectInput(
 
       function pushIfValidSize(pattern) {
         if (isPlainObject(pattern)) {
+          // $FlowFixMe - `pattern` is known to be an object in this block.
           const size = Object.keys(pattern).length
 
           // cannot have more keys than the object we are trying to match
@@ -287,7 +288,9 @@ export function ruleMatchesObjectInput(
   // pattern matches any object: `(arg = Object) => { ... }`
   if (Object === objectPattern) {
     return !bestFitRules.some(b => b.index > ruleIndex)
-  } else if (isType('Object', objectPattern)) {
+  }
+
+  if (isType('Object', objectPattern)) {
     const patternKeys = Object.keys(objectPattern)
 
     if (patternKeys.length === 0) {
@@ -317,30 +320,45 @@ export function ruleMatchesObjectInput(
 
   const reflectedArg = rules[ruleIndex].allReflectedArgs[inputIndex]
 
-  // TODO add forgiveness for mispelling and missed capitalization,
-  //   and provide a warning for it.
+  // This block is where this stuff happens:
+  // wavematch({ title: 'some-title' })(
+  //   (title => String) => {} // Property name gets destructured.
+  // )
+  // TODO: Provide warning for mispelling/miscapitalization of desired prop.
+  //       let fuzzyIncludes = (needle, haystack) => {}
   if (desiredKeys.includes(reflectedArg.argName)) {
-    const anyValueSatisfiesPattern = Object.keys(objectInput).some(
-      (objectInputKey, index) => {
-        const objectInputValue = objectInput[objectInputKey]
+    return desiredKeys.some((inputKey, index) => {
+      const objectInputValue = objectInput[inputKey]
+      const doesMatch: boolean = isPatternAcceptable(
+        rules,
+        ruleIndex,
+        index,
+        objectInputValue,
+        reflectedArg
+      )
 
-        return isPatternAcceptable(
-          rules,
-          ruleIndex,
-          index,
-          objectInputValue,
-          reflectedArg
-        )
+      if (doesMatch) {
+        // Replace object with desired prop value (see wavematch.js):
+        // We want to be able to do `objectInput = objectInputValue` but that
+        // mutation will not be reflected in the calling scope.
+        // See "https://stackoverflow.com/questions/518000".
+        for (let key in objectInput) {
+          if (Object.prototype.hasOwnProperty.call(objectInput, key)) {
+            delete objectInput[key]
+          }
+        }
+
+        objectInput.__SECRET_MUTATION = objectInputValue
       }
-    )
 
-    return anyValueSatisfiesPattern
+      return doesMatch
+    })
   }
 
   return false
 }
 
-export function ruleMatchesArrayInput(
+function ruleMatchesArrayInput(
   arrayInput: Array<mixed>,
   inputIndex: number,
   rules: Array<Rule>,
@@ -408,7 +426,7 @@ export function ruleMatchesArrayInput(
  * tryGetParentClassName(new B()) //=> 'A'
  * tryGetParentClassName(new A()) //=> null
  */
-export function tryGetParentClassName(instance: any | void): string | void {
+function tryGetParentClassName(instance: any | void): string | void {
   // Note: If `Symbol` exists then the result of Object.prototype.toString.call
   // can be modified, possibly breaking the logic used for class type checks.
   if (isType('Null', instance) || isType('Undefined', instance)) {
@@ -434,7 +452,7 @@ export function tryGetParentClassName(instance: any | void): string | void {
 }
 
 // for `reflectArguments` only
-export function reflectPattern(
+function reflectPattern(
   pattern: any, // String type, actually (until `eval`uated or `JSON.parse`d)
   ruleIndex: number, // for error messages
   argIndex: number // for error messages
@@ -537,7 +555,7 @@ export function reflectPattern(
 // isPlainObject(Object.create(null)) //=> false
 // https://github.com/reduxjs/redux/blob/master/src/utils/isPlainObject.js
 // Only used for `isPatternAcceptable()` function in this file.
-function isPlainObject(obj) {
+export function isPlainObject(obj: mixed) {
   if (typeof obj !== 'object' || obj === null) {
     return false
   }
@@ -552,7 +570,7 @@ function isPlainObject(obj) {
 }
 
 // TODO Extract conditionals to a separate function (like Yegor256 says).
-export function isPatternAcceptable(
+function isPatternAcceptable(
   rules: Array<Rule>,
   ruleIndex: number,
   inputIndex: number,
