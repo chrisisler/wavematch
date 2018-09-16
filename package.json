@@ -1,8 +1,8 @@
 {
   "name": "wavematch",
   "license": "MIT",
-  "description": "JS Pattern Matching",
-  "version": "1.0.7",
+  "description": "Functional pattern matching mechanism for control flow",
+  "version": "1.1.0",
   "main": "lib/wavematch.js",
   "module": "es/wavematch.js",
   "files": [
@@ -33,6 +33,9 @@
     "pattern",
     "match",
     "wavematch",
+    "control",
+    "condition",
+    "conditional",
     "case",
     "branch",
     "patterns",

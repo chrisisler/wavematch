@@ -160,3 +160,6 @@ export default function wavematch(...inputs: Array<any>): Function {
     warning(true, 'End of wavematch - unhandled state.')
   }
 }
+
+wavematch.create = (...rawRules: *) => (...inputs: *) =>
+  wavematch(...inputs)(...rawRules)

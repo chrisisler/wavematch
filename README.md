@@ -1,6 +1,8 @@
 ## Introduction
 
-Wavematch is a control flow mechanism . It provides a kind of type testing.
+Wavematch is a control flow mechanism for JavaScript.
+It provides pattern matching, a kind of type testing based on the shape of the input.
+Branches of code are evaluated only if the conditions of the pattern are satisfied.
 
 ```javascript
 let result = wavematch(random(0, 5))(
@@ -17,47 +19,47 @@ let result = wavematch(random(0, 5))(
 yarn add wavematch
 ```
 
-## Matching Types
+## Matching Standard Types
 
 Use constructors for type-based matching:
 
 ```javascript
-let map = (fn, x) => wavematch(fn, x)(
-  (fn, x = Array) => x.map(fn),
-  (fn, x = Object) => Object.values(x).map(fn)
+let map = (fn, value) => wavematch(fn, value)(
+  (fn, arr = Array) => arr.map(fn),
+  (fn, obj = Object) => Object.keys(obj).reduce((result, key) => {
+    result[key] = fn(obj[key], key)
+    return result
+  }, {})
 )
 
-map(value => doSomething(value), { a: 1 })
-map(value => doSomething(value), [ 1 ])
+map(num => num * 2, [ 1, 2, 3 ]) //=> [ 2, 4, 6 ]
+map(val => val.toUpperCase(), { name: 'swift' }) //=> { name: 'SWIFT' }
 ```
 
-## Matching Objects
+## Matching Object Props
 
-Use plain objects as an argument default to match on object properties:
+Use plain objects as a pattern to match against properties of object data:
 
 > Objects must be [valid JSON5](https://json5.org/).
 
 ```javascript
-let obj = {
-  isDone: false,
-  error: Error()
-}
-
-wavematch(obj)(
-  (obj = { isDone: true }) => {}
+wavematch({ isDone: false, error: Error('oh no') })(
+    (obj = { isDone: false }) => {
+      // do stuff
+    }
 )
 ```
 
 ```javascript
 let assertShape = obj => wavematch(obj)(
-  (shape = { foo: Number }) => {}, // no-op function skips the match
+  (shape = { foo: Number }) => {}, // empty function body skips is a no-op/skip
   _ => throw Error()
 )
 assertShape({ foo: 1 })
 assertShape({ foo: {} }) // Error due to `foo` prop not being a Number
 ```
 
-<small>Destructure the object using the desired key as the argument name.</small>
+Destructure the object using the desired key as the argument name:
 
 ```javascript
 let data = { isDone: false, error: Error() }
@@ -68,9 +70,9 @@ wavematch(data)(
 )
 ```
 
-## Matching Classes
+## Matching Class Types
 
-Use custom type constructors to match custom types:
+Use the class name as a pattern to match custom data types:
 
 ```javascript
 class Person {}
@@ -85,15 +87,13 @@ wavematch(new Person())(
 )
 ```
 
-Using function prototypes to define data works too:
-
 ```javascript
 function Car() {}
 
 let carInstance = new Car()
 
 wavematch(carInstance)(
-  (car = Car) => {}
+  (c = Car) => {}
 )
 ```
 
@@ -102,11 +102,8 @@ wavematch(carInstance)(
 Guards are boolean expressions for conditional behavior:
 
 ```javascript
-let fib = n => wavematch(n)(
-
-  // if (n === 0 || n === 1)
+let fib = wavematch.create(
   (n = 0 | 1) => n,
-
   // if (n > 1)
   (n = $ => $ > 1) => fib(n - 1) + fib(n - 2)
 )
@@ -129,7 +126,6 @@ Use `|` to match multiple patterns:
 let value = random(0, 10)
 
 wavematch(value)(
-  // Equivalent to (other === 2 || other === 4 || other === 6)
   (other = 2 | 4 | 6) => {
     console.log('two or four or six!')
   },
@@ -197,7 +193,7 @@ let matched = wavematch('bar')(
 wavematch({ age: 21.5 })(
   (obj = { age: Number }) => 'got a number',
              // ^^^^^^ Invalid JSON5 here throws the error!
-  // Fix: Use desired key name to match and destructure
+  // Fix: Use desired key name to match and destructure:
   (age = Number) => 'got a number!'
 )
 ```
@@ -222,4 +218,10 @@ let zipWith = (fn, xs, ys) => wavematch(fn, xs, ys)(
 zipWith((x, y) => x + y, [1, 3], [2, 4]) //=> [3, 7]
 ```
 
-**More examples are found in the [test](test/) directory.**
+*More examples are in the [test](test/) directory.*
+
+## Next
+
+- Fix Flow errors
+- Fix TODOs in codebase
+- File issue about RuleExpressions not being able to use rest/spread operator
