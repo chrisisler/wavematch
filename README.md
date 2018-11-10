@@ -1,3 +1,5 @@
+> Remember when JavaScript had pattern matching? Me neither, so I made it:
+
 ## Introduction
 
 Wavematch is a control flow mechanism for JavaScript.

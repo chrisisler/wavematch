@@ -46,4 +46,36 @@ describe('wavematch custom types specification', () => {
       _ => reject
     ), accept)
   })
+
+  it.only('should work for multiple rules matching user defined data types', () => {
+    class Coin {}
+    class Penny extends Coin {}
+    class Nickel extends Coin {}
+
+    // let cents = wavematch.create(
+    //   (coin = Penny) => 1,
+    //   (coin = Nickel) => 5,
+    //   _ => reject
+    // )
+
+    // let penny = new Penny()
+    // let pennyMatched = cents(penny)
+    // eq(pennyMatched, 1)
+
+    // let nickel = new Nickel()
+    // let nickelMatched = cents(nickel)
+    // eq(nickelMatched, 5)
+
+    // TODO
+    class UltraCoin extends Coin {}
+
+    let otherCents = wavematch.create(
+      (coin = Penny) => 1,
+      (coin = Coin) => 42, // Any other coin besides Penny
+      _ => reject
+    )
+
+    let match = otherCents(new UltraCoin())
+    eq(match, 42)
+  })
 })

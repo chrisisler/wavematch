@@ -419,21 +419,18 @@ function ruleMatchesArrayInput(
 
 /**
  * For instances of custom types defined using `class Foo extends Bar` syntax.
+ * @throws {Error} If `instance` class does NOT inherit from any super class.
  * @example
- *
  * class A {}
  * class B extends A {}
- * tryGetParentClassName(new B()) //=> 'A'
- * tryGetParentClassName(new A()) //=> null
+ * getParentClassName(new A()) //=> undefined
+ * getParentClassName(new B()) //=> 'A'
  */
-function tryGetParentClassName(instance: any | void): string | void {
-  // Note: If `Symbol` exists then the result of Object.prototype.toString.call
-  // can be modified, possibly breaking the logic used for class type checks.
-  if (isType('Null', instance) || isType('Undefined', instance)) {
+function getParentClassName(instance: any | void): string | void {
+  if (instance == null) {
     return
   }
 
-  // $FlowFixMe - Flow (version ^0.66.0) cannot follow the isType() calls unfortunately.
   const code = instance.constructor.toString()
 
   if (!code.includes('class') || !code.includes('extends')) {
@@ -442,13 +439,13 @@ function tryGetParentClassName(instance: any | void): string | void {
 
   const parts = code.split(/\s+/).slice(0, 4)
 
+  // Dev Note: This is more of an "unreachable" than an "invariant".
   invariant(
     parts[2] !== 'extends',
-    `Expected "class Foo extends Bar". Found "${parts.join(' ')}"`
+    `Expected \`class Foo extends Bar\`. Found "${parts.join(' ')}"`
   )
 
-  const parentClassName = parts[3]
-  return parentClassName
+  return parts[3]
 }
 
 // for `reflectArguments` only
@@ -474,6 +471,7 @@ function reflectPattern(
   //   Must split then evaluate iteratively.
   if (pattern.includes('|')) {
     const patterns = pattern.split(/\s*\|\s*/)
+
     patterns.forEach(subPattern => {
       // When this function call hits the `if (pattern.includes('|'))` case
       // again, this code will not run. In other words, this recursion happens
@@ -580,36 +578,56 @@ function isPatternAcceptable(
     | ReflectedArg
     | {| customTypeNames?: ?Array<string>, pattern: any |}
 ): boolean {
-  // The following `if` statement handles the custom classes situation, like:
+  // The following `if` statement handles matching against user-defined data:
   // class Person {}
   // wavematch(new Person())(
   //   (x = Person) => 'awesome'
   // )
-  if (
-    'customTypeNames' in reflectedArg &&
-    Array.isArray(reflectedArg.customTypeNames)
-  ) {
-    const inputDataType: string = input.constructor.name
+  const hasCustomTypes = Array.isArray(reflectedArg.customTypeNames)
+  if ('customTypeNames' in reflectedArg && hasCustomTypes) {
+    const inputTypeName: ?string = input.constructor.name
+    // console.log('inputTypeName is:', inputTypeName)
+    // console.log(
+    //   'reflectedArg.customTypeNames is:',
+    //   reflectedArg.customTypeNames
+    // )
 
-    if (reflectedArg.customTypeNames.includes(inputDataType)) {
+    if (reflectedArg.customTypeNames.includes(inputTypeName)) {
       return true
+    } else {
+      reflectedArg.customTypeNames.push(inputTypeName)
     }
 
     // sub class matching (see test/custom-type.spec.js)
-    const inputParentTypeName: ?string = tryGetParentClassName(input)
+    const parentClassName: ?string = getParentClassName(input)
+    // console.log('parentClassName is:', parentClassName)
+
     if (
-      inputParentTypeName != null &&
-      // $FlowFixMe - Flow thinks `reflectedArg.customTypeNames` may be void 0.
-      reflectedArg.customTypeNames.includes(inputParentTypeName)
+      parentClassName != null &&
+      reflectedArg.customTypeNames != null &&
+      reflectedArg.customTypeNames.includes(parentClassName)
     ) {
       return true
     } else if (
       reflectedArg.pattern != null &&
-      reflectedArg.pattern.toString() !== inputDataType
+      reflectedArg.pattern.toString() !== inputTypeName
     ) {
-      throw ReferenceError(
-        `Out of scope variable name used as pattern: ${reflectedArg.pattern}`
-      )
+      // If another rule has a user-defined data type that matches, don't throw
+      const otherRuleMatchesUserDefinedType = rules
+        .filter((_, i) => i !== ruleIndex)
+        .some(rule =>
+          rule.allReflectedArgs.some(
+            ({ customTypeNames }) =>
+              Array.isArray(customTypeNames) &&
+              customTypeNames.includes(inputTypeName)
+          )
+        )
+      // TODO: Put both superclass name and subclass name in `customTypeNames`
+      if (!otherRuleMatchesUserDefinedType) {
+        throw ReferenceError(
+          `Out of scope variable name used as pattern: ${reflectedArg.pattern}`
+        )
+      }
     }
   }
 
@@ -628,7 +646,8 @@ function isPatternAcceptable(
       // )
     } else if (isType('Function', pattern)) {
       // `pattern` may be a match guard
-      const guardResult: any = pattern(input)
+      const predicate: Function = pattern
+      const guardResult: boolean = predicate(input)
 
       invariant(
         !isType('Boolean', guardResult),
@@ -680,7 +699,12 @@ function isPatternAcceptable(
     return true
   }
 
-  if (isType('Function', input) || isType('GeneratorFunction', input)) {
+  // getType(input).includes('Function') ???
+  if (
+    isType('Function', input) ||
+    isType('GeneratorFunction', input) ||
+    isType('AsyncFunction', input)
+  ) {
     if (Function === pattern) {
       return true
     }

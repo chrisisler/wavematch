@@ -7,6 +7,8 @@ export function isType(constructor: string, value: any): boolean {
   return getType(value) === `[object ${constructor}]`
 }
 
+// Note: If `Symbol` exists then the result of Object.prototype.toString.call
+// can be modified, possibly breaking the logic used for class type checks.
 export function getType(value: any): string {
   return Object.prototype.toString.call(value)
 }

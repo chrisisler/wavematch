@@ -16,11 +16,12 @@ import {
 
 const onlyUnderscoresIdentifier = /\b_+\b/
 
+// let cache = new Map()
+
 export default function wavematch(...inputs: Array<any>): Function {
   invariant(
     inputs.length === 0,
-    'Please supply at least one argument to ' +
-      'match function. Cannot match on zero parameters.'
+    'Please supply at least one argument. Cannot match on zero parameters.'
   )
 
   return function(...rawRules: Array<RuleExpression>): $Call<RuleExpression> {
@@ -33,14 +34,20 @@ export default function wavematch(...inputs: Array<any>): Function {
 
     const rules: Array<Rule> = rawRules.map(toRule)
 
+    // DEV: Caching
+    // const cacheKey = JSON.stringify({ rules, inputs })
+    // if (cache.has(cacheKey)) {
+    //   console.log('hit!')
+    //   return cache.get(cacheKey)
+    // }
+
+    // Invariant: Cannot destructure undefined
     inputs.forEach((input: any, inputIndex) => {
       rules.forEach((rule: Rule, ruleIndex) => {
         if (ruleIsWildcard(rule) || inputIndex >= rule.arity) {
           return
         }
-
         const reflectedArg: ReflectedArg = rule.allReflectedArgs[inputIndex]
-
         invariant(
           reflectedArg.isDestructured === true && input === void 0,
           `Rule at index ${ruleIndex} attempts to destructure an ` +
@@ -49,6 +56,7 @@ export default function wavematch(...inputs: Array<any>): Function {
       })
     })
 
+    // Warning: Duplicate rule
     const duplicateRuleIndexes: Array<number> = rules
       .filter(rule => !rule.allReflectedArgs.some(args => args.isDestructured))
       .reduce((reduced, rule, index, filtered) => {
@@ -57,21 +65,17 @@ export default function wavematch(...inputs: Array<any>): Function {
             index !== otherIndex &&
             isEqual(otherRule.allReflectedArgs, rule.allReflectedArgs)
         )
-
         if (duplicateRuleIndex !== -1) {
           reduced.push(index)
         }
-
         return reduced
       }, [])
-
     warning(
       duplicateRuleIndexes.length !== 0,
       `Duplicate rules found at indexes ${duplicateRuleIndexes.join(' and ')}`
     )
 
     const indexOfRuleOverArity = rules.findIndex(r => r.arity > inputs.length)
-
     if (indexOfRuleOverArity !== -1) {
       warning(
         true,
@@ -89,7 +93,6 @@ export default function wavematch(...inputs: Array<any>): Function {
         if (!reflectedArg.argName.includes('_')) {
           return false
         }
-
         return ruleIsWildcard(rule)
       })
     )
@@ -124,6 +127,9 @@ export default function wavematch(...inputs: Array<any>): Function {
               return onlyUnderscoresIdentifier.test(argName) ? void 0 : input
             })
 
+            // const cacheValue = rule.expression(...boundInputs)
+            // cache.set(rule.body, cacheValue)
+            // return cacheValue
             return rule.expression(...boundInputs)
           }
         }
@@ -131,6 +137,10 @@ export default function wavematch(...inputs: Array<any>): Function {
     }
 
     if (indexOfWildcardRule !== -1) {
+      // const cacheValue = rules[indexOfWildcardRule].expression()
+      // cache.set(cacheKey, cacheValue)
+      // return cacheValue
+
       return rules[indexOfWildcardRule].expression()
     }
 
