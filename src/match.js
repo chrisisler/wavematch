@@ -49,6 +49,7 @@ function reflectArguments(
 
   if (parsed.args.length === 0) {
     const reflectedArguments: Array<ReflectedArg> = []
+    // $FlowFixMe - This is an actual problem. But it works fine for now.
     return reflectedArguments
   }
 
@@ -290,49 +291,15 @@ function ruleMatchesObjectInput(
     return !bestFitRules.some(b => b.index > ruleIndex)
   }
 
-  if (isType('Object', objectPattern)) {
-    const patternKeys = Object.keys(objectPattern)
-
-    if (patternKeys.length === 0) {
-      return isEqual(objectPattern, objectInput)
-    }
-
-    if (patternKeys.length <= inputSize) {
-      // get obj with highest number of keys (hence the name "best fit")
-      const bestFitRule = bestFitRules.sort(
-        (b1, b2) => (b1.size > b2.size ? -1 : 1)
-      )[0]
-
-      // retain only the rules that have the most keys
-      // this may not eliminate any rules, that is okay
-      bestFitRules = bestFitRules.filter(b => b.size >= bestFitRule.size)
-
-      if (bestFitRules.some(b => b.index === ruleIndex)) {
-        return every(patternKeys, (key: string) => {
-          return isEqual(objectPattern[key], objectInput[key])
-        })
-      }
-    } else {
-      // `pattern` has more keys than objectInput (do not warn)
-      return false
-    }
-  }
-
   const reflectedArg = rules[ruleIndex].allReflectedArgs[inputIndex]
 
-  // This block is where this stuff happens:
-  // wavematch({ title: 'some-title' })(
-  //   (title => String) => {} // Property name gets destructured.
-  // )
-  // TODO: Provide warning for mispelling/miscapitalization of desired prop.
-  //       let fuzzyIncludes = (needle, haystack) => {}
-  if (desiredKeys.includes(reflectedArg.argName)) {
-    return desiredKeys.some((inputKey, index) => {
+  const argNameMatchesProp = (): boolean => {
+    return desiredKeys.some((inputKey: string, keyIndex) => {
       const objectInputValue = objectInput[inputKey]
       const doesMatch: boolean = isPatternAcceptable(
         rules,
         ruleIndex,
-        index,
+        keyIndex,
         objectInputValue,
         reflectedArg
       )
@@ -353,6 +320,48 @@ function ruleMatchesObjectInput(
 
       return doesMatch
     })
+  }
+
+  if (isType('Object', objectPattern)) {
+    const patternKeys = Object.keys(objectPattern)
+
+    // Matching an empty object?
+    if (patternKeys.length === 0) {
+      return isEqual(objectPattern, objectInput)
+    }
+
+    if (patternKeys.length <= inputSize) {
+      // get obj with highest number of keys (hence the name "best fit")
+      const bestFitRule = bestFitRules.sort(
+        (b1, b2) => (b1.size > b2.size ? -1 : 1)
+      )[0]
+
+      // retain only the rules that have the most keys
+      // this may not eliminate any rules, that is okay
+      bestFitRules = bestFitRules.filter(b => b.size >= bestFitRule.size)
+
+      // Destructuring via arg name?
+      if (desiredKeys.includes(reflectedArg.argName)) {
+        return argNameMatchesProp()
+      } else if (bestFitRules.some(b => b.index === ruleIndex)) {
+        return every(patternKeys, (key: string) => {
+          return isEqual(objectPattern[key], objectInput[key])
+        })
+      }
+    } else {
+      // `pattern` has more keys than objectInput (do not warn)
+      return false
+    }
+  }
+
+  // This block is where this stuff happens (if pattern is not an obj literal):
+  // wavematch({ title: 'some-title' })(
+  //   (title => String) => {} // Property name gets destructured.
+  // )
+  // TODO: Provide warning for mispelling/miscapitalization of desired prop:
+  //       `const fuzzyIncludes = (needle, haystack) => {}`
+  if (desiredKeys.includes(reflectedArg.argName)) {
+    return argNameMatchesProp()
   }
 
   return false
@@ -561,6 +570,7 @@ export function isPlainObject(obj: mixed) {
   let proto = obj
 
   while (Object.getPrototypeOf(proto) !== null) {
+    // $FlowFixMe - This is just not a problem.
     proto = Object.getPrototypeOf(proto)
   }
 
@@ -583,8 +593,10 @@ function isPatternAcceptable(
   // wavematch(new Person())(
   //   (x = Person) => 'awesome'
   // )
-  const hasCustomTypes = Array.isArray(reflectedArg.customTypeNames)
-  if ('customTypeNames' in reflectedArg && hasCustomTypes) {
+  const hasCustomTypes =
+    'customTypeNames' in reflectedArg &&
+    Array.isArray(reflectedArg.customTypeNames)
+  if (hasCustomTypes) {
     const inputTypeName: ?string = input.constructor.name
     // console.log('inputTypeName is:', inputTypeName)
     // console.log(
@@ -592,10 +604,14 @@ function isPatternAcceptable(
     //   reflectedArg.customTypeNames
     // )
 
-    if (reflectedArg.customTypeNames.includes(inputTypeName)) {
-      return true
-    } else {
-      reflectedArg.customTypeNames.push(inputTypeName)
+    if (hasCustomTypes) {
+      // $FlowFixMe - `reflectedArg.customTypeNames` is NOT undefined here
+      if (reflectedArg.customTypeNames.includes(inputTypeName)) {
+        return true
+      } else {
+        // $FlowFixMe - `reflectedArg.customTypeNames` is NOT undefined here
+        reflectedArg.customTypeNames.push(inputTypeName)
+      }
     }
 
     // sub class matching (see test/custom-type.spec.js)
@@ -625,6 +641,7 @@ function isPatternAcceptable(
       // TODO: Put both superclass name and subclass name in `customTypeNames`
       if (!otherRuleMatchesUserDefinedType) {
         throw ReferenceError(
+          // $FlowFixMe - `reflectedArg.pattern` is NOT undefined here
           `Out of scope variable name used as pattern: ${reflectedArg.pattern}`
         )
       }

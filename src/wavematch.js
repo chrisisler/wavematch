@@ -24,6 +24,10 @@ export default function wavematch(...inputs: Array<any>): Function {
     'Please supply at least one argument. Cannot match on zero parameters.'
   )
 
+  // const writeCache = (k, v) => {
+  //   cache.set(k, v)
+  // }
+
   return function(...rawRules: Array<RuleExpression>): $Call<RuleExpression> {
     invariant(
       rawRules.length === 0,

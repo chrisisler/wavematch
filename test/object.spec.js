@@ -204,4 +204,12 @@ describe('wavematch object specification', () => {
     })
 
   })
+
+  it('should destructure a prop and match an object pattern', () => {
+    let m = wavematch({ id: { z: 42 } })(
+      (id = { z: 42 }) => accept,
+      _ => reject
+    )
+    eq(m, accept)
+  })
 })
