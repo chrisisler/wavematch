@@ -186,8 +186,8 @@ describe('wavematch array specification', () => {
     assert.deepEqual(empty([1]), reject)
     assert.deepEqual(empty(['']), reject)
     assert.deepEqual(empty([{}]), reject)
-    assert.deepEqual(empty([[]]), reject)
     assert.deepEqual(empty([() => {}]), reject)
+    assert.deepEqual(empty([[]]), reject)
 
     assert.deepEqual(empty([]), accept)
   })

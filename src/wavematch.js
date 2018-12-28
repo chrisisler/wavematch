@@ -16,17 +16,26 @@ import {
 
 const onlyUnderscoresIdentifier = /\b_+\b/
 
-// let cache = new Map()
+let globalCache = new Map()
+
+function isFunction(x: any): boolean %checks {
+  return typeof x === 'function'
+}
+
+function toString(x: any): string {
+  // prettier-ignore
+  return isFunction(x)
+    ? String(x)
+    : Array.isArray(x)
+      ? x.map(toString)
+      : JSON.stringify(x, null, 2)
+}
 
 export default function wavematch(...inputs: Array<any>): Function {
   invariant(
     inputs.length === 0,
     'Please supply at least one argument. Cannot match on zero parameters.'
   )
-
-  // const writeCache = (k, v) => {
-  //   cache.set(k, v)
-  // }
 
   return function(...rawRules: Array<RuleExpression>): $Call<RuleExpression> {
     invariant(
@@ -36,14 +45,17 @@ export default function wavematch(...inputs: Array<any>): Function {
         '"_ => { /* expression */ }"'
     )
 
-    const rules: Array<Rule> = rawRules.map(toRule)
+    // Caching depends on both the inputs and the rules provided.
+    const key =
+      JSON.stringify(inputs.map(toString), null, 2) +
+      JSON.stringify(rawRules.map(String), null, 2)
+    // console.log('key is:', key)
+    if (globalCache.has(key)) {
+      // console.log('hit', globalCache.get(key))
+      return globalCache.get(key)
+    }
 
-    // DEV: Caching
-    // const cacheKey = JSON.stringify({ rules, inputs })
-    // if (cache.has(cacheKey)) {
-    //   console.log('hit!')
-    //   return cache.get(cacheKey)
-    // }
+    const rules: Array<Rule> = rawRules.map(toRule)
 
     // Invariant: Cannot destructure undefined
     inputs.forEach((input: any, inputIndex) => {
@@ -60,24 +72,24 @@ export default function wavematch(...inputs: Array<any>): Function {
       })
     })
 
-    // Warning: Duplicate rule
-    const duplicateRuleIndexes: Array<number> = rules
-      .filter(rule => !rule.allReflectedArgs.some(args => args.isDestructured))
-      .reduce((reduced, rule, index, filtered) => {
-        const duplicateRuleIndex = filtered.findIndex(
-          (otherRule, otherIndex) =>
-            index !== otherIndex &&
-            isEqual(otherRule.allReflectedArgs, rule.allReflectedArgs)
-        )
-        if (duplicateRuleIndex !== -1) {
-          reduced.push(index)
-        }
-        return reduced
-      }, [])
-    warning(
-      duplicateRuleIndexes.length !== 0,
-      `Duplicate rules found at indexes ${duplicateRuleIndexes.join(' and ')}`
-    )
+    // // Warning: Duplicate rule
+    // const duplicateRuleIndexes: Array<number> = rules
+    //   .filter(rule => !rule.allReflectedArgs.some(args => args.isDestructured))
+    //   .reduce((reduced, rule, index, filtered) => {
+    //     const duplicateRuleIndex = filtered.findIndex(
+    //       (otherRule, otherIndex) =>
+    //         index !== otherIndex &&
+    //         isEqual(otherRule.allReflectedArgs, rule.allReflectedArgs)
+    //     )
+    //     if (duplicateRuleIndex !== -1) {
+    //       reduced.push(index)
+    //     }
+    //     return reduced
+    //   }, [])
+    // warning(
+    //   duplicateRuleIndexes.length !== 0,
+    //   `Duplicate rules found at indexes ${duplicateRuleIndexes.join(' and ')}`
+    // )
 
     const indexOfRuleOverArity = rules.findIndex(r => r.arity > inputs.length)
     if (indexOfRuleOverArity !== -1) {
@@ -131,21 +143,20 @@ export default function wavematch(...inputs: Array<any>): Function {
               return onlyUnderscoresIdentifier.test(argName) ? void 0 : input
             })
 
-            // const cacheValue = rule.expression(...boundInputs)
-            // cache.set(rule.body, cacheValue)
-            // return cacheValue
-            return rule.expression(...boundInputs)
+            const computed = rule.expression(...boundInputs)
+            globalCache.set(key, computed)
+            return computed
+            // return rule.expression(...boundInputs)
           }
         }
       }
     }
 
     if (indexOfWildcardRule !== -1) {
-      // const cacheValue = rules[indexOfWildcardRule].expression()
-      // cache.set(cacheKey, cacheValue)
-      // return cacheValue
-
-      return rules[indexOfWildcardRule].expression()
+      const computed = rules[indexOfWildcardRule].expression()
+      globalCache.set(key, computed)
+      return computed
+      // return rules[indexOfWildcardRule].expression()
     }
 
     warning(true, 'End of wavematch - unhandled state.')
