@@ -48,7 +48,7 @@ describe('wavematch custom types specification', () => {
   })
 
   // TODO
-  // it('should work for multiple rules matching user defined data types', () => {
+  // it.only('should work for multiple rules matching user defined data types', () => {
   //   class Coin {}
   //   class Penny extends Coin {}
   //   class Nickel extends Coin {}

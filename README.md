@@ -244,3 +244,4 @@ zipWith((x, y) => x + y, [1, 3], [2, 4]) //=> [3, 7]
 
 - Fix todos in codebase
 - File issue about branch bodies not being able to use rest/spread operator
+- Fix `custom-type.spec.js` test
