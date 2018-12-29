@@ -49,6 +49,7 @@ function reflectArguments(
 
   if (parsed.args.length === 0) {
     const reflectedArguments: Array<ReflectedArg> = []
+    // $FlowFixMe - This is an actual problem. But it works fine for now.
     return reflectedArguments
   }
 
@@ -290,49 +291,15 @@ function ruleMatchesObjectInput(
     return !bestFitRules.some(b => b.index > ruleIndex)
   }
 
-  if (isType('Object', objectPattern)) {
-    const patternKeys = Object.keys(objectPattern)
-
-    if (patternKeys.length === 0) {
-      return isEqual(objectPattern, objectInput)
-    }
-
-    if (patternKeys.length <= inputSize) {
-      // get obj with highest number of keys (hence the name "best fit")
-      const bestFitRule = bestFitRules.sort(
-        (b1, b2) => (b1.size > b2.size ? -1 : 1)
-      )[0]
-
-      // retain only the rules that have the most keys
-      // this may not eliminate any rules, that is okay
-      bestFitRules = bestFitRules.filter(b => b.size >= bestFitRule.size)
-
-      if (bestFitRules.some(b => b.index === ruleIndex)) {
-        return every(patternKeys, (key: string) => {
-          return isEqual(objectPattern[key], objectInput[key])
-        })
-      }
-    } else {
-      // `pattern` has more keys than objectInput (do not warn)
-      return false
-    }
-  }
-
   const reflectedArg = rules[ruleIndex].allReflectedArgs[inputIndex]
 
-  // This block is where this stuff happens:
-  // wavematch({ title: 'some-title' })(
-  //   (title => String) => {} // Property name gets destructured.
-  // )
-  // TODO: Provide warning for mispelling/miscapitalization of desired prop.
-  //       let fuzzyIncludes = (needle, haystack) => {}
-  if (desiredKeys.includes(reflectedArg.argName)) {
-    return desiredKeys.some((inputKey, index) => {
+  const argNameMatchesProp = (): boolean => {
+    return desiredKeys.some((inputKey: string, keyIndex) => {
       const objectInputValue = objectInput[inputKey]
       const doesMatch: boolean = isPatternAcceptable(
         rules,
         ruleIndex,
-        index,
+        keyIndex,
         objectInputValue,
         reflectedArg
       )
@@ -353,6 +320,48 @@ function ruleMatchesObjectInput(
 
       return doesMatch
     })
+  }
+
+  if (isType('Object', objectPattern)) {
+    const patternKeys = Object.keys(objectPattern)
+
+    // Matching an empty object?
+    if (patternKeys.length === 0) {
+      return isEqual(objectPattern, objectInput)
+    }
+
+    if (patternKeys.length <= inputSize) {
+      // get obj with highest number of keys (hence the name "best fit")
+      const bestFitRule = bestFitRules.sort(
+        (b1, b2) => (b1.size > b2.size ? -1 : 1)
+      )[0]
+
+      // retain only the rules that have the most keys
+      // this may not eliminate any rules, that is okay
+      bestFitRules = bestFitRules.filter(b => b.size >= bestFitRule.size)
+
+      // Destructuring via arg name?
+      if (desiredKeys.includes(reflectedArg.argName)) {
+        return argNameMatchesProp()
+      } else if (bestFitRules.some(b => b.index === ruleIndex)) {
+        return every(patternKeys, (key: string) => {
+          return isEqual(objectPattern[key], objectInput[key])
+        })
+      }
+    } else {
+      // `pattern` has more keys than objectInput (do not warn)
+      return false
+    }
+  }
+
+  // This block is where this stuff happens (if pattern is not an obj literal):
+  // wavematch({ title: 'some-title' })(
+  //   (title => String) => {} // Property name gets destructured.
+  // )
+  // TODO: Provide warning for mispelling/miscapitalization of desired prop:
+  //       `const fuzzyIncludes = (needle, haystack) => {}`
+  if (desiredKeys.includes(reflectedArg.argName)) {
+    return argNameMatchesProp()
   }
 
   return false
@@ -419,21 +428,18 @@ function ruleMatchesArrayInput(
 
 /**
  * For instances of custom types defined using `class Foo extends Bar` syntax.
+ * @throws {Error} If `instance` class does NOT inherit from any super class.
  * @example
- *
  * class A {}
  * class B extends A {}
- * tryGetParentClassName(new B()) //=> 'A'
- * tryGetParentClassName(new A()) //=> null
+ * getParentClassName(new A()) //=> undefined
+ * getParentClassName(new B()) //=> 'A'
  */
-function tryGetParentClassName(instance: any | void): string | void {
-  // Note: If `Symbol` exists then the result of Object.prototype.toString.call
-  // can be modified, possibly breaking the logic used for class type checks.
-  if (isType('Null', instance) || isType('Undefined', instance)) {
+function getParentClassName(instance: any | void): string | void {
+  if (instance == null) {
     return
   }
 
-  // $FlowFixMe - Flow (version ^0.66.0) cannot follow the isType() calls unfortunately.
   const code = instance.constructor.toString()
 
   if (!code.includes('class') || !code.includes('extends')) {
@@ -442,13 +448,13 @@ function tryGetParentClassName(instance: any | void): string | void {
 
   const parts = code.split(/\s+/).slice(0, 4)
 
+  // Dev Note: This is more of an "unreachable" than an "invariant".
   invariant(
     parts[2] !== 'extends',
-    `Expected "class Foo extends Bar". Found "${parts.join(' ')}"`
+    `Expected \`class Foo extends Bar\`. Found "${parts.join(' ')}"`
   )
 
-  const parentClassName = parts[3]
-  return parentClassName
+  return parts[3]
 }
 
 // for `reflectArguments` only
@@ -474,6 +480,7 @@ function reflectPattern(
   //   Must split then evaluate iteratively.
   if (pattern.includes('|')) {
     const patterns = pattern.split(/\s*\|\s*/)
+
     patterns.forEach(subPattern => {
       // When this function call hits the `if (pattern.includes('|'))` case
       // again, this code will not run. In other words, this recursion happens
@@ -563,6 +570,7 @@ export function isPlainObject(obj: mixed) {
   let proto = obj
 
   while (Object.getPrototypeOf(proto) !== null) {
+    // $FlowFixMe - This is just not a problem.
     proto = Object.getPrototypeOf(proto)
   }
 
@@ -580,36 +588,63 @@ function isPatternAcceptable(
     | ReflectedArg
     | {| customTypeNames?: ?Array<string>, pattern: any |}
 ): boolean {
-  // The following `if` statement handles the custom classes situation, like:
+  // The following `if` statement handles matching against user-defined data:
   // class Person {}
   // wavematch(new Person())(
   //   (x = Person) => 'awesome'
   // )
-  if (
+  const hasCustomTypes =
     'customTypeNames' in reflectedArg &&
     Array.isArray(reflectedArg.customTypeNames)
-  ) {
-    const inputDataType: string = input.constructor.name
+  if (hasCustomTypes) {
+    const inputTypeName: ?string = input.constructor.name
+    // console.log('inputTypeName is:', inputTypeName)
+    // console.log(
+    //   'reflectedArg.customTypeNames is:',
+    //   reflectedArg.customTypeNames
+    // )
 
-    if (reflectedArg.customTypeNames.includes(inputDataType)) {
-      return true
+    if (hasCustomTypes) {
+      // $FlowFixMe - `reflectedArg.customTypeNames` is NOT undefined here
+      if (reflectedArg.customTypeNames.includes(inputTypeName)) {
+        return true
+      } else {
+        // $FlowFixMe - `reflectedArg.customTypeNames` is NOT undefined here
+        reflectedArg.customTypeNames.push(inputTypeName)
+      }
     }
 
     // sub class matching (see test/custom-type.spec.js)
-    const inputParentTypeName: ?string = tryGetParentClassName(input)
+    const parentClassName: ?string = getParentClassName(input)
+    // console.log('parentClassName is:', parentClassName)
+
     if (
-      inputParentTypeName != null &&
-      // $FlowFixMe - Flow thinks `reflectedArg.customTypeNames` may be void 0.
-      reflectedArg.customTypeNames.includes(inputParentTypeName)
+      parentClassName != null &&
+      reflectedArg.customTypeNames != null &&
+      reflectedArg.customTypeNames.includes(parentClassName)
     ) {
       return true
     } else if (
       reflectedArg.pattern != null &&
-      reflectedArg.pattern.toString() !== inputDataType
+      reflectedArg.pattern.toString() !== inputTypeName
     ) {
-      throw ReferenceError(
-        `Out of scope variable name used as pattern: ${reflectedArg.pattern}`
-      )
+      // If another rule has a user-defined data type that matches, don't throw
+      const otherRuleMatchesUserDefinedType = rules
+        .filter((_, i) => i !== ruleIndex)
+        .some(rule =>
+          rule.allReflectedArgs.some(
+            ({ customTypeNames }) =>
+              Array.isArray(customTypeNames) &&
+              customTypeNames.includes(inputTypeName)
+          )
+        )
+      // TODO: Put both superclass name and subclass name in `customTypeNames`
+      if (!otherRuleMatchesUserDefinedType) {
+        throw ReferenceError(
+          // $FlowFixMe - `reflectedArg.pattern` is NOT undefined here
+          `Out of scope variable name used as pattern: ${reflectedArg.pattern}`
+        )
+      }
     }
   }
 
@@ -628,7 +663,8 @@ function isPatternAcceptable(
       // )
     } else if (isType('Function', pattern)) {
       // `pattern` may be a match guard
-      const guardResult: any = pattern(input)
+      const predicate: Function = pattern
+      const guardResult: boolean = predicate(input)
 
       invariant(
         !isType('Boolean', guardResult),
@@ -680,7 +716,12 @@ function isPatternAcceptable(
     return true
   }
 
-  if (isType('Function', input) || isType('GeneratorFunction', input)) {
+  // getType(input).includes('Function') ???
+  if (
+    isType('Function', input) ||
+    isType('GeneratorFunction', input) ||
+    isType('AsyncFunction', input)
+  ) {
     if (Function === pattern) {
       return true
     }

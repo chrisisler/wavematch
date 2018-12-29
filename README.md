@@ -1,8 +1,10 @@
+> Remember when JavaScript had pattern matching? Me neither, so I made it:
+
 ## Introduction
 
 Wavematch is a control flow mechanism for JavaScript.
 It provides pattern matching, a kind of type testing based on the shape of the input.
-Branches of code are evaluated only if the conditions of the pattern are satisfied.
+Branches of code are evaluated only if certain conditions are satisfied.
 
 ```javascript
 let result = wavematch(random(0, 5))(
@@ -53,7 +55,7 @@ wavematch({ isDone: false, error: Error('oh no') })(
 ```javascript
 let assertShape = obj => wavematch(obj)(
   (shape = { foo: Number }) => {}, // empty function body skips is a no-op/skip
-  _ => throw Error()
+  _ => { throw Error() }
 )
 assertShape({ foo: 1 })
 assertShape({ foo: {} }) // Error due to `foo` prop not being a Number
@@ -68,6 +70,14 @@ wavematch(data)(
   (obj = { isDone: false }) => neverInvoked(),
   (isDone = true) => getsInvoked()
 )
+```
+
+Destructure the input object via the argument name _and_ match an object pattern:
+
+```javascript
+wavematch({ foo: { bar: 42 } })(
+  (foo = { bar: 42 }) => {}
+  _ => {}
 ```
 
 ## Matching Class Types
@@ -198,6 +208,16 @@ wavematch({ age: 21.5 })(
 )
 ```
 
+```javascript
+wavematch('foo')(
+  (_ = !Array) => {},
+    // ^^^^^^ Cannot use `!` operator
+  // Fix: Use a match guard like so:
+  (_ = $ => !Array.isArray($)) => {},
+  _ => {}
+)
+```
+
 ## Examples
 
 ```javascript
@@ -222,6 +242,6 @@ zipWith((x, y) => x + y, [1, 3], [2, 4]) //=> [3, 7]
 
 ### Next
 
-- Fix Flow errors
 - Fix todos in codebase
 - File issue about branch bodies not being able to use rest/spread operator
+- Fix `custom-type.spec.js` test
