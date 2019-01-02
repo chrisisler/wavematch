@@ -56,8 +56,6 @@ function reflectArguments(
   const allReflectedArgs = parsed.args.map((argName, argIndex) => {
     const isDestructured = argName === false
     const pattern: string = parsed.defaults[argName]
-
-    // DEV: `parsed.body` needs to go on the Rule instance not the ReflectedArg instance.
     const reflectedArg: ReflectedArg = {
       isDestructured: isDestructured,
       argName: isDestructured ? '@@DESTRUCTURED' : argName
@@ -524,6 +522,7 @@ function reflectPattern(
       try {
         pattern = eval(pattern)
       } catch (error) {
+        let word = pattern[0]
         // This `catch` block occurs when a var name is used as a pattern,
         // causing a ReferenceError.
         // The following code MAKES A DANGEROUS ASSUMPTION that the
@@ -531,7 +530,7 @@ function reflectPattern(
         // name/identifier is NOT a class (because class names (Car, Person,
         // Queue, etc.) represent type-matching).
         const identifierOutOfScope = error instanceof ReferenceError
-        const identifierIsUpperCase = pattern[0].toUpperCase() === pattern[0]
+        const identifierIsUpperCase = word.toUpperCase() === word
         if (identifierOutOfScope && identifierIsUpperCase) {
           // checking if the custom type actually matches is not our job here,
           // that's done in `allInputsSatisfyRule`
@@ -539,7 +538,7 @@ function reflectPattern(
         }
 
         invariant(
-          identifierOutOfScope && pattern[0].toLowerCase() === pattern[0],
+          identifierOutOfScope && word.toLowerCase() === word,
           `For pattern at parameter index ${argIndex}, cannot use out of ` +
             `scope variable as default: ${pattern}.\n` +
             `If possible, try replacing the variable with its value.`
@@ -566,14 +565,11 @@ export function isPlainObject(obj: mixed) {
   if (typeof obj !== 'object' || obj === null) {
     return false
   }
-
   let proto = obj
-
   while (Object.getPrototypeOf(proto) !== null) {
     // $FlowFixMe - This is just not a problem.
     proto = Object.getPrototypeOf(proto)
   }
-
   return Object.getPrototypeOf(obj) === proto
 }
 
@@ -598,11 +594,6 @@ function isPatternAcceptable(
     Array.isArray(reflectedArg.customTypeNames)
   if (hasCustomTypes) {
     const inputTypeName: ?string = input.constructor.name
-    // console.log('inputTypeName is:', inputTypeName)
-    // console.log(
-    //   'reflectedArg.customTypeNames is:',
-    //   reflectedArg.customTypeNames
-    // )
 
     if (hasCustomTypes) {
       // $FlowFixMe - `reflectedArg.customTypeNames` is NOT undefined here
@@ -651,19 +642,12 @@ function isPatternAcceptable(
   const pattern: any = reflectedArg.pattern
 
   if (!TYPES.includes(pattern)) {
-    // Improvable: The below if statement checks for native ES6 promises,
-    // not supporting userland solutions like Bluebird or Q. It would be better
-    // if it check for object/function typeof and .then property instead of
-    // just ES6 Promises.
-    if (isType('Promise', pattern) && typeof pattern.then === 'function') {
+    const isNativePromise = isType('Promise', pattern)
+    if (isNativePromise) {
       return true
-      // Support promises?
-      // return pattern.then(promised =>
-      //   isPatternAcceptable(rules, ruleIndex, inputIndex, input, promised)
-      // )
     } else if (isType('Function', pattern)) {
       // `pattern` may be a match guard
-      const predicate: Function = pattern
+      const predicate: any => boolean = pattern
       const guardResult: boolean = predicate(input)
 
       invariant(
@@ -702,6 +686,27 @@ function isPatternAcceptable(
     // return isEqual(pattern, input)
   }
 
+  // wavematch(new Person())(
+  //   (prop = String) => {}
+  // )
+  if (
+    typeof input === 'object' &&
+    input !== null &&
+    !isPlainObject(input) &&
+    reflectedArg.argName &&
+    reflectedArg.argName in input
+  ) {
+    const destructuredProp = input[reflectedArg.argName]
+    input.__SECRET_MUTATION = destructuredProp
+    return isPatternAcceptable(
+      rules,
+      ruleIndex,
+      inputIndex,
+      destructuredProp,
+      reflectedArg
+    )
+  }
+
   if (isPlainObject(input)) {
     return ruleMatchesObjectInput(input, inputIndex, rules, ruleIndex, pattern)
   }
@@ -716,12 +721,7 @@ function isPatternAcceptable(
     return true
   }
 
-  // getType(input).includes('Function') ???
-  if (
-    isType('Function', input) ||
-    isType('GeneratorFunction', input) ||
-    isType('AsyncFunction', input)
-  ) {
+  if (getType(input).includes('Function')) {
     if (Function === pattern) {
       return true
     }

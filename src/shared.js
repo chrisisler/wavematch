@@ -17,8 +17,7 @@ export function getType(value: any): string {
 export function isArrayLike(value: any): boolean {
   return (
     value != null &&
-    !isType('Function', value) &&
-    !isType('GeneratorFunction', value) &&
+    !getType(value).includes('Function') &&
     isType('Number', value.length) &&
     value.length > -1 &&
     value.length % 1 === 0 &&

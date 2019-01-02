@@ -49,9 +49,7 @@ export default function wavematch(...inputs: Array<any>): Function {
     const key =
       JSON.stringify(inputs.map(toString), null, 2) +
       JSON.stringify(rawRules.map(String), null, 2)
-    // console.log('key is:', key)
     if (globalCache.has(key)) {
-      // console.log('hit', globalCache.get(key))
       return globalCache.get(key)
     }
 
@@ -114,39 +112,25 @@ export default function wavematch(...inputs: Array<any>): Function {
     )
 
     for (let ruleIndex = 0; ruleIndex < rules.length; ruleIndex++) {
-      // skip wildcard pattern as it:
-      // 1) might not exist
-      // 2) might not be at the last index like it's supposed to be
       if (ruleIndex !== indexOfWildcardRule) {
         const rule = rules[ruleIndex]
-
         if (rule.arity === inputs.length) {
           if (allInputsSatisfyRule(rule, inputs, ruleIndex, rules)) {
-            // DEV: The problem now is the function body doesn't capture vars
-            // from outside scope. The below example throws ReferenceError.
-            // How do we inject/capture those vars?
-            // let x = 'foo'
-            // wavematch(1)(_ => x)
-            // let argNames = rule.allReflectedArgs.map(_ => _.argName)
-            // $FlowFixMe Flow doesn't know that `...stringArray` type = string
-            // let expressionWithoutDefaults = new Function(...argNames, rule.body)
-            // let calculation = expressionWithoutDefaults(...inputs)
-
-            // TODO: There has got to be a better way to track which inputs
-            // need to be mutated. Mapping them all is lazy and invites hacks.
             const boundInputs = inputs.map((input, index) => {
-              if (isPlainObject(input) && '__SECRET_MUTATION' in input) {
+              if (
+                typeof input === 'object' &&
+                input !== null &&
+                '__SECRET_MUTATION' in input
+              ) {
                 return input.__SECRET_MUTATION
               }
-
-              let { argName } = rule.allReflectedArgs[index]
+              const { argName } = rule.allReflectedArgs[index]
               return onlyUnderscoresIdentifier.test(argName) ? void 0 : input
             })
 
             const computed = rule.expression(...boundInputs)
             globalCache.set(key, computed)
             return computed
-            // return rule.expression(...boundInputs)
           }
         }
       }
@@ -156,7 +140,6 @@ export default function wavematch(...inputs: Array<any>): Function {
       const computed = rules[indexOfWildcardRule].expression()
       globalCache.set(key, computed)
       return computed
-      // return rules[indexOfWildcardRule].expression()
     }
 
     warning(true, 'End of wavematch - unhandled state.')
