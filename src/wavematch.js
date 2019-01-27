@@ -50,6 +50,8 @@ export default function wavematch(...inputs: Array<any>): Function {
       JSON.stringify(inputs.map(toString), null, 2) +
       JSON.stringify(rawRules.map(String), null, 2)
     if (globalCache.has(key)) {
+      // console.log('hit!')
+      // commenting this line out solves the TODO test in `custom-types.spec.js`
       return globalCache.get(key)
     }
 

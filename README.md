@@ -1,9 +1,8 @@
-> Remember when JavaScript had pattern matching? Me neither, so I made it:
+> Wavematch is a control flow mechanism for JavaScript.
 
 ## Introduction
 
-Wavematch is a control flow mechanism for JavaScript.
-It provides pattern matching, a kind of type testing based on the shape of the input.
+Wavematch provides pattern matching, a kind of type testing based on the shape of the input.
 Branches of code are evaluated only if certain conditions are satisfied.
 
 ```javascript
@@ -117,6 +116,7 @@ let fib = wavematch.create(
   // if (n > 1)
   (n = $ => $ > 1) => fib(n - 1) + fib(n - 2)
 )
+fib(7) //=> 13
 ```
 
 ```javascript
@@ -175,6 +175,17 @@ let number = wavematch(random(0, 100))(
 )
 ```
 
+## `wavematch` or `wavematch.create`
+
+Do NOT use `wavematch.create` if you are using a type system. The reason for
+this is because types cannot be assigned to the parameters. Example:
+
+```javascript
+let 
+```
+
+The `wavematch.create` is a shorthand for `(...args) => wavematch(...args)`
+
 ## Limitations
 
 Things that can **not** be done:
@@ -185,9 +196,8 @@ let matched = wavematch(77)(
   (arg = value) => 'a', // `value` throws a ReferenceError
   _ => 'b'
 )
+// Workaround: If possible, replace the variable with its value.
 ```
-
-> **Fix:** If possible, replace the variable with its value.
 
 ```javascript
 function fn() {}
@@ -195,15 +205,14 @@ let matched = wavematch('bar')(
   (arg = fn) => 'hello',
       // ^^ `fn` throws a ReferenceError
 )
+// Workaround: If possible, replace `fn` with an arrow function returning a boolean.
 ```
-
-> **Fix:** If possible, replace the function with an arrow function returning a boolean.
 
 ```javascript
 wavematch({ age: 21.5 })(
   (obj = { age: Number }) => 'got a number',
              // ^^^^^^ Invalid JSON5 here throws the error!
-  // Fix: Use desired key name to match and destructure:
+  // Workaround: Use desired key name to match and destructure:
   (age = Number) => 'got a number!'
 )
 ```
@@ -212,9 +221,12 @@ wavematch({ age: 21.5 })(
 wavematch('foo')(
   (_ = !Array) => {},
     // ^^^^^^ Cannot use `!` operator
-  // Fix: Use a match guard like so:
-  (_ = $ => !Array.isArray($)) => {},
   _ => {}
+)
+// Workaround:
+wavematch('foo')(
+  (x = Array) => {}, // do nothing
+  (x) => { /* `x` is guaranteed NOT to be an Array in this block */ }
 )
 ```
 
@@ -239,6 +251,24 @@ zipWith((x, y) => x + y, [1, 3], [2, 4]) //=> [3, 7]
 ```
 
 *More examples are in the [test](test/) directory.*
+
+## Gotchas
+
+Be mindful of the ordering of your conditions:
+
+```javascript
+let matchFn = wavematch.create(
+  (num = $ => $ < 42) => 'A',
+  (num = $ => $ < 7) => 'B',
+  _ => 'C'
+)
+```
+
+This is a gotcha because the _expected_ behavior is that `matchFn(3)` would
+return `B` because `num` is less than 7. The _actual_ behavior is `matchFn(3)`
+returns `A` because the condition for checking if the input is less than 42 is
+evaluated in the order given, which is before the less-than-7 condition. So, be
+mindful of how the conditions are ordered.
 
 ### Next
 

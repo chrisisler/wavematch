@@ -18,6 +18,24 @@ describe('wavematch guard specification', () => {
     eq(m, accept)
   })
 
+  // See README on `Gotchas` section:
+  it('should depend on branch/condition ordering', () => {
+    let unordered1 = num => wavematch(num)(
+      (n = $ => $ <= 82500) => accept, // wins cause it's first
+      (n = $ => $ <= 38700) => reject,
+      _ => reject
+    )
+
+    let unordered2 = num => wavematch(num)(
+      (n = $ => $ <= 38700) => accept, // wins cause it's first
+      (n = $ => $ <= 82500) => reject,
+      _ => reject
+    )
+
+    eq(unordered1(2), accept)
+    eq(unordered2(2), accept)
+  })
+
   it('should be compatible with constructor matching', () => {
     eq(wavematch(7)(
       (num = 3) => 0,
