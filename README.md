@@ -25,49 +25,40 @@ yarn add wavematch
 Use constructors for type-based matching:
 
 ```javascript
-let map = (fn, value) => wavematch(fn, value)(
-  (fn, arr = Array) => arr.map(fn),
-  (fn, obj = Object) => Object.keys(obj).reduce((result, key) => {
-    result[key] = fn(obj[key], key)
-    return result
-  }, {})
+let typeMatch = id => wavematch(id)(
+  (id = Number) => 'received a number!',
+  (id = String) => 'received a string!',
+  _ => 'something else!'
 )
-
-map(num => num * 2, [ 1, 2, 3 ]) //=> [ 2, 4, 6 ]
-map(val => val.toUpperCase(), { name: 'swift' }) //=> { name: 'SWIFT' }
 ```
 
 ## Matching Object Props
 
-Use plain objects as a pattern to match against properties of object data:
-
-> Objects must be [valid JSON5](https://json5.org/).
+Use plain objects as a pattern to match on properties:
 
 ```javascript
-wavematch({ isDone: false, error: Error('oh no') })(
-    (obj = { isDone: false }) => {
-      // do stuff
-    }
+wavematch({ done: false, rank: 42 })(
+    (obj = { done: false }) => {}
 )
 ```
 
 ```javascript
 let assertShape = obj => wavematch(obj)(
-  (shape = { foo: Number }) => {}, // empty function body skips is a no-op/skip
+  (shape = { foo: Number }) => {}, // skip this case
   _ => { throw Error() }
 )
 assertShape({ foo: 1 })
-assertShape({ foo: {} }) // Error due to `foo` prop not being a Number
+assertShape({ foo: 'str' }) // Error due to type difference
 ```
 
 Destructure the object using the desired key as the argument name:
 
 ```javascript
-let data = { isDone: false, error: Error() }
+let data = { done: false, error: Error() }
 
 wavematch(data)(
-  (obj = { isDone: false }) => neverInvoked(),
-  (isDone = true) => getsInvoked()
+  (obj = { done: false }) => neverInvoked(),
+  (done = true) => getsInvoked()
 )
 ```
 
@@ -78,6 +69,9 @@ wavematch({ foo: { bar: 42 } })(
   (foo = { bar: 42 }) => {}
   _ => {}
 ```
+
+> Note: Objects must be [valid JSON5](https://json5.org/).
+
 
 ## Matching Class Types
 
@@ -175,17 +169,6 @@ let number = wavematch(random(0, 100))(
 )
 ```
 
-## `wavematch` or `wavematch.create`
-
-Do NOT use `wavematch.create` if you are using a type system. The reason for
-this is because types cannot be assigned to the parameters. Example:
-
-```javascript
-let 
-```
-
-The `wavematch.create` is a shorthand for `(...args) => wavematch(...args)`
-
 ## Limitations
 
 Things that can **not** be done:
@@ -270,7 +253,7 @@ returns `A` because the condition for checking if the input is less than 42 is
 evaluated in the order given, which is before the less-than-7 condition. So, be
 mindful of how the conditions are ordered.
 
-### Next
+## Next
 
 - Fix todos in codebase
 - File issue about branch bodies not being able to use rest/spread operator
