@@ -1,9 +1,10 @@
-> Wavematch is a control flow mechanism for JavaScript.
+> *Wavematch is a control flow mechanism for JavaScript.*
 
 ## Introduction
 
-Wavematch provides pattern matching, a kind of type testing based on the shape of the input.
-Branches of code are evaluated only if certain conditions are satisfied.
+Wavematch enables pattern matching.
+It's super declarative.
+A branch of code is executed when specified conditions of the input are satisfied. For example,
 
 ```javascript
 let result = wavematch(random(0, 5))(
@@ -13,6 +14,10 @@ let result = wavematch(random(0, 5))(
   _       => 'otherwise'
 )
 ```
+
+The value of `result` is dependent on which branch of code gets ran when one of
+the conditions are satisfied. If none of the cases meet the user-given
+requirements, the default branch is executed.
 
 ## Install
 
@@ -231,6 +236,17 @@ let zipWith = wavematch.create(
   (fn, [x, ...xs], [y, ...ys]) => [fn(x, y)].concat(zipWith(fn, xs, ys))
 )
 zipWith((x, y) => x + y, [1, 3], [2, 4]) //=> [3, 7]
+```
+
+```javascript
+let unfold = (seed, fn) => wavematch(fn(seed))(
+  (_ = null) => [],
+  ([seed, next]) => [].concat(seed, unfold(next, fn))
+)
+unfold(
+  5,
+  n => n === 0 ? null : [n, n - 1]
+) //=> [ 5, 4, 3, 2, 1 ]
 ```
 
 *More examples are in the [test](test/) directory.*

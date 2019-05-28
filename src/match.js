@@ -607,7 +607,6 @@ function isPatternAcceptable(
 
     // sub class matching (see test/custom-type.spec.js)
     const parentClassName: ?string = getParentClassName(input)
-    // console.log('parentClassName is:', parentClassName)
 
     if (
       parentClassName != null &&
