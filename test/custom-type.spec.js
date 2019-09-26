@@ -47,36 +47,56 @@ describe('wavematch custom types specification', () => {
     ), accept)
   })
 
+  it('should work for destructuring', () => {
+    class Person {
+      constructor() {
+        this.first = 'foo'
+        this.id = 42
+      }
+    }
+
+    let match = wavematch(new Person())(
+      (first = String) => accept,
+      _ => reject
+    )
+    eq(match, accept)
+
+    // this test ensures the inner `id` takes the value of
+    // the destructured prop
+    let id = wavematch(new Person())(
+      (id = $ => $ > 30) => id,
+      _ => 0
+    )
+    eq(id, 42)
+  })
+
   // TODO
   // it.only('should work for multiple rules matching user defined data types', () => {
   //   class Coin {}
   //   class Penny extends Coin {}
   //   class Nickel extends Coin {}
 
-  //   // let cents = wavematch.create(
-  //   //   (coin = Penny) => 1,
-  //   //   (coin = Nickel) => 5,
-  //   //   _ => reject
-  //   // )
-
-  //   // let penny = new Penny()
-  //   // let pennyMatched = cents(penny)
-  //   // eq(pennyMatched, 1)
-
-  //   // let nickel = new Nickel()
-  //   // let nickelMatched = cents(nickel)
-  //   // eq(nickelMatched, 5)
-
-  //   // TODO
-  //   class UltraCoin extends Coin {}
-
-  //   let otherCents = wavematch.create(
+  //   let cents = wavematch.create(
   //     (coin = Penny) => 1,
-  //     (coin = Coin) => 42, // Any other coin besides Penny
+  //     (coin = Nickel) => 5,
   //     _ => reject
   //   )
 
-  //   let match = otherCents(new UltraCoin())
-  //   eq(match, 42)
+  //   let penny = cents(new Penny())
+  //   eq(penny, 1)
+
+  //   let nickel = cents(new Nickel())
+  //   eq(nickel, 5)
+
+  // //   // TODO
+  // //   let otherCents = wavematch.create(
+  // //     (coin = Penny) => 1,
+  // //     (coin = Coin) => 42, // Any other coin besides Penny
+  // //     _ => reject
+  // //   )
+
+  // //   class UltraCoin extends Coin {}
+  // //   let match = otherCents(new UltraCoin())
+  // //   eq(match, 42)
   // })
 })

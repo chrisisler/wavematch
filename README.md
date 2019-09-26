@@ -1,10 +1,10 @@
-> Remember when JavaScript had pattern matching? Me neither, so I made it:
+> *Wavematch is a control flow mechanism for JavaScript.*
 
 ## Introduction
 
-Wavematch is a control flow mechanism for JavaScript.
-It provides pattern matching, a kind of type testing based on the shape of the input.
-Branches of code are evaluated only if certain conditions are satisfied.
+Wavematch enables pattern matching.
+It's super declarative.
+A branch of code is executed when specified conditions of the input are satisfied. For example,
 
 ```javascript
 let result = wavematch(random(0, 5))(
@@ -14,6 +14,10 @@ let result = wavematch(random(0, 5))(
   _       => 'otherwise'
 )
 ```
+
+The value of `result` is dependent on which branch of code gets ran when one of
+the conditions are satisfied. If none of the cases meet the user-given
+requirements, the default branch is executed.
 
 ## Install
 
@@ -26,49 +30,40 @@ yarn add wavematch
 Use constructors for type-based matching:
 
 ```javascript
-let map = (fn, value) => wavematch(fn, value)(
-  (fn, arr = Array) => arr.map(fn),
-  (fn, obj = Object) => Object.keys(obj).reduce((result, key) => {
-    result[key] = fn(obj[key], key)
-    return result
-  }, {})
+let typeMatch = id => wavematch(id)(
+  (id = Number) => 'received a number!',
+  (id = String) => 'received a string!',
+  _ => 'something else!'
 )
-
-map(num => num * 2, [ 1, 2, 3 ]) //=> [ 2, 4, 6 ]
-map(val => val.toUpperCase(), { name: 'swift' }) //=> { name: 'SWIFT' }
 ```
 
 ## Matching Object Props
 
-Use plain objects as a pattern to match against properties of object data:
-
-> Objects must be [valid JSON5](https://json5.org/).
+Use plain objects as a pattern to match on properties:
 
 ```javascript
-wavematch({ isDone: false, error: Error('oh no') })(
-    (obj = { isDone: false }) => {
-      // do stuff
-    }
+wavematch({ done: false, rank: 42 })(
+    (obj = { done: false }) => {}
 )
 ```
 
 ```javascript
 let assertShape = obj => wavematch(obj)(
-  (shape = { foo: Number }) => {}, // empty function body skips is a no-op/skip
+  (shape = { foo: Number }) => {}, // skip this case
   _ => { throw Error() }
 )
 assertShape({ foo: 1 })
-assertShape({ foo: {} }) // Error due to `foo` prop not being a Number
+assertShape({ foo: 'str' }) // Error due to type difference
 ```
 
 Destructure the object using the desired key as the argument name:
 
 ```javascript
-let data = { isDone: false, error: Error() }
+let data = { done: false, error: Error() }
 
 wavematch(data)(
-  (obj = { isDone: false }) => neverInvoked(),
-  (isDone = true) => getsInvoked()
+  (obj = { done: false }) => neverInvoked(),
+  (done = true) => getsInvoked()
 )
 ```
 
@@ -79,6 +74,9 @@ wavematch({ foo: { bar: 42 } })(
   (foo = { bar: 42 }) => {}
   _ => {}
 ```
+
+> Note: Objects must be [valid JSON5](https://json5.org/).
+
 
 ## Matching Class Types
 
@@ -117,6 +115,7 @@ let fib = wavematch.create(
   // if (n > 1)
   (n = $ => $ > 1) => fib(n - 1) + fib(n - 2)
 )
+fib(7) //=> 13
 ```
 
 ```javascript
@@ -185,9 +184,8 @@ let matched = wavematch(77)(
   (arg = value) => 'a', // `value` throws a ReferenceError
   _ => 'b'
 )
+// Workaround: If possible, replace the variable with its value.
 ```
-
-> **Fix:** If possible, replace the variable with its value.
 
 ```javascript
 function fn() {}
@@ -195,15 +193,14 @@ let matched = wavematch('bar')(
   (arg = fn) => 'hello',
       // ^^ `fn` throws a ReferenceError
 )
+// Workaround: If possible, replace `fn` with an arrow function returning a boolean.
 ```
-
-> **Fix:** If possible, replace the function with an arrow function returning a boolean.
 
 ```javascript
 wavematch({ age: 21.5 })(
   (obj = { age: Number }) => 'got a number',
              // ^^^^^^ Invalid JSON5 here throws the error!
-  // Fix: Use desired key name to match and destructure:
+  // Workaround: Use desired key name to match and destructure:
   (age = Number) => 'got a number!'
 )
 ```
@@ -212,9 +209,12 @@ wavematch({ age: 21.5 })(
 wavematch('foo')(
   (_ = !Array) => {},
     // ^^^^^^ Cannot use `!` operator
-  // Fix: Use a match guard like so:
-  (_ = $ => !Array.isArray($)) => {},
   _ => {}
+)
+// Workaround:
+wavematch('foo')(
+  (x = Array) => {}, // do nothing
+  (x) => { /* `x` is guaranteed NOT to be an Array in this block */ }
 )
 ```
 
@@ -238,10 +238,39 @@ let zipWith = wavematch.create(
 zipWith((x, y) => x + y, [1, 3], [2, 4]) //=> [3, 7]
 ```
 
+```javascript
+let unfold = (seed, fn) => wavematch(fn(seed))(
+  (_ = null) => [],
+  ([seed, next]) => [].concat(seed, unfold(next, fn))
+)
+unfold(
+  5,
+  n => n === 0 ? null : [n, n - 1]
+) //=> [ 5, 4, 3, 2, 1 ]
+```
+
 *More examples are in the [test](test/) directory.*
 
-### Next
+## Gotchas
 
-- Fix todos in codebase
-- File issue about branch bodies not being able to use rest/spread operator
-- Fix `custom-type.spec.js` test
+Be mindful of the ordering of your conditions:
+
+```javascript
+let matchFn = wavematch.create(
+  (num = $ => $ < 42) => 'A',
+  (num = $ => $ < 7) => 'B',
+  _ => 'C'
+)
+```
+
+This is a gotcha because the _expected_ behavior is that `matchFn(3)` would
+return `B` because `num` is less than 7. The _actual_ behavior is `matchFn(3)`
+returns `A` because the condition for checking if the input is less than 42 is
+evaluated in the order given, which is before the less-than-7 condition. So, be
+mindful of how the conditions are ordered.
+
+## Development
+
+1. Clone this repository
+1. `yarn` or `npm i`
+1. `yarn build:watch`

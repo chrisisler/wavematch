@@ -192,6 +192,20 @@ describe('wavematch array specification', () => {
     assert.deepEqual(empty([]), accept)
   })
 
+  it('should match recursively', () => {
+    const any = wavematch.create(
+      (_, xs = []) => false,
+      (predicate, [first, ...rest]) =>
+      predicate(first) || any(predicate, rest)
+    )
+
+    const yes = any(x => x === 3, [ 1, 2, 3, 4 ])
+    const no = any(x => x === 3, [ 1, 2, 4 ])
+
+    eq(yes, true)
+    eq(no, false)
+  })
+
   // TODO: should not work with Boolean pattern
   // it('should not work with Boolean pattern', () => {
   //   let matched = wavematch([1])(
@@ -214,8 +228,6 @@ describe('wavematch array specification', () => {
   //   const elements = [array, fn, number, string]
 
   //   elements.forEach(element => {
-  //     console.log('element is:', element)
-
   //     const matchElement = wavematch(element)(
   //       new Function(`arg = [${element}]`, `return "${accept}"`),
   //       (arg = Array) => reject,

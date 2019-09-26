@@ -2,7 +2,7 @@
   "name": "wavematch",
   "license": "MIT",
   "description": "Pattern matching control flow mechanism.",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "main": "lib/wavematch.js",
   "module": "es/wavematch.js",
   "files": [
