@@ -48,7 +48,7 @@ export default function wavematch(...inputs: Array<any>): Function {
     // Caching depends on both the inputs and the rules provided.
     const key =
       JSON.stringify(inputs.map(toString), null, 2) +
-      JSON.stringify(rawRules.map(String), nul, 2)
+      JSON.stringify(rawRules.map(String), null, 2)
     if (globalCache.has(key)) {
       return globalCache.get(key)
     }

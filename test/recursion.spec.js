@@ -9,7 +9,7 @@ describe('wavematch recursion specification', () => {
 
   it('should work for recursive Math.max definition', () => {
     const max = wavematch.create(
-      (xs = []) => throw Error('Empty list'),
+      (xs = []) => { throw Error('Empty list') },
       (xs = $ => $.length === 1) => xs[0],
       ([first, ...rest]) => {
         let maxRest = max(rest)
