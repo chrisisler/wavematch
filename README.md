@@ -269,8 +269,8 @@ returns `A` because the condition for checking if the input is less than 42 is
 evaluated in the order given, which is before the less-than-7 condition. So, be
 mindful of how the conditions are ordered.
 
-## Next
+## Development
 
-- Fix todos in codebase
-- File issue about branch bodies not being able to use rest/spread operator
-- Fix `custom-type.spec.js` test
+1. Clone this repository
+1. `yarn` or `npm i`
+1. `yarn build:watch`
