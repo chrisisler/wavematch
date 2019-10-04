@@ -1,13 +1,63 @@
-/**
- * @flow
- * @prettier
- */
-
 import JSON5 from 'json5'
 import isEqual from 'fast-deep-equal'
 import makeFunctionParse from 'parse-function'
 let functionParse = makeFunctionParse().parse
 
+// XXX Use a flag or sum type to represent missing values as requried fields
+interface ReflectedArg {
+  argName: string,
+  isDestructured: boolean,
+  /**
+   * The default parameter of a given Rule.
+   */
+  pattern?: any,
+  /**
+   * for matching custom types (like 'Person' or 'Car')
+   * if this key is present then so is either `.pattern` or `.subPattern`
+   */
+  customTypeNames?: string[],
+  /**
+   * Patterns can be unions of patterns, like an OR expression:
+   * wavematch(random(0, 5))(
+   *   (n = 1 | 3 | 5) => 'odd!',
+   *   _ => 'even!'
+   * )
+   * If `subPatterns` is present on the instance, then `patterns` is not.
+   */
+  subPatterns?: unknown[]
+}
+
+type RuleExpression = (...args: unknown[]) => unknown
+
+interface Rule {
+  allReflectedArgs: ReflectedArg[],
+  /**
+   * The length of `allReflectedArgs`
+   */
+  arity: number,
+  /**
+   * The body of a given rule - this is a callable function.
+   */
+  expression: RuleExpression,
+  /**
+   * the body of a given rule represented as a string
+   * only used for warning about avoiding duplicate rules (I think)
+   */
+  body: string
+}
+
+/**
+ * A bound version of Object#hasOwnProperty.
+ * This function acts as a typeguard.
+ */
+const has: <K extends string | number | symbol, V = unknown>(
+  object: unknown,
+  key: K
+) => object is { [A in K]: V } & typeof object = Function.call.bind(Object.prototype.hasOwnProperty)
+
+/**
+ * The runtime environment global.
+ */
 const DEV = process.env.NODE_ENV !== 'production'
 
 function isType(constructor: string, value: any): boolean {
@@ -44,17 +94,15 @@ function isFloat(value: any): boolean {
  * The same as `Array#every` except this function returns false when the input
  * array is empty.
  */
-function every(
-  values: Array<any>,
-  predicate: (any, number, Array<any>) => boolean
+function every<T>(
+  values: T[],
+  predicate: (a: T, b: number, c: T[]) => boolean
 ): boolean {
   const length = values == null ? 0 : values.length
-  let index = -1
-
   if (length === 0) {
     return false
   }
-
+  let index = -1
   while (++index < length) {
     if (!predicate(values[index], index, values)) {
       return false
@@ -64,19 +112,18 @@ function every(
   return true
 }
 
-const ERROR_TYPES_DICTIONARY = {
-  EvalError: EvalError,
-  RangeError: RangeError,
-  ReferenceError: ReferenceError,
-  SyntaxError: SyntaxError,
-  TypeError: TypeError,
-  URIError: URIError,
-  Error: Error
-}
+const errorConstructors: Function[] = [
+   EvalError,
+   RangeError,
+   ReferenceError,
+   SyntaxError,
+   TypeError,
+   URIError,
+   Error
+]
 
-const values = obj => Object.keys(obj).map(key => obj[key])
-
-const TYPES: Array<Function> = [
+const TYPES: Function[] = [
+  ...errorConstructors,
   Object,
   Boolean,
   Number,
@@ -89,24 +136,29 @@ const TYPES: Array<Function> = [
   Map,
   Symbol,
   Proxy
-].concat(values(ERROR_TYPES_DICTIONARY))
+]
 
 // Note: no way to tell if an argument is a rest argument (like (...args) => {})
 function reflectArguments(
   rawRule: RuleExpression,
   ruleIndex: number
-): {| allReflectedArgs: Array<ReflectedArg>, body: string |} {
-  type Parsed = { args: Array<string>, defaults: Object, body: string }
+): { allReflectedArgs: Array<ReflectedArg>, body: string } {
+  type Parsed = { args: Array<string>, defaults: object, body: string }
   const parsed: Parsed = functionParse(rawRule)
 
   if (parsed.args.length === 0) {
-    const reflectedArguments: Array<ReflectedArg> = []
+    const reflectedArguments: ReflectedArg[] = []
     // $FlowFixMe - This is an actual problem. But it works fine for now.
-    return reflectedArguments
+    // XXX commented out
+    // return reflectedArguments
+    return {
+      allReflectedArgs: [],
+      body: parsed.body
+    }
   }
 
   const allReflectedArgs = parsed.args.map((argName, argIndex) => {
-    const isDestructured = argName === false
+    const isDestructured = argName === 'false';
     const pattern: string = parsed.defaults[argName]
     const reflectedArg: ReflectedArg = {
       isDestructured: isDestructured,
@@ -124,7 +176,7 @@ function reflectArguments(
       argIndex
     )
 
-    let optionalProps = {}
+    let optionalProps: Pick<ReflectedArg, 'customTypeNames' | 'pattern' | 'subPatterns'> = {}
 
     if (customTypeNames.length) {
       optionalProps.customTypeNames = customTypeNames
@@ -136,8 +188,7 @@ function reflectArguments(
       optionalProps.pattern = evaulatedPattern
     }
 
-    const r: ReflectedArg = Object.assign({}, reflectedArg, optionalProps)
-    return r
+    return { ...reflectedArg, optionalProps }
   })
 
   return {
@@ -297,16 +348,16 @@ function ruleMatchesNumberInput(
 
 // when the input value at `valueIndex` is of type Object
 function ruleMatchesObjectInput(
-  objectInput: Object,
+  objectInput: object,
   inputIndex: number,
   rules: Array<Rule>,
   ruleIndex: number,
-  objectPattern: Object
+  objectPattern: Object | object
 ): boolean {
   const desiredKeys = Object.keys(objectInput)
   const inputSize = desiredKeys.length
 
-  type BestFitRules = Array<{| +index: number, +size: number |}> //
+  type BestFitRules = { index: number, size: number }[]
   let bestFitRules: BestFitRules = rules.reduce(
     (reduced: BestFitRules, rule: Rule, index: number) => {
       if (ruleIsWildcard(rule)) return reduced // skip
@@ -333,7 +384,7 @@ function ruleMatchesObjectInput(
 
       return reduced
     },
-    ([]: BestFitRules)
+    ([] as BestFitRules)
   )
 
   // pattern matches any object: `(arg = Object) => { ... }`
@@ -344,7 +395,7 @@ function ruleMatchesObjectInput(
   const reflectedArg = rules[ruleIndex].allReflectedArgs[inputIndex]
 
   const argNameMatchesProp = (): boolean => {
-    return desiredKeys.some((inputKey: string, keyIndex) => {
+    return desiredKeys.some((inputKey, keyIndex) => {
       const objectInputValue = objectInput[inputKey]
       const doesMatch: boolean = isPatternAcceptable(
         rules,
@@ -365,7 +416,7 @@ function ruleMatchesObjectInput(
           }
         }
 
-        objectInput.__SECRET_MUTATION = objectInputValue
+        (objectInput as any).__SECRET_MUTATION = objectInputValue
       }
 
       return doesMatch
@@ -418,7 +469,7 @@ function ruleMatchesObjectInput(
 }
 
 function ruleMatchesArrayInput(
-  arrayInput: Array<mixed>,
+  arrayInput: Array<unknown>,
   inputIndex: number,
   rules: Array<Rule>,
   ruleIndex: number,
@@ -485,15 +536,15 @@ function ruleMatchesArrayInput(
  * getParentClassName(new A()) //=> undefined
  * getParentClassName(new B()) //=> 'A'
  */
-function getParentClassName(instance: any | void): string | void {
+function getParentClassName(instance: unknown): string | null {
   if (instance == null) {
-    return
+    return null
   }
 
   const code = instance.constructor.toString()
 
   if (!code.includes('class') || !code.includes('extends')) {
-    return
+    return null
   }
 
   const parts = code.split(/\s+/).slice(0, 4)
@@ -512,11 +563,11 @@ function reflectPattern(
   pattern: any, // String type, actually (until `eval`uated or `JSON.parse`d)
   ruleIndex: number, // for error messages
   argIndex: number // for error messages
-): {|
+): {
   customTypeNames: Array<string>,
   subPatterns: Array<any>,
   evaulatedPattern: any
-|} {
+} {
   let customTypeNames = []
   let subPatterns = []
 
@@ -606,20 +657,21 @@ function reflectPattern(
   }
 }
 
-// isPlainObject(new MyClass()) //=> false
-// isPlainObject([]) //=> false
-// isPlainObject({}) //=> true
-// isPlainObject({ x: 2 }) //=> true
-// isPlainObject(Object.create(null)) //=> false
-// https://github.com/reduxjs/redux/blob/master/src/utils/isPlainObject.js
-// Only used for `isPatternAcceptable()` function in this file.
-function isPlainObject(obj: mixed) {
+/**
+ * isPlainObject(new MyClass()) //=> false
+ * isPlainObject([]) //=> false
+ * isPlainObject({}) //=> true
+ * isPlainObject({ x: 2 }) //=> true
+ * isPlainObject(Object.create(null)) //=> false
+ * https://github.com/reduxjs/redux/blob/master/src/utils/isPlainObject.js
+ * Only used for `isPatternAcceptable()` function in this file.
+ */
+function isPlainObject(obj: unknown): obj is object {
   if (typeof obj !== 'object' || obj === null) {
     return false
   }
   let proto = obj
   while (Object.getPrototypeOf(proto) !== null) {
-    // $FlowFixMe - This is just not a problem.
     proto = Object.getPrototypeOf(proto)
   }
   return Object.getPrototypeOf(obj) === proto
@@ -627,14 +679,12 @@ function isPlainObject(obj: mixed) {
 
 // TODO Extract conditionals to a separate function (like Yegor256 says).
 function isPatternAcceptable(
-  rules: Array<Rule>,
+  rules: Rule[],
   ruleIndex: number,
   inputIndex: number,
   input: any,
   // ReflectedArg or SubReflectedArg
-  reflectedArg:
-    | ReflectedArg
-    | {| customTypeNames?: ?Array<string>, pattern: any |}
+  reflectedArg: ReflectedArg | { customTypeNames?: string[] | null, pattern: unknown}
 ): boolean {
   // The following `if` statement handles matching against user-defined data:
   // class Person {}
@@ -645,20 +695,18 @@ function isPatternAcceptable(
     'customTypeNames' in reflectedArg &&
     Array.isArray(reflectedArg.customTypeNames)
   if (hasCustomTypes) {
-    const inputTypeName: ?string = input.constructor.name
+    const inputTypeName: string | null = input.constructor.name
 
     if (hasCustomTypes) {
-      // $FlowFixMe - `reflectedArg.customTypeNames` is NOT undefined here
       if (reflectedArg.customTypeNames.includes(inputTypeName)) {
         return true
       } else {
-        // $FlowFixMe - `reflectedArg.customTypeNames` is NOT undefined here
         reflectedArg.customTypeNames.push(inputTypeName)
       }
     }
 
     // sub class matching (see test/custom-type.spec.js)
-    const parentClassName: ?string = getParentClassName(input)
+    const parentClassName: string | null = getParentClassName(input)
 
     if (
       parentClassName != null &&
@@ -690,7 +738,7 @@ function isPatternAcceptable(
     }
   }
 
-  const pattern: any = reflectedArg.pattern
+  const pattern = reflectedArg.pattern
 
   if (!TYPES.includes(pattern)) {
     const isNativePromise = isType('Promise', pattern)
@@ -698,7 +746,7 @@ function isPatternAcceptable(
       return true
     } else if (isType('Function', pattern)) {
       // `pattern` may be a match guard
-      const predicate: any => boolean = pattern
+      const predicate: (value: unknown) => boolean = pattern
       const guardResult: boolean = predicate(input)
 
       invariant(
@@ -741,11 +789,9 @@ function isPatternAcceptable(
   //   (prop = String) => {}
   // )
   if (
-    typeof input === 'object' &&
-    input !== null &&
     !isPlainObject(input) &&
-    reflectedArg.argName &&
-    reflectedArg.argName in input
+    has(reflectedArg, 'argName') &&
+    has(input, reflectedArg.argName)
   ) {
     const destructuredProp = input[reflectedArg.argName]
     input.__SECRET_MUTATION = destructuredProp
@@ -827,8 +873,8 @@ function isPatternAcceptable(
 
     // we know `input` is an Error instance, but what type of error?
     // this is for handling all Error types that are not the base `Error` class
-    return Object.keys(ERROR_TYPES_DICTIONARY).some(errorTypeName => {
-      const errorType: Function = ERROR_TYPES_DICTIONARY[errorTypeName]
+    return Object.keys(errorConstructors).some(errorTypeName => {
+      const errorType: Function = errorConstructors[errorTypeName]
       return errorType === pattern && input.constructor.name === errorTypeName
     })
   }
@@ -861,7 +907,7 @@ function isPatternAcceptable(
 let warned: Set<string> = new Set()
 
 const warning = !DEV
-  ? (condition: boolean, message: string): void => {}
+  ? (_condition: boolean, _message: string): void => {}
   : (condition: boolean, message: string): void => {
       if (!warned.has(message)) {
         if (condition) {
@@ -888,77 +934,29 @@ function invariant(condition: boolean, message: string): void {
   }
 }
 
-type ReflectedArg = $ReadOnly<{
-  // wavematch(x)(
-  //   (argName = pattern) => {}
-  // )
-  argName: string,
-
-  // wavematch(person)(
-  //   ({ name }) => name
-  //   ([ head ]) => head
-  // )
-  isDestructured: boolean,
-
-  // the default parameter of a given Rule
-  // wavematch(x)(
-  //   (argName = pattern) => {}
-  // )
-  pattern?: any,
-
-  // for matching custom types (like 'Person' or 'Car')
-  // if this key is present then so is either `.pattern` or `.subPattern`
-  customTypeNames?: Array<string>,
-
-  // Patterns can be unions of patterns, like an OR expression:
-  // wavematch(random(0, 5))(
-  //   (n = 1 | 3 | 5) => 'odd!',
-  //   _ => 'even!'
-  // )
-  // If `subPatterns` is present on the instance, then `patterns` is not.
-  subPatterns?: Array<?mixed>
-}>
-
-type RuleExpression = (...Array<mixed>) => ?mixed
-
-type Rule = $ReadOnly<{|
-  allReflectedArgs: Array<ReflectedArg>,
-
-  // the length of `allReflectedArgs`
-  arity: number,
-
-  // the body of a given rule - this is a callable function
-  expression: RuleExpression,
-
-  // the body of a given rule represented as a string
-  // only used for warning about avoiding duplicate rules (I think)
-  body: string
-|}>
-
 const onlyUnderscoresIdentifier = /\b_+\b/
 
 let globalCache = new Map()
 
-function isFunction(x: any): boolean %checks {
+function isFunction(x: unknown): boolean {
   return typeof x === 'function'
 }
 
-function toString(x: any): string {
-  // prettier-ignore
+function toString(x: unknown): string {
   return isFunction(x)
     ? String(x)
     : Array.isArray(x)
-      ? x.map(toString)
+      ? String(x.map(toString))
       : JSON.stringify(x, null, 2)
 }
 
-export default function wavematch(...inputs: Array<any>): Function {
+export default function wavematch(...inputs: unknown[]): Function {
   invariant(
     inputs.length === 0,
     'Please supply at least one argument. Cannot match on zero parameters.'
   )
 
-  return function(...rawRules: Array<RuleExpression>): $Call<RuleExpression> {
+  return function(...rawRules: RuleExpression[]): ReturnType<RuleExpression> {
     invariant(
       rawRules.length === 0,
       'Non-exhaustive rules. ' +
@@ -1024,7 +1022,7 @@ export default function wavematch(...inputs: Array<any>): Function {
                 input !== null &&
                 '__SECRET_MUTATION' in input
               ) {
-                return input.__SECRET_MUTATION
+                return (input as any).__SECRET_MUTATION
               }
               const { argName } = rule.allReflectedArgs[index]
               return onlyUnderscoresIdentifier.test(argName) ? void 0 : input
@@ -1048,5 +1046,5 @@ export default function wavematch(...inputs: Array<any>): Function {
   }
 }
 
-wavematch.create = (...rawRules: *) => (...inputs: *) =>
+wavematch.create = (...rawRules: unknown[]) => (...inputs: unknown[]) =>
   wavematch(...inputs)(...rawRules)
