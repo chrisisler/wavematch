@@ -1,7 +1,6 @@
 import JSON5 from 'json5'
 import isEqual from 'fast-deep-equal'
-import makeFunctionParse from 'parse-function'
-let functionParse = makeFunctionParse().parse
+import createParser from 'parse-function'
 
 // XXX Use a flag or sum type to represent missing values as requried fields
 interface ReflectedArg {
@@ -27,8 +26,6 @@ interface ReflectedArg {
   subPatterns?: unknown[]
 }
 
-type RuleExpression = (...args: unknown[]) => unknown
-
 interface Rule {
   allReflectedArgs: ReflectedArg[]
   /**
@@ -45,6 +42,10 @@ interface Rule {
    */
   body: string
 }
+
+type RuleExpression = (...args: unknown[]) => unknown
+
+const { parse } = createParser()
 
 /**
  * A bound version of Object#hasOwnProperty.
@@ -74,7 +75,78 @@ const isType = (constructor: string, value: unknown): boolean =>
  * Note: If `Symbol` exists then the result of Object.prototype.toString.call
  * can be modified, possibly breaking the logic used for class type checks.
  */
-const getType = (value: any): string => Object.prototype.toString.call(value)
+const getType = (value: unknown): string =>
+  Object.prototype.toString.call(value)
+
+const onlyUnderscoresIdentifier = /\b_+\b/
+
+const globalCache = new Map()
+
+/**
+ * Keeps track of warning messages which have already occurred in order to
+ * prevent duplicates from being printed more than once.
+ */
+let warned: Set<string> = new Set()
+
+const warning = !DEV
+  ? (_condition: boolean, _message: string): void => {}
+  : (condition: boolean, message: string): void => {
+      if (!warned.has(message)) {
+        if (condition) {
+          // Do not repeat warning
+          warned.add(message)
+
+          if (typeof console !== 'undefined') {
+            message = message.endsWith('.') ? message : message + '.'
+            console.warn('Warning: ' + message)
+          }
+
+          try {
+            // This error was thrown as a convenience so that you can use this stack
+            // to find the callsite that caused this warning to fire.
+            throw Error(message)
+          } catch (error) {}
+        }
+      }
+    }
+
+const errorConstructors: Function[] = [
+  EvalError,
+  RangeError,
+  ReferenceError,
+  SyntaxError,
+  TypeError,
+  URIError,
+  Error
+]
+
+const constructors: Function[] = [
+  ...errorConstructors,
+  Object,
+  Boolean,
+  Number,
+  Function,
+  Array,
+  String,
+  RegExp,
+  Date,
+  Set,
+  Map,
+  Symbol,
+  Proxy
+]
+
+const ruleIsWildcard = (rule: Rule): boolean => {
+  return (
+    rule.allReflectedArgs.some(
+      arg =>
+        arg.argName === '_' &&
+        arg.isDestructured === false &&
+        !has(arg, 'pattern') &&
+        !has(arg, 'subPatterns')
+    ) && rule.arity === 1
+  )
+}
 
 /**
  * Note: Returns true for strings.
@@ -116,32 +188,6 @@ function every<T>(
   return true
 }
 
-const errorConstructors: Function[] = [
-  EvalError,
-  RangeError,
-  ReferenceError,
-  SyntaxError,
-  TypeError,
-  URIError,
-  Error
-]
-
-const TYPES: Function[] = [
-  ...errorConstructors,
-  Object,
-  Boolean,
-  Number,
-  Function,
-  Array,
-  String,
-  RegExp,
-  Date,
-  Set,
-  Map,
-  Symbol,
-  Proxy
-]
-
 // Note: no way to tell if an argument is a rest argument (like (...args) => {})
 function reflectArguments(
   rawRule: RuleExpression,
@@ -152,7 +198,7 @@ function reflectArguments(
     defaults: object
     body: string
   }
-  const parsed: Parsed = functionParse(rawRule)
+  const parsed: Parsed = parse(rawRule)
 
   if (parsed.args.length === 0) {
     return {
@@ -230,18 +276,6 @@ function toRule(rawRule: RuleExpression, ruleIndex: number): Rule {
   )
 
   return rule
-}
-
-const ruleIsWildcard = (rule: Rule): boolean => {
-  return (
-    rule.allReflectedArgs.some(
-      arg =>
-        arg.argName === '_' &&
-        arg.isDestructured === false &&
-        !has(arg, 'pattern') &&
-        !has(arg, 'subPatterns')
-    ) && rule.arity === 1
-  )
 }
 
 function allInputsSatisfyRule(
@@ -749,7 +783,7 @@ function isPatternAcceptable(
 
   const pattern = reflectedArg.pattern
 
-  if (!TYPES.includes(pattern)) {
+  if (!constructors.includes(pattern)) {
     const isNativePromise = isType('Promise', pattern)
     if (isNativePromise) {
       return true
@@ -909,43 +943,11 @@ function isPatternAcceptable(
   return false
 }
 
-/**
- * Keeps track of warning messages which have already occurred in order to
- * prevent duplicates from being printed more than once.
- */
-let warned: Set<string> = new Set()
-
-const warning = !DEV
-  ? (_condition: boolean, _message: string): void => {}
-  : (condition: boolean, message: string): void => {
-      if (!warned.has(message)) {
-        if (condition) {
-          // Do not repeat warning
-          warned.add(message)
-
-          if (typeof console !== 'undefined') {
-            message = message.endsWith('.') ? message : message + '.'
-            console.warn('Warning: ' + message)
-          }
-
-          try {
-            // This error was thrown as a convenience so that you can use this stack
-            // to find the callsite that caused this warning to fire.
-            throw Error(message)
-          } catch (error) {}
-        }
-      }
-    }
-
 function invariant(condition: boolean, message: string): void {
   if (condition) {
     throw Error(message)
   }
 }
-
-const onlyUnderscoresIdentifier = /\b_+\b/
-
-let globalCache = new Map()
 
 function isFunction(x: unknown): boolean {
   return typeof x === 'function'
