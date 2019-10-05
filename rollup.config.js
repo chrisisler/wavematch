@@ -1,5 +1,4 @@
 import replace from 'rollup-plugin-replace'
-import babel from 'rollup-plugin-babel'
 import typescript from 'rollup-plugin-typescript'
 
 import pkg from './package.json'
@@ -9,9 +8,6 @@ export default async function() {
   const config = {
     plugins: [
       typescript(),
-      babel({
-        exclude: 'node_modules/**'
-      }),
       replace({
         'process.env.NODE_ENV': JSON.stringify(env)
       })

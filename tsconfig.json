@@ -16,11 +16,10 @@
         "module": "esNext",
         "typeRoots": ["./node_modules/@types"],
         "paths": {
-            "test/*": ["../test/*"],
+            "test/*": ["../test/*"]
         }
     },
     "include": [
-        "src/**/*",
-        "test/**/*"
+        "src/**/*"
     ]
 }

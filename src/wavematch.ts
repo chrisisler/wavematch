@@ -53,7 +53,7 @@ interface Rule {
 const has: <K extends string | number | symbol, V = unknown>(
   object: unknown,
   key: K
-) => object is { [A in K]: V } & typeof object = Function.call.bind(
+) => object is { [A in K]: V } = Function.call.bind(
   Object.prototype.hasOwnProperty
 )
 
@@ -147,14 +147,14 @@ function reflectArguments(
   rawRule: RuleExpression,
   ruleIndex: number
 ): { allReflectedArgs: Array<ReflectedArg>; body: string } {
-  type Parsed = { args: Array<string>; defaults: object; body: string }
+  interface Parsed {
+    args: Array<string>
+    defaults: object
+    body: string
+  }
   const parsed: Parsed = functionParse(rawRule)
 
   if (parsed.args.length === 0) {
-    const reflectedArguments: ReflectedArg[] = []
-    // $FlowFixMe - This is an actual problem. But it works fine for now.
-    // XXX commented out
-    // return reflectedArguments
     return {
       allReflectedArgs: [],
       body: parsed.body
@@ -232,14 +232,14 @@ function toRule(rawRule: RuleExpression, ruleIndex: number): Rule {
   return rule
 }
 
-function ruleIsWildcard(rule: Rule): boolean {
+const ruleIsWildcard = (rule: Rule): boolean => {
   return (
     rule.allReflectedArgs.some(
       arg =>
         arg.argName === '_' &&
-        !('pattern' in arg) &&
-        !('subPatterns' in arg) &&
-        arg.isDestructured === false
+        arg.isDestructured === false &&
+        !has(arg, 'pattern') &&
+        !has(arg, 'subPatterns')
     ) && rule.arity === 1
   )
 }
@@ -371,7 +371,7 @@ function ruleMatchesObjectInput(
 
       const r = rule.allReflectedArgs[inputIndex]
 
-      function pushIfValidSize(pattern) {
+      function pushIfValidSize(pattern: unknown): void {
         if (isPlainObject(pattern)) {
           // $FlowFixMe - `pattern` is known to be an object in this block.
           const size = Object.keys(pattern).length
