@@ -67,8 +67,8 @@
   },
   "dependencies": {
     "fast-deep-equal": "^2.0.1",
-    "json5": "^1.0.1",
-    "parse-function": "^5.2.9"
+    "json5": "^2.1.1",
+    "parse-function": "^5.2.11"
   },
   "prettier": {
     "singleQuote": true,

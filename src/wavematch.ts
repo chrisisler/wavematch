@@ -51,12 +51,11 @@ const { parse } = createParser()
  * A bound version of Object#hasOwnProperty.
  * This function acts as a typeguard.
  */
-const has: <K extends string | number | symbol, V = unknown>(
+type Has = <K extends string | number | symbol, V = unknown>(
   object: unknown,
-  key: K
-) => object is { [A in K]: V } = Function.call.bind(
-  Object.prototype.hasOwnProperty
-)
+  ...keys: K[]
+) => object is { [k in K]: V }
+const has: Has = Function.call.bind(Object.prototype.hasOwnProperty)
 
 /**
  * The runtime environment global.
@@ -543,7 +542,7 @@ function ruleMatchesArrayInput(
     return isType('Array', arrayInput)
   }
 
-  if (isType('Array', pattern)) {
+  if (Array.isArray(pattern)) {
     if (arrayInput.length === 0) {
       return isEqual(pattern, arrayInput)
     } else if (pattern.length > arrayInput.length) {
@@ -582,7 +581,12 @@ function getParentClassName(instance: unknown): string | null {
     return null
   }
 
-  const code = instance.constructor.toString()
+  // XXX optional chaining please!
+  const code =
+    // isPlainObject(instance) &&
+    // has(instance, 'constructor') &&
+    // typeof instance.constructor === 'string' &&
+    instance.constructor.toString()
 
   if (!code.includes('class') || !code.includes('extends')) {
     return null
@@ -740,6 +744,8 @@ function isPatternAcceptable(
   if (hasCustomTypes) {
     const inputTypeName: string | null = input.constructor.name
 
+    // XXX ???
+    // if (inputTypeName) {
     if (hasCustomTypes) {
       if (reflectedArg.customTypeNames.includes(inputTypeName)) {
         return true
