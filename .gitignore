@@ -3,6 +3,8 @@ es
 demo.js
 x.js
 
+.vscode
+
 # Logs
 logs
 *.log

@@ -5,17 +5,17 @@ let functionParse = makeFunctionParse().parse
 
 // XXX Use a flag or sum type to represent missing values as requried fields
 interface ReflectedArg {
-  argName: string,
-  isDestructured: boolean,
+  argName: string
+  isDestructured: boolean
   /**
    * The default parameter of a given Rule.
    */
-  pattern?: any,
+  pattern?: any
   /**
    * for matching custom types (like 'Person' or 'Car')
    * if this key is present then so is either `.pattern` or `.subPattern`
    */
-  customTypeNames?: string[],
+  customTypeNames?: string[]
   /**
    * Patterns can be unions of patterns, like an OR expression:
    * wavematch(random(0, 5))(
@@ -30,15 +30,15 @@ interface ReflectedArg {
 type RuleExpression = (...args: unknown[]) => unknown
 
 interface Rule {
-  allReflectedArgs: ReflectedArg[],
+  allReflectedArgs: ReflectedArg[]
   /**
    * The length of `allReflectedArgs`
    */
-  arity: number,
+  arity: number
   /**
    * The body of a given rule - this is a callable function.
    */
-  expression: RuleExpression,
+  expression: RuleExpression
   /**
    * the body of a given rule represented as a string
    * only used for warning about avoiding duplicate rules (I think)
@@ -53,24 +53,28 @@ interface Rule {
 const has: <K extends string | number | symbol, V = unknown>(
   object: unknown,
   key: K
-) => object is { [A in K]: V } & typeof object = Function.call.bind(Object.prototype.hasOwnProperty)
+) => object is { [A in K]: V } & typeof object = Function.call.bind(
+  Object.prototype.hasOwnProperty
+)
 
 /**
  * The runtime environment global.
  */
 const DEV = process.env.NODE_ENV !== 'production'
 
-function isType(constructor: string, value: any): boolean {
-  return getType(value) === `[object ${constructor}]`
-}
+/**
+ * XXX Use typescript to make this better
+ * @param constructor Like 'Array'
+ * @param value
+ */
+const isType = (constructor: string, value: unknown): boolean =>
+  getType(value) === `[object ${constructor}]`
 
 /**
  * Note: If `Symbol` exists then the result of Object.prototype.toString.call
  * can be modified, possibly breaking the logic used for class type checks.
  */
-function getType(value: any): string {
-  return Object.prototype.toString.call(value)
-}
+const getType = (value: any): string => Object.prototype.toString.call(value)
 
 /**
  * Note: Returns true for strings.
@@ -113,13 +117,13 @@ function every<T>(
 }
 
 const errorConstructors: Function[] = [
-   EvalError,
-   RangeError,
-   ReferenceError,
-   SyntaxError,
-   TypeError,
-   URIError,
-   Error
+  EvalError,
+  RangeError,
+  ReferenceError,
+  SyntaxError,
+  TypeError,
+  URIError,
+  Error
 ]
 
 const TYPES: Function[] = [
@@ -142,8 +146,8 @@ const TYPES: Function[] = [
 function reflectArguments(
   rawRule: RuleExpression,
   ruleIndex: number
-): { allReflectedArgs: Array<ReflectedArg>, body: string } {
-  type Parsed = { args: Array<string>, defaults: object, body: string }
+): { allReflectedArgs: Array<ReflectedArg>; body: string } {
+  type Parsed = { args: Array<string>; defaults: object; body: string }
   const parsed: Parsed = functionParse(rawRule)
 
   if (parsed.args.length === 0) {
@@ -158,7 +162,7 @@ function reflectArguments(
   }
 
   const allReflectedArgs = parsed.args.map((argName, argIndex) => {
-    const isDestructured = argName === 'false';
+    const isDestructured = argName === 'false'
     const pattern: string = parsed.defaults[argName]
     const reflectedArg: ReflectedArg = {
       isDestructured: isDestructured,
@@ -176,7 +180,10 @@ function reflectArguments(
       argIndex
     )
 
-    let optionalProps: Pick<ReflectedArg, 'customTypeNames' | 'pattern' | 'subPatterns'> = {}
+    let optionalProps: Pick<
+      ReflectedArg,
+      'customTypeNames' | 'pattern' | 'subPatterns'
+    > = {}
 
     if (customTypeNames.length) {
       optionalProps.customTypeNames = customTypeNames
@@ -357,7 +364,7 @@ function ruleMatchesObjectInput(
   const desiredKeys = Object.keys(objectInput)
   const inputSize = desiredKeys.length
 
-  type BestFitRules = { index: number, size: number }[]
+  type BestFitRules = { index: number; size: number }[]
   let bestFitRules: BestFitRules = rules.reduce(
     (reduced: BestFitRules, rule: Rule, index: number) => {
       if (ruleIsWildcard(rule)) return reduced // skip
@@ -384,7 +391,7 @@ function ruleMatchesObjectInput(
 
       return reduced
     },
-    ([] as BestFitRules)
+    [] as BestFitRules
   )
 
   // pattern matches any object: `(arg = Object) => { ... }`
@@ -416,7 +423,7 @@ function ruleMatchesObjectInput(
           }
         }
 
-        (objectInput as any).__SECRET_MUTATION = objectInputValue
+        ;(objectInput as any).__SECRET_MUTATION = objectInputValue
       }
 
       return doesMatch
@@ -441,7 +448,7 @@ function ruleMatchesObjectInput(
       // this may not eliminate any rules, that is okay
       bestFitRules = bestFitRules.filter(b => b.size >= bestFitRule.size)
 
-      // Destructuring via arg name?
+      // Destructuring via arg name
       if (desiredKeys.includes(reflectedArg.argName)) {
         return argNameMatchesProp()
       } else if (bestFitRules.some(b => b.index === ruleIndex)) {
@@ -469,11 +476,11 @@ function ruleMatchesObjectInput(
 }
 
 function ruleMatchesArrayInput(
-  arrayInput: Array<unknown>,
+  arrayInput: unknown[],
   inputIndex: number,
-  rules: Array<Rule>,
+  rules: Rule[],
   ruleIndex: number,
-  pattern: any
+  pattern: unknown
 ): boolean {
   if (Array === pattern) {
     // index of a rule that is not this current rule (`rules[ruleIndex]`)
@@ -564,8 +571,8 @@ function reflectPattern(
   ruleIndex: number, // for error messages
   argIndex: number // for error messages
 ): {
-  customTypeNames: Array<string>,
-  subPatterns: Array<any>,
+  customTypeNames: Array<string>
+  subPatterns: Array<any>
   evaulatedPattern: any
 } {
   let customTypeNames = []
@@ -684,7 +691,9 @@ function isPatternAcceptable(
   inputIndex: number,
   input: any,
   // ReflectedArg or SubReflectedArg
-  reflectedArg: ReflectedArg | { customTypeNames?: string[] | null, pattern: unknown}
+  reflectedArg:
+    | ReflectedArg
+    | { customTypeNames?: string[] | null; pattern: unknown }
 ): boolean {
   // The following `if` statement handles matching against user-defined data:
   // class Person {}
@@ -945,9 +954,7 @@ function isFunction(x: unknown): boolean {
 function toString(x: unknown): string {
   return isFunction(x)
     ? String(x)
-    : Array.isArray(x)
-      ? String(x.map(toString))
-      : JSON.stringify(x, null, 2)
+    : Array.isArray(x) ? String(x.map(toString)) : JSON.stringify(x, null, 2)
 }
 
 export default function wavematch(...inputs: unknown[]): Function {

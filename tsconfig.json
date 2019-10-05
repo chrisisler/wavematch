@@ -1,0 +1,26 @@
+{
+    "compileOnSave": false,
+    "compilerOptions": {
+        "baseUrl": "src/",
+        "lib": ["es2017", "dom"],
+        "moduleResolution": "node",
+        "noErrorTruncation": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "allowUnreachableCode": false,
+        "resolveJsonModule": true,
+        "esModuleInterop": true,
+        "sourceMap": true,
+        "strict": true,
+        "target": "es6",
+        "module": "esNext",
+        "typeRoots": ["./node_modules/@types"],
+        "paths": {
+            "test/*": ["../test/*"],
+        }
+    },
+    "include": [
+        "src/**/*",
+        "test/**/*"
+    ]
+}

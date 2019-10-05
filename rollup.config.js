@@ -1,11 +1,14 @@
 import replace from 'rollup-plugin-replace'
 import babel from 'rollup-plugin-babel'
+import typescript from 'rollup-plugin-typescript'
+
 import pkg from './package.json'
 
-export default async function getConfig() {
-  let env = process.env.NODE_ENV
-  let config = {
+export default async function() {
+  const env = process.env.NODE_ENV
+  const config = {
     plugins: [
+      typescript(),
       babel({
         exclude: 'node_modules/**'
       }),
@@ -13,7 +16,7 @@ export default async function getConfig() {
         'process.env.NODE_ENV': JSON.stringify(env)
       })
     ],
-    input: 'src/wavematch.js',
+    input: 'src/wavematch.ts',
     output: [
       {
         file: pkg.main,
@@ -25,26 +28,15 @@ export default async function getConfig() {
       }
     ],
     // tell rollup we depend on external deps
-    external: [
-      ...Object.keys(pkg.dependencies)
-    ],
+    external: [...Object.keys(pkg.dependencies)],
     watch: {
-      include: 'src/**.js',
+      include: 'src/**.ts',
       exclude: 'node_modules/**'
     }
   }
 
-  // if (env === 'development' || env === 'production') {
-  //   config.plugins.push(
-  //     babel({
-  //       exclude: 'node_modules/**'
-  //     })
-  //   )
-  // }
-
-
   if (env === 'production') {
-    let uglify = await import('rollup-plugin-uglify')
+    const uglify = await import('rollup-plugin-uglify')
     config.plugins.push(
       uglify({
         compress: {
