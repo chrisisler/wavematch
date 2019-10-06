@@ -14,12 +14,16 @@
         "strict": true,
         "target": "es6",
         "module": "esNext",
-        "typeRoots": ["./node_modules/@types"],
+        "typeRoots": ["./node_modules/@types", "./dist"],
         "paths": {
             "test/*": ["../test/*"]
         }
     },
     "include": [
-        "src/**/*"
+        "src/**/*",
+        "dist/**/*"
+    ],
+    "exclude": [
+        "node_modules"
     ]
 }

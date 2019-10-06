@@ -1,6 +1,8 @@
-import JSON5 from 'json5'
 import isEqual from 'fast-deep-equal'
+import JSON5 from 'json5'
 import createParser from 'parse-function'
+
+import { invariant, warning } from './shared'
 
 // XXX Use a flag or sum type to represent missing values as requried fields
 interface ReflectedArg {
@@ -9,7 +11,7 @@ interface ReflectedArg {
   /**
    * The default parameter of a given Rule.
    */
-  pattern?: any
+  pattern?: Pattern
   /**
    * for matching custom types (like 'Person' or 'Car')
    * if this key is present then so is either `.pattern` or `.subPattern`
@@ -23,7 +25,12 @@ interface ReflectedArg {
    * )
    * If `subPatterns` is present on the instance, then `patterns` is not.
    */
-  subPatterns?: unknown[]
+  subPatterns?: Pattern[]
+}
+
+interface SubReflectedArg {
+  customTypeNames?: string[] | null
+  pattern: Pattern
 }
 
 interface Rule {
@@ -35,7 +42,7 @@ interface Rule {
   /**
    * The body of a given rule - this is a callable function.
    */
-  expression: RuleExpression
+  expression: Fn
   /**
    * the body of a given rule represented as a string
    * only used for warning about avoiding duplicate rules (I think)
@@ -43,71 +50,73 @@ interface Rule {
   body: string
 }
 
-type RuleExpression = (...args: unknown[]) => unknown
+interface ObjectType {
+  [key: string]: unknown
+}
 
+type Fn = (...args: unknown[]) => unknown
+
+/**
+ * Shapes of inputs that consumers of wavematch will wire together
+ * to select the conditional branch according to how the inputs fit
+ * these given shapes
+ */
+type Pattern =
+  | ObjectType
+  | unknown[]
+  | ((value: unknown) => boolean)
+  | number
+  | string
+  | unknown
+
+/**
+ * XXX Replace with @typescript-eslint/parser-estree
+ */
 const { parse } = createParser()
+
+const isObject = <O extends ObjectType>(arg: unknown): arg is O =>
+  typeof arg === 'object' && arg !== null
 
 /**
  * A bound version of Object#hasOwnProperty.
  * This function acts as a typeguard.
+ * Throws if object is not actually a plain object.
  */
-type Has = <K extends string | number | symbol, V = unknown>(
-  object: unknown,
-  ...keys: K[]
-) => object is { [k in K]: V }
-const has: Has = Function.call.bind(Object.prototype.hasOwnProperty)
+const _has = Function.call.bind(Object.prototype.hasOwnProperty) as <
+  Key extends string | number | symbol,
+  O extends { [K in Key]: unknown }
+>(
+  arg: unknown,
+  key: Key,
+) => arg is O
 
 /**
- * The runtime environment global.
+ * Return `hasOwnProperty` and perform type-narrowing on the given object.
+ * This function acts as a typeguard.
  */
-const DEV = process.env.NODE_ENV !== 'production'
+const has = <Key extends string | number | symbol>(
+  arg: unknown,
+  key: Key,
+): arg is { [K in Key]: unknown } => isObject(arg) && _has(arg, key)
 
 /**
- * XXX Use typescript to make this better
  * @param constructor Like 'Array'
- * @param value
+ * @param arg
  */
-const isType = (constructor: string, value: unknown): boolean =>
-  getType(value) === `[object ${constructor}]`
+const isType = <Type = unknown>(
+  constructor: string,
+  arg: unknown,
+): arg is Type => getType(arg) === `[object ${constructor}]`
 
 /**
  * Note: If `Symbol` exists then the result of Object.prototype.toString.call
  * can be modified, possibly breaking the logic used for class type checks.
  */
-const getType = (value: unknown): string =>
-  Object.prototype.toString.call(value)
+const getType = (arg: unknown): string => Object.prototype.toString.call(arg)
 
 const onlyUnderscoresIdentifier = /\b_+\b/
 
-const globalCache = new Map()
-
-/**
- * Keeps track of warning messages which have already occurred in order to
- * prevent duplicates from being printed more than once.
- */
-let warned: Set<string> = new Set()
-
-const warning = !DEV
-  ? (_condition: boolean, _message: string): void => {}
-  : (condition: boolean, message: string): void => {
-      if (!warned.has(message)) {
-        if (condition) {
-          // Do not repeat warning
-          warned.add(message)
-
-          if (typeof console !== 'undefined') {
-            message = message.endsWith('.') ? message : message + '.'
-            console.warn('Warning: ' + message)
-          }
-
-          try {
-            // This error was thrown as a convenience so that you can use this stack
-            // to find the callsite that caused this warning to fire.
-            throw Error(message)
-          } catch (error) {}
-        }
-      }
-    }
+const globalCache = new Map<string, ReturnType<Fn>>()
 
 const errorConstructors: Function[] = [
   EvalError,
@@ -116,7 +125,7 @@ const errorConstructors: Function[] = [
   SyntaxError,
   TypeError,
   URIError,
-  Error
+  Error,
 ]
 
 const constructors: Function[] = [
@@ -132,47 +141,56 @@ const constructors: Function[] = [
   Set,
   Map,
   Symbol,
-  Proxy
+  Proxy,
 ]
 
-const ruleIsWildcard = (rule: Rule): boolean => {
-  return (
-    rule.allReflectedArgs.some(
-      arg =>
-        arg.argName === '_' &&
-        arg.isDestructured === false &&
-        !has(arg, 'pattern') &&
-        !has(arg, 'subPatterns')
-    ) && rule.arity === 1
-  )
-}
+const ruleIsWildcard = (rule: Rule): boolean =>
+  rule.allReflectedArgs.some(
+    arg =>
+      arg.argName === '_' &&
+      !arg.isDestructured &&
+      !has(arg, 'pattern') &&
+      !has(arg, 'subPatterns'),
+  ) && rule.arity === 1
 
 /**
  * Note: Returns true for strings.
  */
-function isArrayLike(value: any): boolean {
-  return (
-    value != null &&
-    !getType(value).includes('Function') &&
-    isType('Number', value.length) &&
-    value.length > -1 &&
-    value.length % 1 === 0 &&
-    value.length <= Number.MAX_SAFE_INTEGER
-  )
+const isArrayLike = (value: unknown): boolean =>
+  value != null && // XXX
+  !getType(value).includes('Function') &&
+  _has(value, 'length') && // XXX - This is different!
+  isType<number>('Number', value.length) &&
+  value.length > -1 &&
+  value.length % 1 === 0 &&
+  value.length <= Number.MAX_SAFE_INTEGER
+
+const isFloat = (value: unknown): value is number =>
+  isType<number>('Number', value) && value % 1 !== 0
+
+/**
+ * Represents an unreachable state.
+ * @param info Optional data or message.
+ */
+class Unreachable extends Error {
+  public name = 'Error::Unreachable'
 }
 
-function isFloat(value: any): boolean {
-  return isType('Number', value) && value % 1 !== 0
+const unreachable = (info?: string): never => {
+  const extra = info && `\n\nInfo: ${info}`
+  throw new Unreachable(
+    `Reached unreachable state! (This is not good.)${extra}`,
+  )
 }
 
 /**
  * The same as `Array#every` except this function returns false when the input
  * array is empty.
  */
-function every<T>(
+const every = <T = unknown>(
   values: T[],
-  predicate: (a: T, b: number, c: T[]) => boolean
-): boolean {
+  predicate: (value: T, index: number, values: T[]) => boolean,
+): boolean => {
   const length = values == null ? 0 : values.length
   if (length === 0) {
     return false
@@ -188,30 +206,25 @@ function every<T>(
 }
 
 // Note: no way to tell if an argument is a rest argument (like (...args) => {})
-function reflectArguments(
-  rawRule: RuleExpression,
-  ruleIndex: number
-): { allReflectedArgs: Array<ReflectedArg>; body: string } {
-  interface Parsed {
-    args: Array<string>
-    defaults: object
-    body: string
-  }
-  const parsed: Parsed = parse(rawRule)
+const reflectArguments = (
+  rawRule: Fn,
+  ruleIndex: number,
+): { allReflectedArgs: ReflectedArg[]; body: string } => {
+  const parsed = parse(rawRule)
 
   if (parsed.args.length === 0) {
     return {
       allReflectedArgs: [],
-      body: parsed.body
+      body: parsed.body,
     }
   }
 
   const allReflectedArgs = parsed.args.map((argName, argIndex) => {
     const isDestructured = argName === 'false'
-    const pattern: string = parsed.defaults[argName]
+    const pattern = parsed.defaults[argName]
     const reflectedArg: ReflectedArg = {
-      isDestructured: isDestructured,
-      argName: isDestructured ? '@@DESTRUCTURED' : argName
+      isDestructured,
+      argName: isDestructured ? '@@DESTRUCTURED' : argName,
     }
 
     // if no default then do not add optional keys
@@ -222,10 +235,10 @@ function reflectArguments(
     const { customTypeNames, evaulatedPattern, subPatterns } = reflectPattern(
       pattern,
       ruleIndex,
-      argIndex
+      argIndex,
     )
 
-    let optionalProps: Pick<
+    const optionalProps: Pick<
       ReflectedArg,
       'customTypeNames' | 'pattern' | 'subPatterns'
     > = {}
@@ -245,24 +258,24 @@ function reflectArguments(
 
   return {
     allReflectedArgs,
-    body: parsed.body
+    body: parsed.body,
   }
 }
 
-function toRule(rawRule: RuleExpression, ruleIndex: number): Rule {
+const toRule = (rawRule: Fn, ruleIndex: number): Rule => {
   invariant(
     typeof rawRule !== 'function',
     `Rule at index ${ruleIndex} is not a ` +
-      `function, instead is: ${getType(rawRule)}.`
+      `function, instead is: ${getType(rawRule)}.`,
   )
 
   const { allReflectedArgs, body } = reflectArguments(rawRule, ruleIndex)
 
   const rule: Rule = {
-    allReflectedArgs: allReflectedArgs,
+    allReflectedArgs,
     expression: rawRule,
-    body: body,
-    arity: allReflectedArgs.length
+    body,
+    arity: allReflectedArgs.length,
   }
 
   warning(
@@ -271,72 +284,69 @@ function toRule(rawRule: RuleExpression, ruleIndex: number): Rule {
       rawRule.name === 'anonymous' || rawRule.name === ''
         ? 'Anonymous rule'
         : `Rule "${rawRule.name}"`
-    } at index ${ruleIndex} must accept one or more arguments.`
+    } at index ${ruleIndex} must accept one or more arguments.`,
   )
 
   return rule
 }
 
-function allInputsSatisfyRule(
+const allInputsSatisfyRule = (
   rule: Rule,
-  inputs: Array<any>,
+  inputs: any[],
   ruleIndex: number,
-  rules: Array<Rule>
-): boolean {
-  return every(inputs, (input: any, inputIndex) => {
+  rules: Rule[],
+): boolean =>
+  every(inputs, (input, inputIndex) => {
     const reflectedArg: ReflectedArg = rule.allReflectedArgs[inputIndex]
-
-    if (reflectedArg.isDestructured === true) {
+    // XXX Destructured object pattern not implemented
+    if (reflectedArg.isDestructured) {
       return true
     }
-
     // ReflectedArg type may either have `subPatterns` or `pattern` key,
     // but not both at the same time.
-    if ('subPatterns' in reflectedArg && !('pattern' in reflectedArg)) {
-      if (reflectedArg.subPatterns != null) {
-        return reflectedArg.subPatterns.some(subPattern => {
-          let subReflectedArg = {
-            pattern: subPattern,
-            customTypeNames: reflectedArg.customTypeNames
-          }
-
-          return isPatternAcceptable(
-            rules,
-            ruleIndex,
-            inputIndex,
-            input,
-            subReflectedArg
-          )
-        })
-      }
+    if (
+      has(reflectedArg, 'subPatterns') &&
+      Array.isArray(reflectedArg.subPatterns)
+    ) {
+      return reflectedArg.subPatterns.some(subPattern => {
+        const subReflectedArg = {
+          pattern: subPattern,
+          customTypeNames: reflectedArg.customTypeNames,
+        }
+        return isPatternAcceptable(
+          rules,
+          ruleIndex,
+          inputIndex,
+          input,
+          subReflectedArg,
+        )
+      })
     }
-
-    if ('pattern' in reflectedArg) {
+    // This case must (hopefully) be reached
+    if (has(reflectedArg, 'pattern')) {
       return isPatternAcceptable(
         rules,
         ruleIndex,
         inputIndex,
         input,
-        reflectedArg
+        reflectedArg,
       )
     }
-
-    return true
+    unreachable()
   })
-}
 
 // Note: If float ends in .0 (like 2.0) it's automatically converted to
 // whole numbers when the parameter is passed to the wavematch function.
 // This means we never know if someone entered Num.0 or just Num.
-function ruleMatchesNumberInput(
+const ruleMatchesNumberInput = (
   numberInput: Number,
   pattern: any,
-  rules: Array<Rule>,
-  inputIndex: number
-): boolean {
+  rules: Rule[],
+  inputIndex: number,
+): boolean => {
   if (isFloat(numberInput)) {
     if (Number === pattern) {
-      const otherRuleMatches: boolean = rules.some(rule => {
+      const otherRuleMatches = rules.some(rule => {
         if (ruleIsWildcard(rule)) return false
 
         const reflectedArgs = rule.allReflectedArgs[inputIndex]
@@ -388,18 +398,17 @@ function ruleMatchesNumberInput(
 
 // when the input value at `valueIndex` is of type Object
 function ruleMatchesObjectInput(
-  objectInput: object,
+  objectInput: { [key: string]: unknown },
   inputIndex: number,
-  rules: Array<Rule>,
+  rules: Rule[],
   ruleIndex: number,
-  objectPattern: Object | object
+  objectPattern: Object | { [key: string]: unknown },
 ): boolean {
   const desiredKeys = Object.keys(objectInput)
   const inputSize = desiredKeys.length
 
-  type BestFitRules = { index: number; size: number }[]
-  let bestFitRules: BestFitRules = rules.reduce(
-    (reduced: BestFitRules, rule: Rule, index: number) => {
+  const bestFitRules = rules.reduce<{ index: number; size: number }[]>(
+    (reduced, rule, index) => {
       if (ruleIsWildcard(rule)) return reduced // skip
 
       const r = rule.allReflectedArgs[inputIndex]
@@ -416,15 +425,15 @@ function ruleMatchesObjectInput(
         }
       }
 
-      if ('pattern' in r && typeof r.pattern === 'object') {
+      if (has(r, 'pattern') && isObject(r.pattern)) {
         pushIfValidSize(r.pattern)
-      } else if ('subPatterns' in r && typeof r.subPatterns !== 'undefined') {
+      } else if (has(r, 'subPatterns') && Array.isArray(r.subPatterns)) {
         r.subPatterns.forEach(pushIfValidSize)
       }
 
       return reduced
     },
-    [] as BestFitRules
+    [],
   )
 
   // pattern matches any object: `(arg = Object) => { ... }`
@@ -434,15 +443,15 @@ function ruleMatchesObjectInput(
 
   const reflectedArg = rules[ruleIndex].allReflectedArgs[inputIndex]
 
-  const argNameMatchesProp = (): boolean => {
-    return desiredKeys.some((inputKey, keyIndex) => {
+  const argNameMatchesProp = () =>
+    desiredKeys.some((inputKey, keyIndex) => {
       const objectInputValue = objectInput[inputKey]
       const doesMatch: boolean = isPatternAcceptable(
         rules,
         ruleIndex,
         keyIndex,
         objectInputValue,
-        reflectedArg
+        reflectedArg,
       )
 
       if (doesMatch) {
@@ -461,9 +470,8 @@ function ruleMatchesObjectInput(
 
       return doesMatch
     })
-  }
 
-  if (isType('Object', objectPattern)) {
+  if (isObject(objectPattern)) {
     const patternKeys = Object.keys(objectPattern)
 
     // Matching an empty object?
@@ -473,21 +481,21 @@ function ruleMatchesObjectInput(
 
     if (patternKeys.length <= inputSize) {
       // get obj with highest number of keys (hence the name "best fit")
-      const bestFitRule = bestFitRules.sort(
-        (b1, b2) => (b1.size > b2.size ? -1 : 1)
+      const bestFitRule = bestFitRules.sort((b1, b2) =>
+        b1.size > b2.size ? -1 : 1,
       )[0]
 
       // retain only the rules that have the most keys
       // this may not eliminate any rules, that is okay
-      bestFitRules = bestFitRules.filter(b => b.size >= bestFitRule.size)
+      const filtered = bestFitRules.filter(b => b.size >= bestFitRule.size)
 
       // Destructuring via arg name
       if (desiredKeys.includes(reflectedArg.argName)) {
         return argNameMatchesProp()
-      } else if (bestFitRules.some(b => b.index === ruleIndex)) {
-        return every(patternKeys, (key: string) => {
-          return isEqual(objectPattern[key], objectInput[key])
-        })
+      } else if (filtered.some(b => b.index === ruleIndex)) {
+        return every(patternKeys, (key: string) =>
+          isEqual(objectPattern[key], objectInput[key]),
+        )
       }
     } else {
       // `pattern` has more keys than objectInput (do not warn)
@@ -513,7 +521,7 @@ function ruleMatchesArrayInput(
   inputIndex: number,
   rules: Rule[],
   ruleIndex: number,
-  pattern: unknown
+  pattern: unknown,
 ): boolean {
   if (Array === pattern) {
     // index of a rule that is not this current rule (`rules[ruleIndex]`)
@@ -526,9 +534,8 @@ function ruleMatchesArrayInput(
       const reflectedArgs = rule.allReflectedArgs[inputIndex]
 
       if (
-        'pattern' in reflectedArgs &&
-        reflectedArgs.pattern != null &&
-        isType('Array', reflectedArgs.pattern)
+        has(reflectedArgs, 'pattern') &&
+        Array.isArray(reflectedArgs.pattern)
       ) {
         // `reflArg.pattern` mismatches: too many elements
         return reflectedArgs.pattern.length <= arrayInput.length
@@ -554,9 +561,9 @@ function ruleMatchesArrayInput(
 
       const thisRuleIsOnlyDestructurer = rules.length === 2
       if (thisRuleIsOnlyDestructurer) {
-        return every(arrayInput, (inputElement, index) => {
-          return isEqual(pattern[index], inputElement)
-        })
+        return every(arrayInput, (inputElement, index) =>
+          isEqual(pattern[index], inputElement),
+        )
       }
 
       return isEqual(pattern, arrayInput)
@@ -569,6 +576,9 @@ function ruleMatchesArrayInput(
 
 /**
  * For instances of custom types defined using `class Foo extends Bar` syntax.
+ *
+ * XXX TODO - Does not handle anonymous classes!!!
+ *
  * @throws {Error} If `instance` class does NOT inherit from any super class.
  * @example
  * class A {}
@@ -576,17 +586,19 @@ function ruleMatchesArrayInput(
  * getParentClassName(new A()) //=> undefined
  * getParentClassName(new B()) //=> 'A'
  */
-function getParentClassName(instance: unknown): string | null {
+const getParentClassName = (instance: unknown): string | null => {
   if (instance == null) {
     return null
   }
 
-  // XXX optional chaining please!
   const code =
-    // isPlainObject(instance) &&
-    // has(instance, 'constructor') &&
-    // typeof instance.constructor === 'string' &&
+    _has(instance, 'constructor') &&
+    isType<string>('String', instance.constructor) &&
     instance.constructor.toString()
+
+  if (code === false) {
+    return null
+  }
 
   if (!code.includes('class') || !code.includes('extends')) {
     return null
@@ -594,10 +606,9 @@ function getParentClassName(instance: unknown): string | null {
 
   const parts = code.split(/\s+/).slice(0, 4)
 
-  // Dev Note: This is more of an "unreachable" than an "invariant".
   invariant(
-    parts[2] !== 'extends',
-    `Expected \`class Foo extends Bar\`. Found "${parts.join(' ')}"`
+    !parts.includes('extends'),
+    `Expected \`class Foo extends Bar\`. Found "${parts.join(' ')}"`,
   )
 
   return parts[3]
@@ -605,16 +616,16 @@ function getParentClassName(instance: unknown): string | null {
 
 // for `reflectArguments` only
 function reflectPattern(
-  pattern: any, // String type, actually (until `eval`uated or `JSON.parse`d)
+  pattern: any | string, // String type, actually (until `eval`uated or `JSON.parse`d)
   ruleIndex: number, // for error messages
-  argIndex: number // for error messages
+  argIndex: number, // for error messages
 ): {
-  customTypeNames: Array<string>
-  subPatterns: Array<any>
-  evaulatedPattern: any
+  customTypeNames: string[]
+  subPatterns: Pattern[]
+  evaulatedPattern: Pattern
 } {
-  let customTypeNames = []
-  let subPatterns = []
+  const customTypeNames = []
+  const subPatterns: Pattern[] = []
 
   // OR pattern
   // ----------
@@ -624,7 +635,7 @@ function reflectPattern(
   // )
   // Note: `pattern` = '1 | 3 | 5'
   //   Must split then evaluate iteratively.
-  if (pattern.includes('|')) {
+  if (typeof pattern === 'string' && pattern.includes('|')) {
     const patterns = pattern.split(/\s*\|\s*/)
 
     patterns.forEach(subPattern => {
@@ -650,7 +661,7 @@ function reflectPattern(
         true,
         `Rule at index ${ruleIndex} contains duplicate pattern(s): ${duplicates
           .map(duplicated => `\`${duplicated}\``)
-          .join(' and ')}`
+          .join(' and ')}`,
       )
     }
   } else {
@@ -663,14 +674,14 @@ function reflectPattern(
         invariant(
           error instanceof SyntaxError,
           `Rule at index ${ruleIndex} has argument at parameter index ` +
-            `${argIndex} that has invalid JSON.\n${error.message || error}\n`
+            `${argIndex} that has invalid JSON.\n${error.message || error}\n`,
         )
       }
     } else {
       try {
         pattern = eval(pattern)
       } catch (error) {
-        let word = pattern[0]
+        const word = pattern[0]
         // This `catch` block occurs when a var name is used as a pattern,
         // causing a ReferenceError.
         // The following code MAKES A DANGEROUS ASSUMPTION that the
@@ -689,7 +700,7 @@ function reflectPattern(
           identifierOutOfScope && word.toLowerCase() === word,
           `For pattern at parameter index ${argIndex}, cannot use out of ` +
             `scope variable as default: ${pattern}.\n` +
-            `If possible, try replacing the variable with its value.`
+            'If possible, try replacing the variable with its value.',
         )
       }
     }
@@ -698,7 +709,7 @@ function reflectPattern(
   return {
     evaulatedPattern: pattern,
     subPatterns,
-    customTypeNames
+    customTypeNames,
   }
 }
 
@@ -711,7 +722,7 @@ function reflectPattern(
  * https://github.com/reduxjs/redux/blob/master/src/utils/isPlainObject.js
  * Only used for `isPatternAcceptable()` function in this file.
  */
-function isPlainObject(obj: unknown): obj is object {
+function isPlainObject(obj: unknown): obj is { [key: string]: unknown } {
   if (typeof obj !== 'object' || obj === null) {
     return false
   }
@@ -723,30 +734,32 @@ function isPlainObject(obj: unknown): obj is object {
 }
 
 // TODO Extract conditionals to a separate function (like Yegor256 says).
-function isPatternAcceptable(
+const isPatternAcceptable = (
   rules: Rule[],
   ruleIndex: number,
   inputIndex: number,
-  input: any,
-  // ReflectedArg or SubReflectedArg
-  reflectedArg:
-    | ReflectedArg
-    | { customTypeNames?: string[] | null; pattern: unknown }
-): boolean {
+  input: unknown,
+  reflectedArg: ReflectedArg | SubReflectedArg,
+): boolean => {
   // The following `if` statement handles matching against user-defined data:
   // class Person {}
   // wavematch(new Person())(
   //   (x = Person) => 'awesome'
   // )
-  const hasCustomTypes =
-    'customTypeNames' in reflectedArg &&
+  // const hasCustomTypes =
+  //   'customTypeNames' in reflectedArg &&
+  //   Array.isArray(reflectedArg.customTypeNames)
+  if (
+    has(reflectedArg, 'customTypeNames') &&
     Array.isArray(reflectedArg.customTypeNames)
-  if (hasCustomTypes) {
-    const inputTypeName: string | null = input.constructor.name
+  ) {
+    const inputTypeName: string | null =
+      _has(input, 'constructor') &&
+      _has(input.constructor, 'name') &&
+      isType<string>('String', input.constructor.name) &&
+      input.constructor.name
 
-    // XXX ???
-    // if (inputTypeName) {
-    if (hasCustomTypes) {
+    if (inputTypeName !== null) {
       if (reflectedArg.customTypeNames.includes(inputTypeName)) {
         return true
       } else {
@@ -758,8 +771,8 @@ function isPatternAcceptable(
     const parentClassName: string | null = getParentClassName(input)
 
     if (
-      parentClassName != null &&
-      reflectedArg.customTypeNames != null &&
+      parentClassName !== null &&
+      Array.isArray(reflectedArg.customTypeNames) &&
       reflectedArg.customTypeNames.includes(parentClassName)
     ) {
       return true
@@ -774,14 +787,13 @@ function isPatternAcceptable(
           rule.allReflectedArgs.some(
             ({ customTypeNames }) =>
               Array.isArray(customTypeNames) &&
-              customTypeNames.includes(inputTypeName)
-          )
+              customTypeNames.includes(inputTypeName),
+          ),
         )
       // TODO: Put both superclass name and subclass name in `customTypeNames`
       if (!otherRuleMatchesUserDefinedType) {
         throw ReferenceError(
-          // $FlowFixMe - `reflectedArg.pattern` is NOT undefined here
-          `Out of scope variable name used as pattern: ${reflectedArg.pattern}`
+          `Out of scope variable name used as pattern: ${reflectedArg.pattern}`,
         )
       }
     }
@@ -803,8 +815,8 @@ function isPatternAcceptable(
         `Rule at rule index ${ruleIndex} has a guard function at parameter ` +
           `index ${inputIndex} that does NOT return a Boolean value. ` +
           `Expected a predicate (Boolean-returning function). Found ${getType(
-            guardResult
-          )}.`
+            guardResult,
+          )}.`,
       )
 
       if (guardResult) {
@@ -822,7 +834,7 @@ function isPatternAcceptable(
       inputIndex,
       rules,
       ruleIndex,
-      pattern
+      pattern,
     )
   }
 
@@ -849,7 +861,7 @@ function isPatternAcceptable(
       ruleIndex,
       inputIndex,
       destructuredProp,
-      reflectedArg
+      reflectedArg,
     )
   }
 
@@ -857,11 +869,11 @@ function isPatternAcceptable(
     return ruleMatchesObjectInput(input, inputIndex, rules, ruleIndex, pattern)
   }
 
-  let numberMatch: boolean = ruleMatchesNumberInput(
+  const numberMatch: boolean = ruleMatchesNumberInput(
     input,
     pattern,
     rules,
-    inputIndex
+    inputIndex,
   )
   if (numberMatch) {
     return true
@@ -920,12 +932,16 @@ function isPatternAcceptable(
       return true
     }
 
+    // XXX
+    return !!errorConstructors.find(
+      errCtor => errCtor === pattern && input.constructor.name == errCtor,
+    )
     // we know `input` is an Error instance, but what type of error?
     // this is for handling all Error types that are not the base `Error` class
-    return Object.keys(errorConstructors).some(errorTypeName => {
-      const errorType: Function = errorConstructors[errorTypeName]
-      return errorType === pattern && input.constructor.name === errorTypeName
-    })
+    // return Object.keys(errorConstructors).some(errorTypeName => {
+    //   const errorType: Function = errorConstructors[errorTypeName];
+    //   return errorType === pattern && input.constructor.name === errorTypeName;
+    // });
   }
 
   if (isType('Null', input)) {
@@ -949,45 +965,38 @@ function isPatternAcceptable(
   return false
 }
 
-function invariant(condition: boolean, message: string): void {
-  if (condition) {
-    throw Error(message)
-  }
-}
+const isFunction = (x: unknown): boolean => typeof x === 'function'
 
-function isFunction(x: unknown): boolean {
-  return typeof x === 'function'
-}
-
-function toString(x: unknown): string {
-  return isFunction(x)
+const asString = (x: unknown): string =>
+  isFunction(x)
     ? String(x)
-    : Array.isArray(x) ? String(x.map(toString)) : JSON.stringify(x, null, 2)
-}
+    : Array.isArray(x)
+    ? (x.map(asString) as string) // XXX
+    : JSON.stringify(x, null, 2)
 
 export default function wavematch(...inputs: unknown[]): Function {
   invariant(
     inputs.length === 0,
-    'Please supply at least one argument. Cannot match on zero parameters.'
+    'Please supply at least one argument. Cannot match on zero parameters.',
   )
 
-  return function(...rawRules: RuleExpression[]): ReturnType<RuleExpression> {
+  return (...rawRules: Fn[]): ReturnType<Fn> => {
     invariant(
       rawRules.length === 0,
       'Non-exhaustive rules. ' +
         'Please add a rule function, or at least the wildcard rule: ' +
-        '"_ => { /* expression */ }"'
+        '"_ => { /* expression */ }"',
     )
 
     // Caching depends on both the inputs and the rules provided.
     const key =
-      JSON.stringify(inputs.map(toString), null, 2) +
+      JSON.stringify(inputs.map(asString), null, 2) +
       JSON.stringify(rawRules.map(String), null, 2)
     if (globalCache.has(key)) {
       return globalCache.get(key)
     }
 
-    const rules: Array<Rule> = rawRules.map(toRule)
+    const rules: Rule[] = rawRules.map(toRule)
 
     // Invariant: Cannot destructure undefined
     inputs.forEach((input: any, inputIndex) => {
@@ -997,9 +1006,9 @@ export default function wavematch(...inputs: unknown[]): Function {
         }
         const reflectedArg: ReflectedArg = rule.allReflectedArgs[inputIndex]
         invariant(
-          reflectedArg.isDestructured === true && input === void 0,
+          reflectedArg.isDestructured && input === void 0,
           `Rule at index ${ruleIndex} attempts to destructure an ` +
-            `undefined value at parameter index ${inputIndex}.`
+            `undefined value at parameter index ${inputIndex}.`,
         )
       })
     })
@@ -1010,7 +1019,7 @@ export default function wavematch(...inputs: unknown[]): Function {
         true,
         `Rule at index ${indexOfRuleOverArity} tries to match ` +
           `${rules[indexOfRuleOverArity].arity} arguments. Expected only ` +
-          `${inputs.length} parameters.`
+          `${inputs.length} parameters.`,
       )
     }
 
@@ -1023,7 +1032,7 @@ export default function wavematch(...inputs: unknown[]): Function {
           return false
         }
         return ruleIsWildcard(rule)
-      })
+      }),
     )
 
     for (let ruleIndex = 0; ruleIndex < rules.length; ruleIndex++) {
@@ -1032,11 +1041,7 @@ export default function wavematch(...inputs: unknown[]): Function {
         if (rule.arity === inputs.length) {
           if (allInputsSatisfyRule(rule, inputs, ruleIndex, rules)) {
             const boundInputs = inputs.map((input, index) => {
-              if (
-                typeof input === 'object' &&
-                input !== null &&
-                '__SECRET_MUTATION' in input
-              ) {
+              if (has(input, '__SECRET_MUTATION')) {
                 return (input as any).__SECRET_MUTATION
               }
               const { argName } = rule.allReflectedArgs[index]

@@ -1,12 +1,9 @@
 const assert = require('assert')
-const wavematch = require('../lib/wavematch.js')
+const wavematch = require('../dist/wavematch.js')
 const { accept, reject, eq } = require('./shared.js')
 
 describe('wavematch function specification', () => {
-  const matchFn = fn => wavematch(fn)(
-    (arg = Function) => accept,
-    _ => reject
-  )
+  const matchFn = fn => wavematch(fn)((arg = Function) => accept, _ => reject)
 
   it('should match the Function constructor', () => {
     eq(matchFn(() => {}), accept)
