@@ -1,5 +1,5 @@
 const assert = require('assert')
-const wavematch = require('../dist/wavematch.js')
+const wavematch = require('../dist/wavematch.cjs.development.js')
 const { accept, reject, eq } = require('./shared.js')
 
 // any object can be parsed by wavematch if it is valid json5
@@ -11,51 +11,43 @@ describe('wavematch object specification', () => {
       },
       _ => {
         throw Error()
-      }
+      },
     )
   })
 
   it('should match destructured defaults with exact values', () => {
     const matchedUnary = wavematch({ x: 1, y: 2 })(
       (value = { x: 1, y: 2 }) => accept,
-      _ => reject
+      _ => reject,
     )
     eq(matchedUnary, accept)
 
     const matchedName = wavematch({ name: 'chris' })(
       (foo = { name: 'chris' }) => accept,
-      _ => reject
+      _ => reject,
     )
     eq(matchedName, accept)
   })
 
   it('should reject non-object patterns', () => {
-    const objMatchNull = wavematch({})(
-      (arg = null) => reject,
-      _ => accept
-    )
+    const objMatchNull = wavematch({})((arg = null) => reject, _ => accept)
     eq(objMatchNull, accept)
 
     const objMatchUndefined = wavematch({})(
       (arg = undefined) => reject,
-      _ => accept
+      _ => accept,
     )
     eq(objMatchUndefined, accept)
 
-    const objMatchVoid0 = wavematch({})(
-      (arg = (void 0)) => reject,
-      _ => accept
-    )
+    const objMatchVoid0 = wavematch({})((arg = void 0) => reject, _ => accept)
     eq(objMatchVoid0, accept)
   })
-
-
 
   it('should match object patterns with more keys', () => {
     const twoKeys = wavematch({ a: 1, b: 2 })(
       (arg = { a: 1 }) => 0,
       (arg = { a: 1, b: 2 }) => accept,
-      _ => 1
+      _ => 1,
     )
     eq(twoKeys, accept)
 
@@ -63,21 +55,21 @@ describe('wavematch object specification', () => {
       (arg = { a: 1 }) => reject,
       (arg = { a: 1, b: 2 }) => reject,
       (arg = { a: 1, b: 2, c: 3 }) => accept,
-      _ => reject
+      _ => reject,
     )
     eq(threeKeys, accept)
 
     const notEnoughKeys = wavematch({ a: 1, b: 2, c: 3 })(
       (arg = { a: 1 }) => reject,
       (arg = { a: 1, b: 2 }) => accept,
-      _ => reject
+      _ => reject,
     )
     eq(notEnoughKeys, accept)
 
     const tooManyKeys = wavematch({ a: 1 })(
       (arg = {}) => reject,
       (arg = { a: 1, b: 2 }) => reject,
-      _ => accept
+      _ => accept,
     )
     eq(tooManyKeys, accept)
   })
@@ -85,30 +77,27 @@ describe('wavematch object specification', () => {
   it('should match nested objects', () => {
     const matchedObject = wavematch({ obj: { foo: 'bar' } })(
       (xyz = { obj: { foo: 'bar' } }) => accept,
-      _ => reject
+      _ => reject,
     )
     eq(matchedObject, accept)
   })
 
   it('should match using constructor functions', () => {
-    const foo = wavematch({ foo: 'bar' })(
-      (o = Object) => accept,
-      _ => reject
-    )
+    const foo = wavematch({ foo: 'bar' })((o = Object) => accept, _ => reject)
     eq(foo, accept)
   })
 
   it('should respect match specificity', () => {
     const lowSpecificity = wavematch({ x: 1, y: 2 })(
       (o = { x: 1 }) => accept,
-      _ => reject
+      _ => reject,
     )
     eq(lowSpecificity, accept)
 
     const constructorAfter1 = wavematch({ x: 1, y: 2 })(
       (o = { x: 1 }) => accept,
       (o = Object) => reject,
-      _ => reject
+      _ => reject,
     )
     eq(constructorAfter1, accept)
 
@@ -116,7 +105,7 @@ describe('wavematch object specification', () => {
       (o = { x: 1 }) => reject,
       (o = { x: 1, y: 2 }) => accept,
       (o = Object) => reject,
-      _ => reject
+      _ => reject,
     )
     eq(constructorAfter2, accept)
 
@@ -124,7 +113,7 @@ describe('wavematch object specification', () => {
       (o = { x: 1 }) => reject,
       (o = Object) => reject,
       (o = { x: 1, y: 2 }) => accept,
-      _ => reject
+      _ => reject,
     )
     eq(constructorBeforeMostSpecific, accept)
   })
@@ -134,18 +123,15 @@ describe('wavematch object specification', () => {
       (obj = { xyz: 'nope' }) => reject,
       (obj = {}) => accept,
       (obj = { a: 1 }) => reject,
-      _ => reject
+      _ => reject,
     )
     eq(empty, accept)
   })
 
   it('should work for nested matches with constructor functions', () => {
     const result = wavematch({ obj: {} })(
-      (a = Object) => wavematch(a.obj)(
-        (b = Object) => accept,
-        _ => reject
-      ),
-      _ => reject
+      (a = Object) => wavematch(a.obj)((b = Object) => accept, _ => reject),
+      _ => reject,
     )
     eq(result, accept)
   })
@@ -153,17 +139,18 @@ describe('wavematch object specification', () => {
   it('should match empty object with only the object constructor', () => {
     const emptyInputObjectOnlyConstructor = wavematch({})(
       (obj = {}) => accept,
-      _ => reject
+      _ => reject,
     )
     eq(emptyInputObjectOnlyConstructor, accept)
   })
 
   it('should match specific keys', () => {
-    const mockRender = mockState => wavematch(mockState)(
-      (state = { error: true })   => 'error-state',
-      (state = { loading: true }) => 'loading-state',
-      _                           => 'success-state'
-    )
+    const mockRender = mockState =>
+      wavematch(mockState)(
+        (state = { error: true }) => 'error-state',
+        (state = { loading: true }) => 'loading-state',
+        _ => 'success-state',
+      )
     eq(mockRender({ error: true }), 'error-state')
     eq(mockRender({ loading: true }), 'loading-state')
 
@@ -180,11 +167,12 @@ describe('wavematch object specification', () => {
     // )
     it('should work', () => {
       // this also does some `Error` type constructor testing
-      let matchObj = obj => wavematch(obj)(
-        (error = Error) => 'err',
-        (loading = Boolean) => 'load',
-        _ => 'default'
-      )
+      let matchObj = obj =>
+        wavematch(obj)(
+          (error = Error) => 'err',
+          (loading = Boolean) => 'load',
+          _ => 'default',
+        )
 
       // these are 'err' result because the `(error = Error) => ` rule is first in order
       eq(matchObj({ loading: false, error: Error() }), 'err')
@@ -202,13 +190,12 @@ describe('wavematch object specification', () => {
       eq(matchObj({ error: false }), 'default')
       eq(matchObj({ error: true }), 'default')
     })
-
   })
 
   it('should destructure a prop and match an object pattern', () => {
     let m = wavematch({ id: { z: 42 } })(
       (id = { z: 42 }) => accept,
-      _ => reject
+      _ => reject,
     )
     eq(m, accept)
   })

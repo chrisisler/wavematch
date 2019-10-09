@@ -5,7 +5,6 @@
     "await-promise": true,
     "ban": [
       true,
-      "eval",
       { "name": "isNaN", "message": "Use the more strict Number.isNaN" },
       {
         "name": "isFinite",
@@ -84,6 +83,7 @@
     "no-unnecessary-class": true,
     "no-unnecessary-else": true,
     "no-unnecessary-type-assertion": true,
+    "no-unnecessary-callback-wrapper": true,
     "no-unsafe-finally": true,
     "no-unused-expression": true,
     "no-useless-files": true,
@@ -91,7 +91,7 @@
     "no-var-keyword": true,
     "object-literal-shorthand": true,
     "one-variable-per-declaration": { "options": ["ignore-for-loop"] },
-    "only-arrow-functions": true,
+    "only-arrow-functions": false,
     "ordered-imports": [
       true,
       {
@@ -112,7 +112,7 @@
     ],
     "prefer-const": [true, { "destructuring": "all" }],
     "prefer-method-signature": true,
-    "prefer-object-spread": true,
+    "prefer-object-spread": false,
     "prefer-readonly": true,
     "promise-must-complete": true,
     "quotemark": [
@@ -124,8 +124,8 @@
     ],
     "radix": true,
     "strict-type-predicates": true,
-    "triple-equals": true,
-    "typedef-assigned-arrow": false,
+    "triple-equals": false,
+    "typedef-assigned-arrow": true,
     "use-isnan": true,
     "variable-name": {
       "options": [

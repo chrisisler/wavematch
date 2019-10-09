@@ -1,5 +1,5 @@
 const assert = require('assert')
-const wavematch = require('../dist/wavematch.js')
+const wavematch = require('../dist/wavematch.cjs.development.js')
 const { accept, reject, eq } = require('./shared.js')
 
 // Note: If float ends in .0 (like 2.0) it's automatically converted to

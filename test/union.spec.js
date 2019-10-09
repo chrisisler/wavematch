@@ -1,5 +1,5 @@
 const assert = require('assert')
-const wavematch = require('../dist/wavematch.js')
+const wavematch = require('../dist/wavematch.cjs.development.js')
 const { accept, reject, eq } = require('./shared.js')
 
 // number string array boolean null undefined custom-type date

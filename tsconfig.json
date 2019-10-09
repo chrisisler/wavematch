@@ -1,29 +1,22 @@
 {
-    "compileOnSave": false,
-    "compilerOptions": {
-        "baseUrl": "src/",
-        "lib": ["es2017", "dom"],
-        "moduleResolution": "node",
-        "noErrorTruncation": true,
-        "noUnusedLocals": true,
-        "noUnusedParameters": true,
-        "allowUnreachableCode": false,
-        "resolveJsonModule": true,
-        "esModuleInterop": true,
-        "sourceMap": true,
-        "strict": true,
-        "target": "es6",
-        "module": "esNext",
-        "typeRoots": ["./node_modules/@types", "./dist"],
-        "paths": {
-            "test/*": ["../test/*"]
-        }
-    },
-    "include": [
-        "src/**/*",
-        "dist/**/*"
-    ],
-    "exclude": [
-        "node_modules"
-    ]
+  "compileOnSave": true,
+  "compilerOptions": {
+    "baseUrl": "src/",
+    "noErrorTruncation": true,
+    "noUnusedLocals": true,
+    "noImplicitAny": true,
+    "noUnusedParameters": true,
+    "allowUnreachableCode": false,
+    "esModuleInterop": true,
+    "sourceMap": true,
+    "strict": true,
+    "module": "ESNext",
+    "target": "es2017",
+    "typeRoots": ["./node_modules/@types", "./dist"],
+    "paths": {
+      "test/*": ["../test/*"]
+    }
+  },
+  "include": ["src/**/*", "dist/**/*"],
+  "exclude": ["node_modules/**/*"]
 }

@@ -1,28 +1,37 @@
 {
-  "name": "tsdx-wavematch",
+  "name": "wavematch",
   "version": "0.1.0",
-  "main": "dist/index.js",
-  "module": "dist/tsdx-wavematch.esm.js",
+  "main": "lib/wavematch.js",
+  "module": "es/wavematch.esm.js",
   "typings": "dist/index.d.ts",
   "files": [
-    "dist"
+    "lib",
+    "typings",
+    "es"
   ],
   "scripts": {
-    "start": "tsdx watch",
     "build": "tsdx build",
-    "test": "yarn build && NODE_ENV=development mocha",
-    "lint": "tsdx lint"
+    "build:watch": "tsdx watch",
+    "clean": "rm -rf lib es",
+    "test": "tsdx build && NODE_ENV=development mocha --no-color",
+    "lint": "tsdx lint",
+    "format": "prettier --write src/**/*.ts",
+    "prepublish": "yarn clean && yarn build && yarn lint && yarn format"
   },
-  "peerDependencies": {},
-  "husky": {
-    "hooks": {
-      "pre-commit": "# tsdx lint"
-    }
+  "prettier": {
+    "printWidth": 80,
+    "semi": false,
+    "parser": "typescript",
+    "arrowParens": "avoid",
+    "singleQuote": true,
+    "requirePragma": false,
+    "trailingComma": "all"
   },
   "devDependencies": {
     "@types/json5": "^0.0.30",
-    "husky": "^3.0.8",
+    "@typescript-eslint/eslint-plugin-tslint": "^2.3.3",
     "mocha": "^6.2.1",
+    "prettier": "^1.18.2",
     "tsdx": "^0.9.3",
     "tslib": "^1.10.0",
     "tslint": "^5.20.0",
@@ -33,13 +42,39 @@
     "json5": "^2.1.1",
     "parse-function": "^5.2.11"
   },
-  "prettier": {
-    "printWidth": 80,
-    "tabWidth": 2,
-    "semi": false,
-    "singleQuote": true,
-    "arrowParens": "avoid",
-    "parser": "typescript",
-    "trailingComma": "all"
+  "eslint": {
+    "parser": "@typescript-eslint/parser",
+    "extends": [
+      "plugin:@typescript-eslint/eslint-recommended",
+      "plugin:@typescript-eslint/recommended"
+    ],
+    "plugins": [
+      "@typescript-eslint",
+      "@typescript-eslint/tslint"
+    ],
+    "parserOptions": {
+      "ecmaVersion": 6,
+      "sourceType": "module",
+      "project": "./tsconfig.json"
+    },
+    "rules": {
+      "implicit-arrow-linebreak": "error",
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          "vars": "all",
+          "args": "after-used",
+          "ignoreRestSiblings": false,
+          "argsIgnorePattern": "^_"
+        }
+      ],
+      "@typescript-eslint/tslint/config": [
+        0,
+        {
+          "lintFile": "./tslint.json"
+        }
+      ]
+    }
   }
 }

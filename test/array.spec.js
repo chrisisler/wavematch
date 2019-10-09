@@ -1,15 +1,13 @@
 const assert = require('assert')
-const wavematch = require('../dist/wavematch.js')
+const wavematch = require('../dist/wavematch.cjs.development.js')
 const { accept, reject, eq } = require('./shared.js')
 
 describe('wavematch array specification', () => {
   const emptyArray = []
 
   it('should match Array constructor', () => {
-    const matchArray = array => wavematch(array)(
-      (arg = Array) => accept,
-      _ => reject
-    )
+    const matchArray = array =>
+      wavematch(array)((arg = Array) => accept, _ => reject)
     eq(matchArray(emptyArray), accept)
     eq(matchArray([1]), accept)
     eq(matchArray([1, 2]), accept)
@@ -26,10 +24,8 @@ describe('wavematch array specification', () => {
   })
 
   it('should match empty array', () => {
-    const empty = _emptyArray => wavematch(_emptyArray)(
-      (array = []) => accept,
-      _ => reject
-    )
+    const empty = _emptyArray =>
+      wavematch(_emptyArray)((array = []) => accept, _ => reject)
     eq(empty([]), accept)
     eq(empty(new Array()), accept)
     eq(empty(new Array(0)), accept)
@@ -39,12 +35,12 @@ describe('wavematch array specification', () => {
     const emptyFirst = wavematch(emptyArray)(
       (a = []) => accept,
       (a = Array) => reject,
-      _ => reject
+      _ => reject,
     )
     const constructorFirst = wavematch(emptyArray)(
       (a = Array) => reject,
       (a = []) => accept,
-      _ => reject
+      _ => reject,
     )
     eq(emptyFirst, accept)
     eq(constructorFirst, accept)
@@ -53,7 +49,7 @@ describe('wavematch array specification', () => {
   it('should match empty arrays with only the array constructor', () => {
     const emptyInputOnlyConstructor = wavematch(emptyArray)(
       (arr = Array) => accept,
-      _ => reject
+      _ => reject,
     )
     eq(emptyInputOnlyConstructor, accept)
   })
@@ -61,7 +57,7 @@ describe('wavematch array specification', () => {
   it('should match arrays whose destructured values are the same', () => {
     const notTheSameElements = wavematch([1, 2])(
       (nope = ['k', 'i']) => reject,
-      _ => accept
+      _ => accept,
     )
     eq(notTheSameElements, accept)
   })
@@ -69,14 +65,14 @@ describe('wavematch array specification', () => {
   it('should reject patterns which describe a superset of the input', () => {
     const rejectMe = wavematch([1, 2])(
       (arr = [1, 2, 3, 4]) => reject,
-      _ => accept
+      _ => accept,
     )
     eq(rejectMe, accept)
 
     const constructorSavesTheDay = wavematch([1, 2])(
       (arr = [1, 2, 3, 4]) => reject,
       (arr = Array) => accept,
-      _ => reject
+      _ => reject,
     )
     eq(constructorSavesTheDay, accept)
   })
@@ -84,22 +80,16 @@ describe('wavematch array specification', () => {
   it('should match arrays with a subset of the elements', () => {
     const threeItems = [1, 2, 3]
 
-    const one = wavematch(threeItems)(
-      (arr = [ 1 ]) => reject,
-      _ => accept
-    )
+    const one = wavematch(threeItems)((arr = [1]) => reject, _ => accept)
     eq(one, accept)
 
-    const two = wavematch(threeItems)(
-      (arr = [1, 2]) => reject,
-      _ => accept
-    )
+    const two = wavematch(threeItems)((arr = [1, 2]) => reject, _ => accept)
     eq(two, accept)
 
     const oneAndTwo = wavematch(threeItems)(
       (one = [1]) => reject,
       (two = [1, 2]) => reject,
-      _ => accept
+      _ => accept,
     )
     eq(oneAndTwo, accept)
 
@@ -107,16 +97,13 @@ describe('wavematch array specification', () => {
       (one = [1]) => reject,
       (two = [1, 2]) => reject,
       (three = [1, 2, 3]) => accept,
-      _ => reject
+      _ => reject,
     )
     eq(all, accept)
   })
 
   it('should match arrays with multiple values', () => {
-    const twoSame = wavematch([ {}, {} ])(
-      (xs = [ {}, {} ]) => accept,
-      _ => reject
-    )
+    const twoSame = wavematch([{}, {}])((xs = [{}, {}]) => accept, _ => reject)
     eq(twoSame, accept)
 
     const twoDifferent = wavematch(['x', 3])(
@@ -124,7 +111,7 @@ describe('wavematch array specification', () => {
       (alsoNope = [1, 2]) => reject,
       (no = ['x', 0]) => reject,
       (yes = ['x', 3]) => accept,
-      _ => reject
+      _ => reject,
     )
     eq(twoDifferent, accept)
 
@@ -133,7 +120,7 @@ describe('wavematch array specification', () => {
       (yes = ['x', 3]) => accept,
       (no = ['x', 0]) => reject,
       (alsoNope = [1, 2]) => reject,
-      _ => reject
+      _ => reject,
     )
     eq(twoDifferentReOrdered, accept)
   })
@@ -144,7 +131,7 @@ describe('wavematch array specification', () => {
       (duplicate = [1, 1, 5]) => reject,
       (outOfOrder = [1, 5, 9]) => reject,
       (correct = [1, 9, 5]) => accept,
-      _ => reject
+      _ => reject,
     )
     eq(foo, accept)
   })
@@ -156,13 +143,13 @@ describe('wavematch array specification', () => {
       (right = ['foo', 'bar']) => accept,
       (wrong = ['bar', 'foo']) => reject,
       new Function(`wrong = [ "'i'", "'j'" ]`, `return "${reject.valueOf()}"`),
-      _ => reject
+      _ => reject,
     )
     eq(arrayOfStrings, accept)
 
     const arrayOfStringsWithConstructor = wavematch(['foo'])(
       (right = Array) => accept,
-      _ => reject
+      _ => reject,
     )
     eq(arrayOfStringsWithConstructor, accept)
   })
@@ -170,16 +157,13 @@ describe('wavematch array specification', () => {
   it('should not match non-empty inputs to empty array patterns', () => {
     const match = wavematch('arg1', [1])(
       (foo, array = []) => reject,
-      _ => accept
+      _ => accept,
     )
     eq(match, accept)
   })
 
   it('should reject invalid empty arrays', () => {
-    const empty = array => wavematch(array)(
-      (array = []) => accept,
-      _ => reject
-    )
+    const empty = array => wavematch(array)((array = []) => accept, _ => reject)
 
     assert.deepEqual(empty(''), reject)
     assert.deepEqual(empty(1), reject)
@@ -195,12 +179,11 @@ describe('wavematch array specification', () => {
   it('should match recursively', () => {
     const any = wavematch.create(
       (_, xs = []) => false,
-      (predicate, [first, ...rest]) =>
-      predicate(first) || any(predicate, rest)
+      (pred, [head, ...rest]) => pred(head) || any(pred, rest),
     )
 
-    const yes = any(x => x === 3, [ 1, 2, 3, 4 ])
-    const no = any(x => x === 3, [ 1, 2, 4 ])
+    const yes = any(x => x === 3, [1, 2, 3, 4])
+    const no = any(x => x === 3, [1, 2, 4])
 
     eq(yes, true)
     eq(no, false)
