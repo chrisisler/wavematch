@@ -1,9 +1,13 @@
-lib
-es
+*.log
+.DS_Store
+node_modules
+.rts2_cache_cjs
+.rts2_cache_esm
+.rts2_cache_umd
+dist
+yarn-error.log
 demo.js
 x.js
-.rts*
-dist/
 
 # Logs
 logs

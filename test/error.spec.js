@@ -1,5 +1,5 @@
 const assert = require('assert')
-const wavematch = require('../lib/wavematch.js')
+const wavematch = require('../dist/wavematch.cjs.development.js')
 const { accept, reject, eq } = require('./shared.js')
 
 const allErrorTypes = [
@@ -9,15 +9,13 @@ const allErrorTypes = [
   SyntaxError,
   TypeError,
   URIError,
-  Error
+  Error,
 ]
 
 describe('wavematch Error type specification', () => {
   it('should allow `Error` as pattern to accept all other standard Error types', () => {
-    const matchStandardError = standardErrorType => wavematch(standardErrorType)(
-      (e = Error) => accept,
-      _ => reject
-    )
+    const matchStandardError = standardErrorType =>
+      wavematch(standardErrorType)((e = Error) => accept, _ => reject)
 
     allErrorTypes.forEach(errorType => {
       eq(matchStandardError(errorType()), accept)
@@ -31,7 +29,7 @@ describe('wavematch Error type specification', () => {
       (e = RangeError) => reject,
       (e = SyntaxError) => accept,
       (e = URIError) => reject,
-      _ => reject
+      _ => reject,
     )
 
     eq(match, accept)

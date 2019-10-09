@@ -1,5 +1,5 @@
 const assert = require('assert')
-const wavematch = require('../lib/wavematch.js')
+const wavematch = require('../dist/wavematch.cjs.development.js')
 const { accept, reject, eq } = require('./shared.js')
 
 describe('wavematch regular expression specification', () => {

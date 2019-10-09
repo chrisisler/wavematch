@@ -1,43 +1,35 @@
 const assert = require('assert')
-const wavematch = require('../lib/wavematch.js')
+const wavematch = require('../dist/wavematch.cjs.development.js')
 const { accept, reject, eq } = require('./shared.js')
 
 describe('wavematch boolean specification', () => {
   it('should match Boolean constructor', () => {
     const falseMatch = wavematch(false)(
       (input = Boolean) => accept,
-      _ => reject
+      _ => reject,
     )
     eq(falseMatch, accept)
 
-    const trueMatch = wavematch(true)(
-      (input = Boolean) => accept,
-      _ => reject
-    )
+    const trueMatch = wavematch(true)((input = Boolean) => accept, _ => reject)
     eq(trueMatch, accept)
   })
 
   it('should match false literal', () => {
     const matchFalse = wavematch(false)(
       (condition = false) => accept,
-      _ => reject
+      _ => reject,
     )
     eq(matchFalse, accept)
   })
 
   it('should match true literal', () => {
-    const matchTrue = wavematch(true)(
-      (condition = true) => accept,
-      _ => reject
-    )
+    const matchTrue = wavematch(true)((condition = true) => accept, _ => reject)
     eq(matchTrue, accept)
   })
 
   it('should reject non-Boolean inputs with Boolean constructor', () => {
-    const matchBoolean = input => wavematch(input)(
-      (arg = Boolean) => accept,
-      _ => reject
-    )
+    const matchBoolean = input =>
+      wavematch(input)((arg = Boolean) => accept, _ => reject)
 
     const emptyArray = []
     const fn = _ => {} // cannot contain parenthesis or else SyntaxError (via json5 spec)
