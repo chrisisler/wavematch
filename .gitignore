@@ -2,6 +2,8 @@ lib
 es
 demo.js
 x.js
+.rts*
+dist/
 
 # Logs
 logs
