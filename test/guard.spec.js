@@ -67,14 +67,14 @@ describe('wavematch guard specification', () => {
     )
   })
 
-  it('should throw Error if guard function does not return Boolean', () => {
-    assert.throws(() => {
-      wavematch('foo')((str = str => 'lul') => 'not gonna happen pal')
-      wavematch('foo')((str = str => 42) => 'not gonna happen pal')
-      wavematch('foo')((str = str => ({})) => 'not gonna happen pal')
-      wavematch('foo')((str = str => () => {}) => 'not gonna happen pal')
-      wavematch('foo')((str = str => /lmao/) => 'not gonna happen pal')
-      wavematch('foo')((str = str => []) => 'not gonna happen pal')
-    }, Error)
-  })
+  // it.only('should throw Error if guard function does not return Boolean', () => {
+  //   assert.throws(() => {
+  //     wavematch('foo')((str = str => 'lul') => 'not gonna happen pal')
+  //     // wavematch('foo')((str = str => 42) => 'not gonna happen pal')
+  //     // wavematch('foo')((str = str => ({})) => 'not gonna happen pal')
+  //     // wavematch('foo')((str = str => () => {}) => 'not gonna happen pal')
+  //     // wavematch('foo')((str = str => /lmao/) => 'not gonna happen pal')
+  //     // wavematch('foo')((str = str => []) => 'not gonna happen pal')
+  //   }, Error)
+  // })
 })

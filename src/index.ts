@@ -2,18 +2,19 @@ import isEqual from 'fast-deep-equal'
 import JSON5 from 'json5'
 import functionParse from 'parse-function'
 
-type MatchGuardPattern = (value: unknown) => boolean
+type GuardPattern = (value: unknown) => boolean
 
 type Pattern =
   | string
-  | Function
+  | number
+  | Boolean
+  | Function // XXX How is this possible?
   | unknown[]
-  | Object
-  | ObjectType
-  | MatchGuardPattern
+  | Record<string, unknown>
+  | GuardPattern
 
-interface ObjectType<T = unknown> {
-  [key: string]: T
+type Record<K extends string | number | symbol, T> = {
+  [P in K]: T
 }
 
 interface SubReflectedArg {
@@ -22,100 +23,104 @@ interface SubReflectedArg {
 }
 
 interface ReflectedArg {
-  // wavematch(x)(
-  //   (argName = pattern) => {}
-  // )
   argName: string
   isDestructured: boolean
-
-  // the default parameter of a given Rule
-  // wavematch(x)(
-  //   (argName = pattern) => {}
-  // )
   pattern?: Pattern
-
-  // for matching custom types (like 'Person' or 'Car')
-  // if this key is present then so is either `.pattern` or `.subPattern`
+  /**
+   * If this field exists, then do does either `pattern` or `subPattern`.
+   * XXX TODO Represent this in the type system!
+   */
   customTypeNames?: string[]
-
-  // Patterns can be unions of patterns, like an OR expression:
-  // wavematch(random(0, 5))(
-  //   (n = 1 | 3 | 5) => 'odd!',
-  //   _ => 'even!'
-  // )
-  // If `subPatterns` is present on the instance, then `patterns` is not.
-  // XXX Represent this in the type system!
+  /**
+   * Patterns may be unions of patterns.
+   * If `subPatterns` is present on the instance, then `patterns` is not.
+   * XXX TODO Represent this in the type system!
+   *
+   * @example
+   * wavematch((x = A | B | C) => {})
+   */
   subPatterns?: Pattern[]
 }
 
 interface Rule {
   allReflectedArgs: ReflectedArg[]
-
-  // the length of `allReflectedArgs`
   arity: number
-
-  // the body of a given rule - this is a callable function
+  /**
+   * The callable function body of a given rule.
+   */
   expression: Branch
-
-  // the body of a given rule represented as a string
-  // only used for warning about avoiding duplicate rules (I think)
+  /**
+   * The body of a given rule represented.
+   */
   body: string
 }
 /**
  * Keeps track of warning messages which have already occurred in order to
  * prevent duplicates from being printed more than once.
  */
-const warned: Set<string> = new Set()
+const alreadyWarned = new Set<String>()
 
-const warning = (condition: boolean, message: string): void => {
-  if (!warned.has(message)) {
-    if (condition) {
-      // Do not repeat warning
-      warned.add(message)
-
-      // tslint:disable-next-line
-      if (typeof console !== 'undefined') {
-        console.warn('Warning: ' + message)
-      }
-
-      try {
-        // This error was thrown as a convenience so that you can use this stack
-        // to find the callsite that caused this warning to fire.
-        throw Error(message)
-        // tslint:disable-next-line
-      } catch (theseHands) {}
+const warning = (hasWarning: boolean, message: string): void => {
+  if (!isProduction) {
+    if (!hasWarning) return
+    if (alreadyWarned.has(message)) return
+    alreadyWarned.add(message)
+    const output = `Warning: ${message}`
+    console.warn(output)
+    try {
+      throw Error(output)
+    } catch (theseHands) {
+      // This error was thrown as a convenience so that you can use this stack
+      // to find the callsite that caused this warning to fire.
     }
   }
 }
 
-function invariant(condition: boolean, message: string): void {
-  if (condition) {
-    throw Error(message)
+const isProduction = process.env.NODE_ENV === 'production'
+
+const invariant = (condition: boolean, message: string): void | never => {
+  if (!condition) return
+  if (!isProduction) {
+    throw Error(`Invariant failed: ${message}`)
   }
 }
 
+/**
+ * Constant regexps are more performant
+ */
 const onlyUnderscoresIdentifier = /\b_+\b/
 
+/**
+ * XXX Add benchmarks for caching/recursion
+ */
 const globalCache = new Map()
 
 /**
  * XXX TODO Improve this placeholder implementation
  * XXX Can you pass a generator as a match guard?
  */
-const isMatchGuard = (p: Pattern): p is MatchGuardPattern =>
-  isType('Function', p)
-
-function isFunction(x: unknown): x is Function {
-  return typeof x === 'function'
+const isValidMatchGuard = (p: Pattern): p is GuardPattern => {
+  if (isFunction(p)) {
+    // XXX Make a test break this
+    invariant(p.length !== 1, `Invalid function signature for match guard ${p}`)
+    return true
+  }
+  return false
 }
 
-function toString(x: unknown): string {
-  return isFunction(x)
+/**
+ * This function acts as a typeguard.
+ *
+ * Equivalent to `typeof x === 'function'`.
+ */
+const isFunction = (x: unknown): x is Function => typeof x === 'function'
+
+const toString = (x: unknown): string =>
+  isFunction(x)
     ? String(x)
     : Array.isArray(x)
-    ? ((x.map(toString) as unknown) as string) // XXX TODO Ensure tests work
+    ? ((x.map(toString) as unknown) as string) // XXX TODO Fix this
     : JSON.stringify(x, null, 2)
-}
 
 const { parse } = functionParse()
 
@@ -131,43 +136,46 @@ const { parse } = functionParse()
  * @example
  * has<'pattern', number>(reflectedArgs, 'pattern'))
  */
-const has = <Key extends string | number | symbol, V extends unknown>(
+const has = <Key extends string | number | symbol, V>(
   value: unknown,
   key: Key,
 ): value is { [K in Key]: V } =>
   Object.prototype.hasOwnProperty.call(value, key)
 
-// const objHas = (
-//   obj: object,
-//   key: string | number | symbol,
-// ): key is keyof typeof obj => isPlainObject(obj) && has(obj, key)
-
 /**
  * Optionally acts as a typeguard, allowing consumers of this function to
  * typecast `value` to some provided type parameter.
  */
-function isType<V = unknown>(constructor: string, value: unknown): value is V {
-  return getType(value) === `[object ${constructor}]`
-}
+const isType = <V>(constructor: string, value: unknown): value is V =>
+  getType(value) === `[object ${constructor}]`
 
 /**
+ * Object#toString.call(`value`)
+ *
  * Note: If `Symbol` exists then the result of Object.prototype.toString.call
  * can be modified, possibly breaking the logic used for class type checks.
  */
-function getType(value: unknown): string {
-  return Object.prototype.toString.call(value)
-}
+const getType = (value: unknown): string =>
+  Object.prototype.toString.call(value)
 
 /**
  * Note: Returns true for strings.
  */
-function isArrayLike(value: unknown): boolean {
+function isArrayLike<T = unknown>(value: unknown): value is T[] {
+  /**
+   * Checking for function types (from `getType`) includes any of:
+   * - "[object Function]"
+   * - "[object AsyncFunction]"
+   * - "[object GeneratorFunction]"
+   * - "[object AsyncGeneratorFunction]"
+   */
+  const notAnyFunctionType = !getType(value).includes('Function')
+
   return (
     value != null &&
-    !getType(value).includes('Function') &&
-    // has(value, 'length') && // XXX
-    // @ts-ignore
-    isType<number>('Number', value.length) &&
+    notAnyFunctionType &&
+    has<'length', number>(value, 'length') &&
+    isType('Number', value.length) &&
     // @ts-ignore
     value.length > -1 &&
     // @ts-ignore
@@ -205,7 +213,7 @@ function every<V>(
   return true
 }
 
-const ERROR_TYPES_DICTIONARY: ObjectType<Function> = {
+const ERROR_TYPES_DICTIONARY: Record<string, Function> = {
   EvalError,
   RangeError,
   ReferenceError,
@@ -218,7 +226,7 @@ const ERROR_TYPES_DICTIONARY: ObjectType<Function> = {
 const values = <V>(obj: { [key: string]: V }): V[] =>
   Object.keys(obj).map(key => obj[key])
 
-const nativeConstructors: Function[] = [
+const nativeConstructors = [
   ...values(ERROR_TYPES_DICTIONARY),
   Object,
   Boolean,
@@ -407,10 +415,7 @@ function ruleMatchesNumberInput(
         const reflectedArgs = rule.allReflectedArgs[inputIndex]
 
         if (
-          // XXX
-          'pattern' in reflectedArgs &&
-          reflectedArgs.pattern != null &&
-          // has(reflectedArgs, 'pattern') &&
+          has<'pattern', number>(reflectedArgs, 'pattern') &&
           isType<number>('Number', reflectedArgs.pattern)
         ) {
           return reflectedArgs.pattern === numberInput
@@ -425,7 +430,7 @@ function ruleMatchesNumberInput(
     return isEqual(pattern, numberInput)
   }
 
-  if (isType('Number', numberInput)) {
+  if (typeof numberInput === 'number') {
     if (Number === pattern) {
       // TODO - Refactor `otherRuleMatches` to `return !rules.some(...)`
       const otherRuleMatches: boolean = rules.some(rule => {
@@ -434,10 +439,7 @@ function ruleMatchesNumberInput(
         const reflectedArgs = rule.allReflectedArgs[inputIndex]
 
         if (
-          // XXX
-          'pattern' in reflectedArgs &&
-          reflectedArgs.pattern != null &&
-          // has<'pattern', number>(reflectedArgs, 'pattern') &&
+          has<'pattern', number>(reflectedArgs, 'pattern') &&
           isType('Number', reflectedArgs.pattern)
         ) {
           return reflectedArgs.pattern === numberInput
@@ -458,7 +460,7 @@ function ruleMatchesNumberInput(
 
 // when the input value at `valueIndex` is of type Object
 function ruleMatchesObjectInput(
-  objectInput: ObjectType,
+  objectInput: Record<string, unknown>,
   inputIndex: number,
   rules: Rule[],
   ruleIndex: number,
@@ -771,10 +773,8 @@ function reflectPattern(
 // isPlainObject(Object.create(null)) //=> false
 // https://github.com/reduxjs/redux/blob/master/src/utils/isPlainObject.js
 // Only used for `isPatternAcceptable()` function in this file.
-function isPlainObject(obj: unknown): obj is ObjectType {
-  if (typeof obj !== 'object' || obj === null) {
-    return false
-  }
+function isPlainObject(obj: unknown): obj is Record<string, unknown> {
+  if (typeof obj !== 'object' || obj === null) return false
   let proto = obj
   while (Object.getPrototypeOf(proto) !== null) {
     // $FlowFixMe - This is just not a problem.
@@ -850,18 +850,15 @@ function isPatternAcceptable(
 
     if (isNativePromise) {
       return true
-    } else if (isMatchGuard(pattern)) {
-      // `pattern` may be a match guard
+    } else if (isValidMatchGuard(pattern)) {
       const predicate = pattern
       const guardResult: boolean = predicate(input)
 
       invariant(
-        !isType('Boolean', guardResult),
+        !isType<boolean>('Boolean', guardResult),
         `Rule at rule index ${ruleIndex} has a guard function at parameter ` +
           `index ${inputIndex} that does NOT return a Boolean value. ` +
-          `Expected a predicate (Boolean-returning function). Found ${getType(
-            guardResult,
-          )}.`,
+          `Found ${getType(guardResult)}.`,
       )
 
       if (guardResult) {
@@ -872,8 +869,8 @@ function isPatternAcceptable(
 
   // eensy-teensy bit of type-coersion here (`arguments` -> array)
   // the `isArrayLike` predicate evaluates true for Strings: exclude those
-  if (isArrayLike(input) && !isType('String', input)) {
-    const arrayInput = isType('Array', input) ? input : Array.from(input)
+  if (isArrayLike(input) && !isType<string>('String', input)) {
+    const arrayInput = Array.isArray(input) ? input : Array.from(input)
     return ruleMatchesArrayInput(
       arrayInput,
       inputIndex,
@@ -884,7 +881,7 @@ function isPatternAcceptable(
   }
 
   // detecting Date objects requires the `new` keyword
-  if (isType('Date', input)) {
+  if (isType<Date>('Date', input)) {
     if (Date === pattern) {
       return true
     }
@@ -938,7 +935,7 @@ function isPatternAcceptable(
     }
   }
 
-  if (isType('Boolean', input)) {
+  if (isType<boolean>('Boolean', input)) {
     if (Boolean === pattern) {
       return true
     }
@@ -948,7 +945,7 @@ function isPatternAcceptable(
     }
   }
 
-  if (isType('String', input)) {
+  if (isType<string>('String', input)) {
     if (String === pattern) {
       const otherRuleMatches = rules.some(rule => {
         if (ruleIsWildcard(rule)) return false
@@ -956,12 +953,8 @@ function isPatternAcceptable(
         const reflectedArgs = rule.allReflectedArgs[inputIndex]
 
         if (
-          // XXX
-          'pattern' in reflectedArgs &&
-          // @ts-ignore
-          reflectedArgs.pattern != null &&
-          isType('String', reflectedArgs.pattern)
-          // has<'pattern', string>(reflectedArgs, 'pattern')
+          has<'pattern', string>(reflectedArgs, 'pattern') &&
+          isType<string>('String', reflectedArgs.pattern)
         ) {
           return reflectedArgs.pattern === input
         }
@@ -1139,9 +1132,6 @@ const wavematch: Wavematch = (...inputs) => {
 
 export default wavematch
 
-// type Create = <I extends unknown, Y, F extends Branch<Y>>(
-//   ...rawRules: F[]
-// ) => (...inputs: I[]) => ReturnType<Branch<Y>>
 // @ts-ignore
 export const create = (...rawRules) => (...inputs) =>
   wavematch(...inputs)(...rawRules)

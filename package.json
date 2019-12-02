@@ -58,6 +58,7 @@
       "project": "./tsconfig.json"
     },
     "rules": {
+      "curly": ["error", "multi"],
       "implicit-arrow-linebreak": "error",
       "no-unused-vars": "off",
       "@typescript-eslint/no-unused-vars": [
