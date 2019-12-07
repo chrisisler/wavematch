@@ -28,7 +28,6 @@
     "trailingComma": "all"
   },
   "devDependencies": {
-    "@types/json5": "^0.0.30",
     "@typescript-eslint/eslint-plugin-tslint": "^2.3.3",
     "mocha": "^6.2.1",
     "prettier": "^1.18.2",
@@ -37,11 +36,7 @@
     "tslint": "^5.20.0",
     "typescript": "^3.7.0-beta"
   },
-  "dependencies": {
-    "fast-deep-equal": "^2.0.1",
-    "json5": "^2.1.1",
-    "parse-function": "^5.2.11"
-  },
+  "dependencies": {},
   "eslint": {
     "parser": "@typescript-eslint/parser",
     "extends": [
@@ -58,7 +53,10 @@
       "project": "./tsconfig.json"
     },
     "rules": {
-      "curly": ["error", "multi"],
+      "curly": [
+        "error",
+        "multi"
+      ],
       "implicit-arrow-linebreak": "error",
       "no-unused-vars": "off",
       "@typescript-eslint/no-unused-vars": [

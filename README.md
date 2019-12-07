@@ -1,23 +1,30 @@
-> *Wavematch is a control flow mechanism for JavaScript.*
+## Wavematch
+
+Wavematch is a control flow mechanism for JavaScript.
 
 ## Introduction
 
-Wavematch enables pattern matching.
-It's super declarative.
-A branch of code is executed when specified conditions of the input are satisfied. For example,
-
-```javascript
-let result = wavematch(random(0, 5))(
-  (n = 0) => 'zero',
-  (n = 1) => 'one',
-  (n = 2) => 'two',
-  _       => 'otherwise'
+```typescript
+wavematch(Math.random() > 0.5)(
+  (result = true) => 'above half',
+  _ => 'below half'
 )
 ```
 
-The value of `result` is dependent on which branch of code gets ran when one of
-the conditions are satisfied. If none of the cases meet the user-given
-requirements, the default branch is executed.
+Patterns are conditions for matching input data. Compare the given values
+with specified structures and take action according to the matching branch.
+
+The default branch is specified by:
+```typescript
+wavematch()(
+  _ => {}
+)
+```
+
+## v1.3.0
+
+- `@typescript-eslint/parser`
+- Entirely new tests
 
 ## Install
 
@@ -25,15 +32,38 @@ requirements, the default branch is executed.
 yarn add wavematch
 ```
 
-## Matching Standard Types
+## Type Patterns
 
-Use constructors for type-based matching:
+```typescript
+wavematch()(
+  (input = String) => {},
+  (input = Number) => {},
+  (input = Boolean) => {},
+  (input = Array) => {},
+  (input = Object) => {},
+  (input = Error) => {},
+  (input = Function) => {},
+)
+```
 
-```javascript
-let typeMatch = id => wavematch(id)(
-  (id = Number) => 'received a number!',
-  (id = String) => 'received a string!',
-  _ => 'something else!'
+## Primitive Patterns
+
+A pattern can be any JavaScript primitive value.
+
+```typescript
+wavematch()(
+  (string = 'foo') => {},
+  (number = 42) => {},
+  (boolean = true) => {},
+)
+```
+
+## Collection Patterns
+
+```typescript
+wavematch()(
+  (array = []) => {},
+  (object = {}) => {},
 )
 ```
 
@@ -41,13 +71,13 @@ let typeMatch = id => wavematch(id)(
 
 Use plain objects as a pattern to match on properties:
 
-```javascript
+```typescript
 wavematch({ done: false, rank: 42 })(
     (obj = { done: false }) => {}
 )
 ```
 
-```javascript
+```typescript
 let assertShape = obj => wavematch(obj)(
   (shape = { foo: Number }) => {}, // skip this case
   _ => { throw Error() }
@@ -58,7 +88,7 @@ assertShape({ foo: 'str' }) // Error due to type difference
 
 Destructure the object using the desired key as the argument name:
 
-```javascript
+```typescript
 let data = { done: false, error: Error() }
 
 wavematch(data)(
@@ -69,7 +99,7 @@ wavematch(data)(
 
 Destructure the input object via the argument name _and_ match an object pattern:
 
-```javascript
+```typescript
 wavematch({ foo: { bar: 42 } })(
   (foo = { bar: 42 }) => {}
   _ => {}
@@ -82,7 +112,7 @@ wavematch({ foo: { bar: 42 } })(
 
 Use the class name as a pattern to match custom data types:
 
-```javascript
+```typescript
 class Person {}
 
 wavematch(new Person())(
@@ -95,7 +125,7 @@ wavematch(new Person())(
 )
 ```
 
-```javascript
+```typescript
 function Car() {}
 
 let carInstance = new Car()
@@ -109,7 +139,7 @@ wavematch(carInstance)(
 
 Guards are boolean expressions for conditional behavior:
 
-```javascript
+```typescript
 let fib = wavematch.create(
   (n = 0 | 1) => n,
   // if (n > 1)
@@ -118,7 +148,7 @@ let fib = wavematch.create(
 fib(7) //=> 13
 ```
 
-```javascript
+```typescript
 wavematch(await fetch(url))(
   (response = { status: 200 }) => response,
   (response = $ => $.status > 400) => Error(response)
@@ -131,7 +161,7 @@ wavematch(await fetch(url))(
 
 Use `|` to match multiple patterns:
 
-```javascript
+```typescript
 let value = random(0, 10)
 
 wavematch(value)(
@@ -144,14 +174,14 @@ wavematch(value)(
 )
 ```
 
-```javascript
+```typescript
 wavematch(await fetch(url))(
   (response = { status: 200 } | { ok: true }) => response,
   (response = $ => $.status > 400) => Error(response)
 )
 ```
 
-```javascript
+```typescript
 let parseArgument = arg => wavematch(arg)(
   (arg = '-h' | '--help') => displayHelp(),
   (arg = '-v' | '--version') => displayVersion(),
@@ -166,7 +196,7 @@ The wildcard pattern `_` matches all input arguments.
 - Binds `undefined` to the parameter
 - Should be the last rule provided
 
-```javascript
+```typescript
 let number = wavematch(random(0, 100))(
   (n = 99)          => 'ninety-nine',
   (n = $ => $ > 30) => 'more than thirty',
@@ -178,7 +208,7 @@ let number = wavematch(random(0, 100))(
 
 Things that can **not** be done:
 
-```javascript
+```typescript
 let value = 3
 let matched = wavematch(77)(
   (arg = value) => 'a', // `value` throws a ReferenceError
@@ -187,7 +217,7 @@ let matched = wavematch(77)(
 // Workaround: If possible, replace the variable with its value.
 ```
 
-```javascript
+```typescript
 function fn() {}
 let matched = wavematch('bar')(
   (arg = fn) => 'hello',
@@ -196,7 +226,7 @@ let matched = wavematch('bar')(
 // Workaround: If possible, replace `fn` with an arrow function returning a boolean.
 ```
 
-```javascript
+```typescript
 wavematch({ age: 21.5 })(
   (obj = { age: Number }) => 'got a number',
              // ^^^^^^ Invalid JSON5 here throws the error!
@@ -205,7 +235,7 @@ wavematch({ age: 21.5 })(
 )
 ```
 
-```javascript
+```typescript
 wavematch('foo')(
   (_ = !Array) => {},
     // ^^^^^^ Cannot use `!` operator
@@ -220,7 +250,7 @@ wavematch('foo')(
 
 ## Examples
 
-```javascript
+```typescript
 let zip = (xs, ys) => wavematch(xs, ys)(
   (_, ys = []) => [],
   (xs = [], _) => [],
@@ -229,7 +259,7 @@ let zip = (xs, ys) => wavematch(xs, ys)(
 zip(['a', 'b'], [1, 2]) //=> ['a', 1, 'b', 2]
 ```
 
-```javascript
+```typescript
 let zipWith = wavematch.create(
   (_, xs = [], __) => [],
   (_, __, ys = []) => [],
@@ -238,7 +268,7 @@ let zipWith = wavematch.create(
 zipWith((x, y) => x + y, [1, 3], [2, 4]) //=> [3, 7]
 ```
 
-```javascript
+```typescript
 let unfold = (seed, fn) => wavematch(fn(seed))(
   (_ = null) => [],
   ([seed, next]) => [].concat(seed, unfold(next, fn))
@@ -255,7 +285,7 @@ unfold(
 
 Be mindful of the ordering of your conditions:
 
-```javascript
+```typescript
 let matchFn = wavematch.create(
   (num = $ => $ < 42) => 'A',
   (num = $ => $ < 7) => 'B',
