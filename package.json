@@ -1,79 +1,30 @@
 {
-  "name": "wavematch",
-  "version": "1.3.0",
-  "main": "lib/wavematch.js",
-  "module": "es/wavematch.esm.js",
-  "typings": "dist/index.d.ts",
-  "files": [
-    "lib",
-    "typings",
-    "es"
-  ],
+  "name": "wavematch-babelparser",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
   "scripts": {
-    "build": "tsdx build",
-    "build:watch": "tsdx watch",
-    "clean": "rm -rf lib es",
-    "test": "tsdx build && NODE_ENV=development mocha --no-color",
-    "lint": "tsdx lint",
-    "format": "prettier --write src/**/*.ts",
-    "prepublish": "yarn clean && yarn build && yarn lint && yarn format"
+    "build": "tsc -p tsconfig.json",
+    "build:demo": "yarn build && node demo.js"
+  },
+  "dependencies": {
+    "@babel/parser": "^7.7.5",
+    "@babel/types": "^7.7.4"
   },
   "prettier": {
     "printWidth": 80,
-    "semi": false,
+    "semi": true,
+    "tabWidth": 4,
     "parser": "typescript",
     "arrowParens": "avoid",
     "singleQuote": true,
     "requirePragma": false,
-    "trailingComma": "all"
+    "trailingComma": "es5"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin-tslint": "^2.3.3",
-    "mocha": "^6.2.1",
-    "prettier": "^1.18.2",
-    "tsdx": "^0.9.3",
-    "tslib": "^1.10.0",
-    "tslint": "^5.20.0",
-    "typescript": "^3.7.0-beta"
-  },
-  "dependencies": {},
-  "eslint": {
-    "parser": "@typescript-eslint/parser",
-    "extends": [
-      "plugin:@typescript-eslint/eslint-recommended",
-      "plugin:@typescript-eslint/recommended"
-    ],
-    "plugins": [
-      "@typescript-eslint",
-      "@typescript-eslint/tslint"
-    ],
-    "parserOptions": {
-      "ecmaVersion": 6,
-      "sourceType": "module",
-      "project": "./tsconfig.json"
-    },
-    "rules": {
-      "curly": [
-        "error",
-        "multi"
-      ],
-      "implicit-arrow-linebreak": "error",
-      "no-unused-vars": "off",
-      "@typescript-eslint/no-unused-vars": [
-        "error",
-        {
-          "vars": "all",
-          "args": "after-used",
-          "ignoreRestSiblings": false,
-          "argsIgnorePattern": "^_"
-        }
-      ],
-      "@typescript-eslint/tslint/config": [
-        0,
-        {
-          "lintFile": "./tslint.json"
-        }
-      ]
-    }
+    "@typescript-eslint/eslint-plugin-tslint": "^2.10.0",
+    "eslint": "^6.7.2",
+    "prettier": "^1.19.1",
+    "tslint": "^5.20.1"
   }
 }

@@ -20,9 +20,6 @@
     "early-exit": [true, { "max-length": 4 }],
     "interface-over-type-literal": true,
     "jsdoc-format": [true, "check-multiline-start"],
-    "jsx-ban-props": [true, []],
-    "jsx-boolean-value": [true, "never"],
-    "jsx-self-close": true,
     "member-access": [true, "check-accessor", "check-parameter-property"],
     "member-ordering": [
       true,
@@ -91,7 +88,7 @@
     "no-var-keyword": true,
     "object-literal-shorthand": true,
     "one-variable-per-declaration": { "options": ["ignore-for-loop"] },
-    "only-arrow-functions": false,
+    "only-arrow-functions": true,
     "ordered-imports": [
       true,
       {
@@ -99,7 +96,7 @@
         "groups": [
           {
             "name": "third-party code",
-            "match": "^(fast-deep-equal|json5|parse-function)",
+            "match": "^(@babel/types|@babel/parser)",
             "order": 1
           },
           {

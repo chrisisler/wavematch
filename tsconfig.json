@@ -10,8 +10,8 @@
     "esModuleInterop": true,
     "sourceMap": true,
     "strict": true,
-    "module": "ESNext",
-    "target": "es2017",
+    "module": "CommonJS",
+    "target": "ESNext",
     "typeRoots": ["./node_modules/@types", "./dist"],
     "paths": {
       "test/*": ["../test/*"]
