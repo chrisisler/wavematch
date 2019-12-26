@@ -1,17 +1,9 @@
-/**
- * Notes
- * - Cannot access body of a branch.
- * - Do not offer a wavematch.create api
- *
- * Questions
- * - When unacceptable syntax is encountered, error or warn?
- */
-
 import { parseExpression as babelParse } from '@babel/parser';
 import {
     BinaryExpression,
     Expression,
     Identifier,
+    isArrayExpression,
     isArrowFunctionExpression,
     isBigIntLiteral,
     isBooleanLiteral,
@@ -26,15 +18,7 @@ import {
  * Data that is not an object and has no methods.
  * A primitive instance.
  */
-type LiteralInstance =
-    | string
-    | number
-    | boolean
-    | null
-    | undefined
-    | symbol
-    | object // DEV Hack
-    | bigint;
+type LiteralInstance = string | number | boolean | null | undefined | symbol | bigint;
 
 /**
  * All primitive values have object equivalents that wrap around the primitive
@@ -105,12 +89,7 @@ interface AnyPattern extends BasePattern {
     type: PatternType.Any;
 }
 
-type Pattern =
-    | GuardPattern
-    | LiteralPattern
-    | TypeCheckPattern
-    | CollectionPattern
-    | AnyPattern;
+type Pattern = GuardPattern | LiteralPattern | TypeCheckPattern | CollectionPattern | AnyPattern;
 
 /**
  * Is `node` === `undefined`?
@@ -136,12 +115,22 @@ const Pattern = {
      * @param node The parameter default value of a given branch
      */
     from(node: Expression): Pattern {
+        // TypeCheck Pattern
         if (Pattern.isTypeCheckPattern(node) && isPrimitiveWrapper(node.name)) {
             return {
                 value: node.name,
                 type: PatternType.TypeCheck,
             };
         }
+        // Guard Pattern
+        if (Pattern.isGuardPattern(node)) {
+            // XXX Extract guardFn
+            return {
+                value: Boolean,
+                type: PatternType.Guard,
+            };
+        }
+        // Literal Pattern
         if (
             isStringLiteral(node) ||
             isNumericLiteral(node) ||
@@ -165,6 +154,7 @@ const Pattern = {
                 type: PatternType.Literal,
             };
         }
+        // Object Destructuring Pattern
         if (isObjectExpression(node)) {
             // const value = recreateObject(node)
             return {
@@ -172,15 +162,11 @@ const Pattern = {
                 value: { id: 42 },
             };
         }
-        if (Pattern.isGuardPattern(node)) {
-            // XXX Extract guardFn
-            return {
-                value: Boolean,
-                type: PatternType.Guard,
-            };
+        // Array Destructuring Pattern
+        if (isArrayExpression(node)) {
+            // XXX
         }
-        // Unhandled node state
-        throw Error('Unreachable');
+        throw Error(`Unhandled pattern: ${node}`);
     },
 
     /**
@@ -229,9 +215,7 @@ const Pattern = {
     isGuardPattern(node: Expression): boolean {
         if (!isArrowFunctionExpression(node)) return false;
         if (node.params.length !== 1) {
-            throw Error(
-                `Guard pattern expects one argument, received ${node.params.length}.`
-            );
+            throw Error(`Guard pattern expects one argument, received ${node.params.length}.`);
         }
         // XXX Eval and apply the guardfn
         return false;
@@ -316,11 +300,7 @@ const createPatterns = (branch: Function): Pattern[][] => {
  * @param branches The possible logical code paths
  * @param branchIndex The position of the branch to evaluate
  */
-const isMatch = (
-    args: unknown[],
-    branches: Function[],
-    branchIndex: number
-): boolean => {
+const isMatch = (args: unknown[], branches: Function[], branchIndex: number): boolean => {
     const branch = branches[branchIndex];
     const patterns = createPatterns(branch);
     if (args.length !== patterns.length) return false;
@@ -355,13 +335,13 @@ const isMatch = (
  *
  * @param args The input data.
  * @returns A function taking functions as arguments. For each function, every
- * default argument value constitutes a special pattern describing the kind
- * of input data the corresponding function body depends on.
+ * default argument value constitutes a special pattern describing the kind of
+ * input data the corresponding function body depends on.
  */
 export const wavematch = (...args: unknown[]) =>
     /**
-     * Branch functions that take a different number of arguments than
-     * the wavematched function will be applied to will **not** match.
+     * Branch functions that take a different number of arguments than the
+     * wavematched function will be applied to will **not** match.
      */
     (...branches: Function[]): unknown => {
         if (args.length === 0) throw TypeError('Invariant: No data');
