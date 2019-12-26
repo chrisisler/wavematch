@@ -24,7 +24,7 @@ type LiteralInstance = string | number | boolean | null | undefined | symbol | b
  * All primitive values have object equivalents that wrap around the primitive
  * values.
  */
-type PrimitiveWrapper =
+type PrimitiveWrapperName =
     | 'String'
     | 'Number'
     | 'Boolean'
@@ -35,17 +35,31 @@ type PrimitiveWrapper =
     | 'RegExp'
     | 'Error';
 
-const primitiveWrappers = [
-    'String',
-    'Number',
-    'Boolean',
-    'Symbol',
-    'BigInt',
-    'Object',
-    'Array',
-    'RegExp',
-    'Error',
-];
+type PrimitiveWrapper =
+    | StringConstructor
+    | NumberConstructor
+    | BooleanConstructor
+    | SymbolConstructor
+    | BigIntConstructor
+    | ObjectConstructor
+    | ArrayConstructor
+    | RegExpConstructor
+    | ErrorConstructor;
+
+const primitiveWrappers = new Map<PrimitiveWrapperName, PrimitiveWrapper>([
+    ['String', String],
+    ['Number', Number],
+    ['Boolean', Boolean],
+    ['Symbol', Symbol],
+    ['BigInt', BigInt],
+    ['Object', Object],
+    ['Array', Array],
+    ['RegExp', RegExp],
+    ['Error', Error],
+]);
+
+const isPrimitiveWrapper = (str: unknown): str is PrimitiveWrapperName =>
+    typeof str === 'string' && primitiveWrappers.has(str as PrimitiveWrapperName);
 
 enum PatternType {
     /** Predicate function applied to the input. */
@@ -100,9 +114,6 @@ type Pattern = GuardPattern | LiteralPattern | TypeCheckPattern | CollectionPatt
 const isUndefinedLiteral = (node: Expression): node is Literal =>
     node.type === 'Identifier' && node.name === 'undefined';
 
-const isPrimitiveWrapper = (str: string): str is PrimitiveWrapper =>
-    primitiveWrappers.includes(str);
-
 const Pattern = {
     any(): AnyPattern {
         return { type: PatternType.Any };
@@ -116,14 +127,15 @@ const Pattern = {
      * @param node The parameter default value of a given branch
      */
     from(node: Expression): Pattern {
-        // TypeCheck Pattern
         if (Pattern.isTypeCheckPattern(node) && isPrimitiveWrapper(node.name)) {
+            const typeCheck = primitiveWrappers.get(node.name);
+            if (!typeCheck) throw Error('Unreachable');
+            console.log('typeCheck is:', typeCheck);
             return {
-                value: node.name,
+                value: typeCheck,
                 type: PatternType.TypeCheck,
             };
         }
-        // Guard Pattern
         if (Pattern.isGuardPattern(node)) {
             // XXX Extract guardFn
             return {
@@ -131,7 +143,6 @@ const Pattern = {
                 type: PatternType.Guard,
             };
         }
-        // Literal Pattern
         if (
             isStringLiteral(node) ||
             isNumericLiteral(node) ||
@@ -167,7 +178,8 @@ const Pattern = {
         if (isArrayExpression(node)) {
             // XXX
         }
-        throw Error(`Unhandled pattern: ${node}`);
+        // throw Error(`Unhandled pattern: ${JSON.stringify(node, null, 2)}`);
+        throw Error('Unhandled pattern');
     },
 
     /**
@@ -189,6 +201,7 @@ const Pattern = {
     isUnion(node: Expression): node is BinaryExpression {
         return node.type === 'BinaryExpression' && node.operator === '|';
     },
+
     /**
      * Validates a known type.
      *
@@ -200,7 +213,7 @@ const Pattern = {
      */
     isTypeCheckPattern(node: Expression): node is Identifier {
         if (node.type !== 'Identifier') return false;
-        // XXX Custom Type Names
+        if (isPrimitiveWrapper(node.name)) return true;
         return false;
     },
 
@@ -219,73 +232,8 @@ const Pattern = {
             throw Error(`Guard pattern expects one argument, received ${node.params.length}.`);
         }
         // XXX Eval and apply the guardfn
-        return false;
+        return true;
     },
-};
-
-const parsePatterns = (branch: Function): Pattern[][] => {
-    const branchCode = branch.toString();
-    const expression = babelParse(branchCode, { strictMode: true });
-    if (!isArrowFunctionExpression(expression)) {
-        throw TypeError('Invariant: Expected function');
-    }
-    if (expression.params.length === 0) {
-        throw Error('Invariant: Cannot match against zero parameters');
-    }
-    return expression.params.map(node => {
-        switch (node.type) {
-            case 'ArrayPattern':
-                /**
-                 * Array destructure matching only
-                 */
-                return [Pattern.any()];
-            case 'AssignmentPattern':
-                /**
-                 * Pattern matching
-                 * May also be ArrayPattern, ObjectPattern
-                 *
-                 * node.left will be .type ObjectPattern or ArrayPattern if destructured
-                 */
-                if (Pattern.isUnion(node.right)) {
-                    return Pattern.fromUnion(node.right);
-                }
-                return [Pattern.from(node.right)];
-            case 'Identifier':
-                /**
-                 * No pattern provided, no destructuring.
-                 * Matches anything if list doesn't contain a RestElement.
-                 */
-                const isUppercase = node.name[0].toUpperCase() === node.name[0];
-                if (isUppercase) {
-                    return [Pattern.any()];
-                    // return Pattern.fromTypeCheck(node);
-                }
-                /**
-                 * Plain lower-case variable names match against any data.
-                 *
-                 * This also handles the required fallback branch _ => {}.
-                 */
-                return [Pattern.any()];
-            case 'ObjectPattern':
-                /**
-                 * Object destructure matching only
-                 */
-                return [Pattern.any()];
-            case 'RestElement':
-                /**
-                 * Spread arguments matching
-                 * May contain position-bound Identifiers
-                 */
-                return [Pattern.any()];
-            case 'TSParameterProperty':
-                /**
-                 * Type matching ???
-                 */
-                return [Pattern.any()];
-            default:
-                throw TypeError(`Unreachable: ${node}`);
-        }
-    });
 };
 
 /**
@@ -298,9 +246,67 @@ const parsePatterns = (branch: Function): Pattern[][] => {
  */
 const isMatch = (args: unknown[], branches: Function[], branchIndex: number): boolean => {
     const branch = branches[branchIndex];
-    // XXX Inline `parsePatterns`
-    const patterns = parsePatterns(branch);
-    if (args.length !== patterns.length) return false;
+    const branchCode = branch.toString();
+    const expression = babelParse(branchCode, { strictMode: true });
+    if (!isArrowFunctionExpression(expression)) {
+        throw TypeError('Invariant: Expected function');
+    }
+    if (expression.params.length === 0) {
+        throw Error('Invariant: Cannot match against zero parameters');
+    }
+    if (args.length !== expression.params.length) {
+        return false;
+    }
+    const patterns = expression.params.map(node => {
+        switch (node.type) {
+            case 'ArrayPattern':
+                /**
+                 * Array destructure matching only
+                 */
+                throw Error(`Unimplemented: ${node}`);
+            case 'AssignmentPattern':
+                /**
+                 * Pattern matching
+                 * May also be ArrayPattern, ObjectPattern
+                 *
+                 * node.left will be .type ObjectPattern or ArrayPattern if
+                 * destructured
+                 */
+                if (Pattern.isUnion(node.right)) {
+                    return Pattern.fromUnion(node.right);
+                }
+                return [Pattern.from(node.right)];
+            case 'Identifier':
+                /**
+                 * No pattern provided, no destructuring.
+                 * Matches anything if `params` doesn't contain any RestElement.
+                 */
+                const isUppercase = node.name[0].toUpperCase() === node.name[0];
+                if (isUppercase) {
+                    throw Error(`Unimplemented: ${node}`);
+                }
+                /**
+                 * Plain JavaScript identifiers match any input data. This also
+                 * handles the required fallback branch.
+                 */
+                return [Pattern.any()];
+            case 'ObjectPattern':
+                /**
+                 * Object destructure matching only
+                 */
+                throw Error(`Unimplemented: ${node}`);
+            case 'RestElement':
+                /**
+                 * Spread arguments matching
+                 * May contain indexed Identifiers
+                 */
+                throw Error(`Unimplemented: ${node}`);
+            case 'TSParameterProperty':
+                throw Error(`Unimplemented: ${node}`);
+            default:
+                throw TypeError(`Unreachable: ${node}`);
+        }
+    });
     return args.every((input, position) =>
         patterns[position].some(pattern => {
             switch (pattern.type) {
@@ -308,8 +314,10 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
                     // Are these two values literally the same?
                     return Object.is(pattern.value, input);
                 case PatternType.Guard:
+                    // XXX Extract guardFn from pattern
                     return false;
                 case PatternType.TypeCheck:
+                    // return primitiveWrappersMap[pattern.value]
                     return false;
                 case PatternType.Any:
                     return false;
