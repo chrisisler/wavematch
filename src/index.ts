@@ -11,12 +11,15 @@ import { parseExpression as babelParse } from '@babel/parser';
 import {
     BinaryExpression,
     Expression,
+    Identifier,
     isArrowFunctionExpression,
     isBigIntLiteral,
     isBooleanLiteral,
     isNullLiteral,
-    isNumberLiteral,
+    isNumericLiteral,
+    isObjectExpression,
     isStringLiteral,
+    Literal,
 } from '@babel/types';
 
 /**
@@ -30,6 +33,7 @@ type LiteralInstance =
     | null
     | undefined
     | symbol
+    | object // DEV Hack
     | bigint;
 
 /**
@@ -47,7 +51,7 @@ type PrimitiveWrapper =
     | 'RegExp'
     | 'Error';
 
-const primitiveWrappers: PrimitiveWrapper[] = [
+const primitiveWrappers = [
     'String',
     'Number',
     'Boolean',
@@ -59,50 +63,120 @@ const primitiveWrappers: PrimitiveWrapper[] = [
     'Error',
 ];
 
-interface GuardPattern {
+enum PatternType {
+    /** Predicate funcition applied to the input. */
+    Guard = 'Guard',
+    /** Instance of a primitive value. */
+    Literal = 'Literal',
+    /** Desired type. */
+    TypeCheck = 'TypeCheck',
+    /** No restrictions on allowed data. */
+    Any = 'Any',
+    /** Object or array pattern. */
+    Collection = 'Collection',
+}
+
+interface BasePattern {
+    type: PatternType;
+    value?: Exclude<unknown, null | undefined | void>;
+}
+
+interface CollectionPattern extends BasePattern {
+    type: PatternType.Collection;
+    value: object | unknown[];
+}
+
+interface GuardPattern extends BasePattern {
+    type: PatternType.Guard;
     value(arg: unknown): boolean;
 }
 
-interface LiteralPattern {
+interface LiteralPattern extends BasePattern {
+    type: PatternType.Literal;
     value: LiteralInstance;
 }
 
-interface TypeCheckPattern {
+interface TypeCheckPattern extends BasePattern {
+    type: PatternType.TypeCheck;
     value: PrimitiveWrapper;
 }
 
-/**
- * Represents the parsed pattern.
- */
-type Pattern = GuardPattern | LiteralPattern | TypeCheckPattern;
+interface AnyPattern extends BasePattern {
+    type: PatternType.Any;
+}
+
+type Pattern =
+    | GuardPattern
+    | LiteralPattern
+    | TypeCheckPattern
+    | CollectionPattern
+    | AnyPattern;
 
 /**
  * Is `node` === `undefined`?
  *
  * Does not work for `void 0`.
  */
-const isUndefinedLiteral = (node: Expression): boolean =>
+const isUndefinedLiteral = (node: Expression): node is Literal =>
     node.type === 'Identifier' && node.name === 'undefined';
 
+const isPrimitiveWrapper = (str: string): str is PrimitiveWrapper =>
+    primitiveWrappers.includes(str);
+
 const Pattern = {
+    any(): AnyPattern {
+        return { type: PatternType.Any };
+    },
+
     /**
      * Transform the node's value into a pattern.
+     *
+     * PatternType = Literal | Guard | TypeCheck
+     *
      * @param node The parameter default value of a given branch
      */
     from(node: Expression): Pattern {
-        if (Pattern.isLiteralPattern(node)) {
+        if (Pattern.isTypeCheckPattern(node) && isPrimitiveWrapper(node.name)) {
             return {
-                value: 3, // XXX
+                value: node.name,
+                type: PatternType.TypeCheck,
+            };
+        }
+        if (
+            isStringLiteral(node) ||
+            isNumericLiteral(node) ||
+            isBooleanLiteral(node) ||
+            isBigIntLiteral(node)
+        ) {
+            return {
+                value: node.value,
+                type: PatternType.Literal,
+            };
+        }
+        if (isNullLiteral(node)) {
+            return {
+                value: 'null',
+                type: PatternType.Literal,
+            };
+        }
+        if (isUndefinedLiteral(node)) {
+            return {
+                value: 'undefined',
+                type: PatternType.Literal,
+            };
+        }
+        if (isObjectExpression(node)) {
+            // const value = recreateObject(node)
+            return {
+                type: PatternType.Collection,
+                value: { id: 42 },
             };
         }
         if (Pattern.isGuardPattern(node)) {
+            // XXX Extract guardFn
             return {
-                value: Boolean, // XXX
-            };
-        }
-        if (Pattern.isTypeCheckPattern(node)) {
-            return {
-                value: 'Boolean', // XXX
+                value: Boolean,
+                type: PatternType.Guard,
             };
         }
         // Unhandled node state
@@ -110,27 +184,26 @@ const Pattern = {
     },
 
     /**
-     * Validates a type-based matching "shape".
-     *
-     * @see PatternType.Literal
-     * @example
-     * wavematch(2)(
-     *   (x = 3) => {},
-     * )
+     * Convert a known union of patterns into an array of them.
      */
-    isLiteralPattern(node: Expression): boolean {
-        return (
-            isStringLiteral(node) ||
-            isNumberLiteral(node) ||
-            isBooleanLiteral(node) ||
-            isNullLiteral(node) ||
-            isBigIntLiteral(node) ||
-            isUndefinedLiteral(node)
-        );
+    fromUnion(node: BinaryExpression): Pattern[] {
+        const result = [Pattern.from(node.right)];
+        if (Pattern.isUnion(node.left)) {
+            result.push(...Pattern.fromUnion(node.left));
+        } else {
+            result.push(Pattern.from(node.left));
+        }
+        return result;
     },
 
     /**
-     * Validates a type-based matching "shape".
+     * Is this pattern a union of patterns?
+     */
+    isUnion(node: Expression): node is BinaryExpression {
+        return node.type === 'BinaryExpression' && node.operator === '|';
+    },
+    /**
+     * Validates a known type.
      *
      * @see PatternType.TypeCheck
      * @example
@@ -138,15 +211,8 @@ const Pattern = {
      *   (x = String) => {},
      * )
      */
-    isTypeCheckPattern(node: Expression): boolean {
+    isTypeCheckPattern(node: Expression): node is Identifier {
         if (node.type !== 'Identifier') return false;
-        /**
-         * This usage of `as` exists to keep the `primitiveWrappers` definition
-         * 1:1 parallel with the `PrimitiveWrapper` type that it represents.
-         */
-        if (primitiveWrappers.includes(node.name as PrimitiveWrapper)) {
-            return true;
-        }
         // XXX Custom Type Names
         return false;
     },
@@ -170,34 +236,14 @@ const Pattern = {
         // XXX Eval and apply the guardfn
         return false;
     },
-
-    /**
-     * Is this pattern a union of patterns?
-     */
-    isUnion(node: Expression): node is BinaryExpression {
-        return node.type === 'BinaryExpression' && node.operator === '|';
-    },
-
-    /**
-     * Convert a known union of patterns into an array of them.
-     */
-    fromUnion(node: BinaryExpression): Pattern[] {
-        const result = [Pattern.from(node.right)];
-        if (Pattern.isUnion(node.left)) {
-            result.push(...Pattern.fromUnion(node.left));
-        } else {
-            result.push(Pattern.from(node.left));
-        }
-        return result;
-    },
 };
 
 /**
- * The parsing logic.
+ * The parsing logic applied to every branch with a pattern.
  *
  * Extracts the pattern OR subpatterns, and any custom types.
  */
-const extractPatterns = (branch: Function): unknown[] => {
+const createPatterns = (branch: Function): Pattern[][] => {
     const branchCode = branch.toString();
     const expression = babelParse(branchCode, { strictMode: true });
     if (!isArrowFunctionExpression(expression)) {
@@ -212,43 +258,52 @@ const extractPatterns = (branch: Function): unknown[] => {
                 /**
                  * Array destructure matching only
                  */
-                return node;
+                return [Pattern.any()];
             case 'AssignmentPattern':
-                // XXX node.left will be .type ObjectPattern or ArrayPattern if
-                // destructured
-
                 /**
                  * Pattern matching
                  * May also be ArrayPattern, ObjectPattern
+                 *
+                 * node.left will be .type ObjectPattern or ArrayPattern if destructured
                  */
                 if (Pattern.isUnion(node.right)) {
                     return Pattern.fromUnion(node.right);
                 }
-                return Pattern.from(node.right);
+                return [Pattern.from(node.right)];
             case 'Identifier':
                 /**
                  * No pattern provided, no destructuring.
                  * Matches anything if list doesn't contain a RestElement.
                  */
-                return node;
+                const isUppercase = node.name[0].toUpperCase() === node.name[0];
+                if (isUppercase) {
+                    return [Pattern.any()];
+                    // return Pattern.fromTypeCheck(node);
+                }
+                /**
+                 * Plain lower-case variable names match against any data.
+                 *
+                 * This also handles the required fallback branch _ => {}.
+                 */
+                return [Pattern.any()];
             case 'ObjectPattern':
                 /**
                  * Object destructure matching only
                  */
-                return node;
+                return [Pattern.any()];
             case 'RestElement':
                 /**
                  * Spread arguments matching
                  * May contain position-bound Identifiers
                  */
-                return node;
+                return [Pattern.any()];
             case 'TSParameterProperty':
                 /**
                  * Type matching ???
                  */
-                return node;
+                return [Pattern.any()];
             default:
-                throw TypeError('Unreachable');
+                throw TypeError(`Unreachable: ${node}`);
         }
     });
 };
@@ -267,15 +322,27 @@ const isMatch = (
     branchIndex: number
 ): boolean => {
     const branch = branches[branchIndex];
-    const patterns = extractPatterns(branch);
+    const patterns = createPatterns(branch);
     if (args.length !== patterns.length) return false;
-    return args.every((input, position) => {
-        const pattern = patterns[position];
-        // XXX
-        pattern;
-        input;
-        return false;
-    });
+    return args.every((input, position) =>
+        patterns[position].some(pattern => {
+            switch (pattern.type) {
+                case PatternType.Literal:
+                    // Are these two values literally the same?
+                    return Object.is(pattern.value, input);
+                case PatternType.Guard:
+                    return false;
+                case PatternType.TypeCheck:
+                    return false;
+                case PatternType.Any:
+                    return false;
+                case PatternType.Collection:
+                    return false;
+                default:
+                    throw Error(`Unreachable: ${pattern}`);
+            }
+        })
+    );
 };
 
 /**
@@ -283,6 +350,8 @@ const isMatch = (
  *
  * Takes all data, then returns a function that takes all branches, then
  * computes and returns the result.
+ *
+ * @type `(...T[]) -> (...(T[] -> B)[]) -> B`
  *
  * @param args The input data.
  * @returns A function taking functions as arguments. For each function, every
@@ -306,5 +375,6 @@ export const wavematch = (...args: unknown[]) =>
                 return branch(...args);
             }
         }
-        return 'DEFAULTED';
+        // Nothing matched, run the default.
+        return branches[branches.length - 1].call(null);
     };
