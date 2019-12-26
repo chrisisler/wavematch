@@ -67,7 +67,7 @@ enum PatternType {
     /** Instance of a primitive value. */
     Literal = 'Literal',
     /** Desired type. */
-    TypeCheck = 'TypeCheck',
+    Typed = 'TypeCheck',
     /** No restrictions on allowed data. */
     Any = 'Any',
     /** Object or array pattern. */
@@ -96,8 +96,8 @@ interface LiteralPattern extends BasePattern {
 }
 
 interface TypeCheckPattern extends BasePattern {
-    type: PatternType.TypeCheck;
-    value: PrimitiveWrapper;
+    type: PatternType.Typed;
+    value: PrimitiveWrapperName;
 }
 
 interface AnyPattern extends BasePattern {
@@ -122,18 +122,13 @@ const Pattern = {
     /**
      * Transform the node's value into a pattern.
      *
-     * PatternType = Literal | Guard | TypeCheck
-     *
      * @param node The parameter default value of a given branch
      */
     from(node: Expression): Pattern {
         if (Pattern.isTypeCheckPattern(node) && isPrimitiveWrapper(node.name)) {
-            const typeCheck = primitiveWrappers.get(node.name);
-            if (!typeCheck) throw Error('Unreachable');
-            console.log('typeCheck is:', typeCheck);
             return {
-                value: typeCheck,
-                type: PatternType.TypeCheck,
+                value: node.name,
+                type: PatternType.Typed,
             };
         }
         if (Pattern.isGuardPattern(node)) {
@@ -257,33 +252,22 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
     if (args.length !== expression.params.length) {
         return false;
     }
-    const patterns = expression.params.map(node => {
+    const patterns = expression.params.map((node): Pattern[] => {
         switch (node.type) {
             case 'ArrayPattern':
-                /**
-                 * Array destructure matching only
-                 */
                 throw Error(`Unimplemented: ${node}`);
             case 'AssignmentPattern':
                 /**
                  * Pattern matching
-                 * May also be ArrayPattern, ObjectPattern
-                 *
-                 * node.left will be .type ObjectPattern or ArrayPattern if
-                 * destructured
                  */
                 if (Pattern.isUnion(node.right)) {
                     return Pattern.fromUnion(node.right);
                 }
                 return [Pattern.from(node.right)];
             case 'Identifier':
-                /**
-                 * No pattern provided, no destructuring.
-                 * Matches anything if `params` doesn't contain any RestElement.
-                 */
                 const isUppercase = node.name[0].toUpperCase() === node.name[0];
                 if (isUppercase) {
-                    throw Error(`Unimplemented: ${node}`);
+                    return [Pattern.any()];
                 }
                 /**
                  * Plain JavaScript identifiers match any input data. This also
@@ -291,15 +275,8 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
                  */
                 return [Pattern.any()];
             case 'ObjectPattern':
-                /**
-                 * Object destructure matching only
-                 */
                 throw Error(`Unimplemented: ${node}`);
             case 'RestElement':
-                /**
-                 * Spread arguments matching
-                 * May contain indexed Identifiers
-                 */
                 throw Error(`Unimplemented: ${node}`);
             case 'TSParameterProperty':
                 throw Error(`Unimplemented: ${node}`);
@@ -307,22 +284,24 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
                 throw TypeError(`Unreachable: ${node}`);
         }
     });
-    return args.every((input, position) =>
-        patterns[position].some(pattern => {
+    return args.every((input, position): boolean =>
+        patterns[position].some((pattern: Pattern): boolean => {
             switch (pattern.type) {
                 case PatternType.Literal:
                     // Are these two values literally the same?
                     return Object.is(pattern.value, input);
                 case PatternType.Guard:
-                    // XXX Extract guardFn from pattern
-                    return false;
-                case PatternType.TypeCheck:
-                    // return primitiveWrappersMap[pattern.value]
-                    return false;
+                    throw Error('Unimplemented: isMatch -> Guard');
+                case PatternType.Typed:
+                    const desiredType: PrimitiveWrapperName = pattern.value;
+                    if (primitiveWrappers.has(desiredType)) {
+                        return Object.prototype.toString.call(input) === `[object ${desiredType}]`;
+                    }
+                    throw Error('Unimplemented: isMatch -> Custom Types');
                 case PatternType.Any:
-                    return false;
+                    return true;
                 case PatternType.Collection:
-                    return false;
+                    throw Error('Unimplemented: isMatch -> Collection');
                 default:
                     throw Error(`Unreachable: ${pattern}`);
             }
@@ -345,7 +324,8 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
 export const wavematch = (...inputs: unknown[]) =>
     /**
      * Branch functions that take a different number of arguments than the
-     * wavematched function will be applied to will **not** match.
+     * wavematched function will be applied to will **not** match (or should
+     * that throw?).
      */
     (...branches: Function[]): unknown => {
         if (inputs.length === 0) throw TypeError('Invariant: No data');

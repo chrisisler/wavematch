@@ -16,24 +16,40 @@ test('Empty string', t => {
         (s = '') => t.pass(),
         _ => t.fail()
     );
-    // TypeCheck
+    wavematch('')(
+        (s = 'foo') => t.fail(),
+        _ => t.pass()
+    );
+    // Typed
     wavematch('')(
         (s = String) => t.pass(),
         _ => t.fail()
     );
 });
 
-// test('Non-empty string', t => {
-//     // Guard
-//     // Literal
-//     // TypeCheck
-// });
+test('Non-empty string', t => {
+    // Guard
+    // Literal
+    wavematch('foo')(
+        (s = 'foo') => t.pass(),
+        _ => t.fail()
+    );
+    wavematch('foo')(
+        (s = '') => t.fail(),
+        _ => t.pass()
+    );
+    // Typed
+    wavematch('foo')(
+        (s = String) => t.pass(),
+        _ => t.fail()
+    );
+});
 
 /**
  * enum Specificity {
  *     PatternType.Guard, // Highest Specificity
  *     PatternType.Literal,
- *     PatternType.TypeCheck, // Lowest
+ *     PatternType.Typed, // Lowest
  * }
  *
  * Guard gets highest Spec because it asks _exact_ questions about data. It is
@@ -66,26 +82,26 @@ test('Empty string', t => {
 //         _ => t.fail()
 //     );
 //     // Literal
-//     // TypeCheck
+//     // Typed
 // });
 
-// test('Non-string', t => {
-//     [{}, () => {}, 42, Symbol(), Error(), false, []].forEach(notAString => {
-//         // Guard
-//         wavematch(notAString)(
-//             (s = _ => typeof _ === 'string') => t.fail(),
-//             _ => t.pass()
-//         );
-//         // Literal
-//         wavematch(notAString)(
-//             (s = '') => t.fail(),
-//             (s = 'non-empty') => t.fail(),
-//             _ => t.pass()
-//         );
-//         // TypeCheck
-//         wavematch(notAString)(
-//             (s = String) => t.fail(),
-//             _ => t.pass()
-//         );
-//     });
-// });
+test('Non-string', t => {
+    [{}, () => {}, 42, Symbol(), Error(), false, []].forEach(notAString => {
+        // Guard
+        // wavematch(notAString)(
+        //     (s = _ => typeof _ === 'string') => t.fail(),
+        //     _ => t.pass()
+        // );
+        // Literal
+        wavematch(notAString)(
+            (s = '') => t.fail(),
+            (s = 'non-empty') => t.fail(),
+            _ => t.pass()
+        );
+        // Typed
+        wavematch(notAString)(
+            (s = String) => t.fail(),
+            _ => t.pass()
+        );
+    });
+});
