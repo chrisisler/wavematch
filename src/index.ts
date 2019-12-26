@@ -48,7 +48,7 @@ const primitiveWrappers = [
 ];
 
 enum PatternType {
-    /** Predicate funcition applied to the input. */
+    /** Predicate function applied to the input. */
     Guard = 'Guard',
     /** Instance of a primitive value. */
     Literal = 'Literal',
@@ -65,6 +65,7 @@ interface BasePattern {
     value?: Exclude<unknown, null | undefined | void>;
 }
 
+/** For objects and arrays. */
 interface CollectionPattern extends BasePattern {
     type: PatternType.Collection;
     value: object | unknown[];
@@ -222,12 +223,7 @@ const Pattern = {
     },
 };
 
-/**
- * The parsing logic applied to every branch with a pattern.
- *
- * Extracts the pattern OR subpatterns, and any custom types.
- */
-const createPatterns = (branch: Function): Pattern[][] => {
+const parsePatterns = (branch: Function): Pattern[][] => {
     const branchCode = branch.toString();
     const expression = babelParse(branchCode, { strictMode: true });
     if (!isArrowFunctionExpression(expression)) {
@@ -302,7 +298,8 @@ const createPatterns = (branch: Function): Pattern[][] => {
  */
 const isMatch = (args: unknown[], branches: Function[], branchIndex: number): boolean => {
     const branch = branches[branchIndex];
-    const patterns = createPatterns(branch);
+    // XXX Inline `parsePatterns`
+    const patterns = parsePatterns(branch);
     if (args.length !== patterns.length) return false;
     return args.every((input, position) =>
         patterns[position].some(pattern => {
@@ -333,26 +330,25 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
  *
  * @type `(...T[]) -> (...(T[] -> B)[]) -> B`
  *
- * @param args The input data.
  * @returns A function taking functions as arguments. For each function, every
  * default argument value constitutes a special pattern describing the kind of
  * input data the corresponding function body depends on.
  */
-export const wavematch = (...args: unknown[]) =>
+export const wavematch = (...inputs: unknown[]) =>
     /**
      * Branch functions that take a different number of arguments than the
      * wavematched function will be applied to will **not** match.
      */
     (...branches: Function[]): unknown => {
-        if (args.length === 0) throw TypeError('Invariant: No data');
+        if (inputs.length === 0) throw TypeError('Invariant: No data');
         if (branches.length === 0) throw TypeError('Invariant: No branches');
         for (let index = 0; index < branches.length; index++) {
-            if (isMatch(args, branches, index)) {
+            if (isMatch(inputs, branches, index)) {
                 const branch = branches[index];
                 /**
                  * XXX Erase the default paramaters from `branch`.
                  */
-                return branch(...args);
+                return branch(...inputs);
             }
         }
         // Nothing matched, run the default.
