@@ -9,8 +9,8 @@
   "scripts": {
     "dev": "tsdx watch",
     "build": "tsdx build",
-    "test": "ava",
-    "test:watch": "ava --watch",
+    "test": "clear ; ava",
+    "test:watch": "clear ; ava --watch",
     "lint": "tsdx lint",
     "prepare": "tsdx build"
   },

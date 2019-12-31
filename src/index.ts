@@ -15,17 +15,11 @@ import {
 } from '@babel/types';
 
 /**
- * Data that is not an object and has no methods.
- * A primitive instance.
+ * Supported, native value constructors.
  */
-type LiteralInstance = string | number | boolean | null | undefined | symbol | bigint;
-
-/**
- * All primitive values have object equivalents that wrap around the primitive
- * values.
- */
-type PrimitiveWrapperName =
+type PrimitiveConstructorName =
     | 'String'
+    | 'Function'
     | 'Number'
     | 'Boolean'
     | 'Symbol'
@@ -35,7 +29,8 @@ type PrimitiveWrapperName =
     | 'RegExp'
     | 'Error';
 
-type PrimitiveWrapper =
+type PrimitiveConstructor =
+    | FunctionConstructor
     | StringConstructor
     | NumberConstructor
     | BooleanConstructor
@@ -46,8 +41,9 @@ type PrimitiveWrapper =
     | RegExpConstructor
     | ErrorConstructor;
 
-const primitiveWrappers = new Map<PrimitiveWrapperName, PrimitiveWrapper>([
+const primitiveConstructors = new Map<PrimitiveConstructorName, PrimitiveConstructor>([
     ['String', String],
+    ['Function', Function],
     ['Number', Number],
     ['Boolean', Boolean],
     ['Symbol', Symbol],
@@ -58,13 +54,13 @@ const primitiveWrappers = new Map<PrimitiveWrapperName, PrimitiveWrapper>([
     ['Error', Error],
 ]);
 
-const isPrimitiveWrapper = (str: unknown): str is PrimitiveWrapperName =>
-    typeof str === 'string' && primitiveWrappers.has(str as PrimitiveWrapperName);
+const isPrimitiveConstructor = (str: unknown): str is PrimitiveConstructorName =>
+    typeof str === 'string' && primitiveConstructors.has(str as PrimitiveConstructorName);
 
 enum PatternType {
     /** Predicate function applied to the input. */
     Guard = 'Guard',
-    /** Instance of a primitive value. */
+    /** Instance of a primitive value. Interacts with PrimitiveConstructor. */
     Literal = 'Literal',
     /** Desired type. */
     Typed = 'TypeCheck',
@@ -92,12 +88,16 @@ interface GuardPattern extends BasePattern {
 
 interface LiteralPattern extends BasePattern {
     type: PatternType.Literal;
-    value: LiteralInstance;
+    /**
+     * Data that is not an object and has no methods.
+     * A primitive instance.
+     */
+    value: string | number | boolean | null | undefined | symbol | bigint;
 }
 
 interface TypeCheckPattern extends BasePattern {
     type: PatternType.Typed;
-    value: PrimitiveWrapperName;
+    value: PrimitiveConstructorName;
 }
 
 interface AnyPattern extends BasePattern {
@@ -125,7 +125,7 @@ const Pattern = {
      * @param node The parameter default value of a given branch
      */
     from(node: Expression): Pattern {
-        if (Pattern.isTypeCheckPattern(node) && isPrimitiveWrapper(node.name)) {
+        if (Pattern.isTypeCheckPattern(node) && isPrimitiveConstructor(node.name)) {
             return {
                 value: node.name,
                 type: PatternType.Typed,
@@ -208,7 +208,7 @@ const Pattern = {
      */
     isTypeCheckPattern(node: Expression): node is Identifier {
         if (node.type !== 'Identifier') return false;
-        if (isPrimitiveWrapper(node.name)) return true;
+        if (isPrimitiveConstructor(node.name)) return true;
         return false;
     },
 
@@ -293,8 +293,8 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
                 case PatternType.Guard:
                     throw Error('Unimplemented: isMatch -> Guard');
                 case PatternType.Typed:
-                    const desiredType: PrimitiveWrapperName = pattern.value;
-                    if (primitiveWrappers.has(desiredType)) {
+                    const desiredType: PrimitiveConstructorName = pattern.value;
+                    if (primitiveConstructors.has(desiredType)) {
                         return Object.prototype.toString.call(input) === `[object ${desiredType}]`;
                     }
                     throw Error('Unimplemented: isMatch -> Custom Types');
@@ -310,22 +310,19 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
 };
 
 /**
- * A pattern matching operator.
+ * A control flow mechanism.
  *
- * Takes all data, then returns a function that takes all branches, then
- * computes and returns the result.
+ * Takes all arguments, returns a function which takes all branches, and
+ * evaluates the first branch to successfully match against the input.
  *
- * @type `(...T[]) -> (...(T[] -> B)[]) -> B`
- *
- * @returns A function taking functions as arguments. For each function, every
- * default argument value constitutes a special pattern describing the kind of
- * input data the corresponding function body depends on.
+ * For each given branch, each default argument value constitutes a special
+ * pattern describing the kind of input data the corresponding function body
+ * expects.
  */
 export const wavematch = (...inputs: unknown[]) =>
     /**
-     * Branch functions that take a different number of arguments than the
-     * wavematched function will be applied to will **not** match (or should
-     * that throw?).
+     * - Branches accepting a number of arguments other the amount received
+     * - Order matters; a branch matching on `String` will match over `'foo'`
      */
     (...branches: Function[]): unknown => {
         if (inputs.length === 0) throw TypeError('Invariant: No data');
