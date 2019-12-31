@@ -33,8 +33,8 @@ type PrimitiveConstructorName =
     | 'Error';
 
 type PrimitiveConstructor =
-    | FunctionConstructor
     | StringConstructor
+    | FunctionConstructor
     | NumberConstructor
     | BooleanConstructor
     | SymbolConstructor
@@ -134,6 +134,31 @@ const Pattern = {
         return [Pattern.fromUnary(node.right)];
     },
 
+    /**
+     * Convert a known union of patterns into an array of them.
+     */
+    fromUnion(node: BinaryExpression): Pattern[] {
+        const result = [Pattern.fromUnary(node.right)];
+        if (Pattern.isUnion(node.left)) {
+            result.push(...Pattern.fromUnion(node.left));
+        } else {
+            result.push(Pattern.fromUnary(node.left));
+        }
+        return result;
+    },
+
+    /**
+     * Transform the node's value into a single pattern.
+     *
+     * @param node The parameter default value of a given branch
+     */
+    fromUnary(node: Expression): Pattern {
+        if (node.type === 'UnaryExpression' && node.operator === '!') {
+            return Pattern.from(node.argument, true);
+        }
+        return Pattern.from(node, false);
+    },
+
     from(node: Expression, isNegated: boolean): Pattern {
         if (
             isStringLiteral(node) ||
@@ -198,31 +223,6 @@ const Pattern = {
             // TODO
         }
         throw Error('Unhandled node state');
-    },
-
-    /**
-     * Transform the node's value into a single pattern.
-     *
-     * @param node The parameter default value of a given branch
-     */
-    fromUnary(node: Expression): Pattern {
-        if (node.type === 'UnaryExpression' && node.operator === '!') {
-            return Pattern.from(node.argument, true);
-        }
-        return Pattern.from(node, false);
-    },
-
-    /**
-     * Convert a known union of patterns into an array of them.
-     */
-    fromUnion(node: BinaryExpression): Pattern[] {
-        const result = [Pattern.fromUnary(node.right)];
-        if (Pattern.isUnion(node.left)) {
-            result.push(...Pattern.fromUnion(node.left));
-        } else {
-            result.push(Pattern.fromUnary(node.left));
-        }
-        return result;
     },
 
     /**
@@ -297,6 +297,11 @@ const Pattern = {
 };
 
 /**
+ * Is the first character of a given string in capitalized?
+ */
+const isUpperFirst = (str: string): boolean => str[0] === str[0].toUpperCase();
+
+/**
  * Is the branch at the given index a match given how the input data fits (or
  * does not fit) the structural patterns within it?
  *
@@ -305,19 +310,18 @@ const Pattern = {
  * @param branchIndex The position of the branch to evaluate
  */
 const isMatch = (args: unknown[], branches: Function[], branchIndex: number): boolean => {
-    const branch = branches[branchIndex];
-    const branchCode = branch.toString();
-    const expression = babelParse(branchCode, { strictMode: true });
-    if (!isArrowFunctionExpression(expression)) {
+    const branchCode = branches[branchIndex].toString();
+    const parsedBranch = babelParse(branchCode, { strictMode: true });
+    if (!isArrowFunctionExpression(parsedBranch)) {
         throw TypeError('Invariant: Expected function');
     }
-    if (expression.params.length === 0) {
+    if (parsedBranch.params.length === 0) {
         throw Error('Invariant: Cannot match against zero parameters');
     }
-    if (args.length !== expression.params.length) {
+    if (args.length !== parsedBranch.params.length) {
         return false;
     }
-    const patterns = expression.params.map((node): Pattern[] => {
+    const patterns = parsedBranch.params.map((node): Pattern[] => {
         switch (node.type) {
             case 'ArrayPattern':
                 throw Error(`Unimplemented: ${node}`);
@@ -327,11 +331,8 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
                  */
                 return Pattern.new(node);
             case 'Identifier':
-                const isUppercase = node.name[0].toUpperCase() === node.name[0];
-                if (isUppercase) {
-                    // TODO Custom Types
-                    return [Pattern.any()];
-                }
+                // TODO Support Custom Types
+                if (isUpperFirst(node.name)) return [Pattern.any()];
                 // Named patterns match any input.
                 return [Pattern.any()];
             case 'ObjectPattern':
