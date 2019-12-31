@@ -1,5 +1,6 @@
 import { parseExpression as babelParse } from '@babel/parser';
 import {
+    AssignmentPattern,
     BinaryExpression,
     Expression,
     Identifier,
@@ -120,26 +121,20 @@ const Pattern = {
     },
 
     /**
-     * Transform the node's value into a pattern.
+     * Entry point for creating patterns from the AST node of a given function
+     * argument that has a default AKA a user-provided pattern to match
+     * against.
      *
-     * @param node The parameter default value of a given branch
+     * Pattern creation flow is `new -> fromUnion -> fromUnary -> from`
      */
-    from(node: Expression): Pattern {
-        const isNegated = node.type === 'UnaryExpression' && node.operator === '!';
-        if (Pattern.isTypedPattern(node)) {
-            return {
-                value: node.name,
-                type: PatternType.Typed,
-                negated: isNegated,
-            };
+    new(node: AssignmentPattern): Pattern[] {
+        if (Pattern.isUnion(node.right)) {
+            return Pattern.fromUnion(node.right);
         }
-        if (Pattern.isGuardPattern(node)) {
-            // XXX Extract guardFn
-            return {
-                value: Boolean,
-                type: PatternType.Guard,
-            };
-        }
+        return [Pattern.fromUnary(node.right)];
+    },
+
+    from(node: Expression, isNegated: boolean): Pattern {
         if (
             isStringLiteral(node) ||
             isNumericLiteral(node) ||
@@ -152,25 +147,42 @@ const Pattern = {
                 negated: isNegated,
             };
         }
-        if (Pattern.isNumber(node)) {
+        if (Pattern.isSignedNumber(node)) {
             return {
                 type: PatternType.Literal,
-                value: node.argument.value,
+                value: node.operator === '-' ? -node.argument.value : node.argument.value,
                 negated: isNegated,
             };
         }
+        if (Pattern.isNumberOtherwise(node)) {
+            // TODO
+        }
         if (isNullLiteral(node)) {
             return {
-                value: 'null',
+                value: null,
                 type: PatternType.Literal,
-                negated: false, // TODO Negation
+                negated: isNegated,
             };
         }
         if (Pattern.isUndefinedLiteral(node)) {
             return {
-                value: 'undefined',
+                value: undefined,
                 type: PatternType.Literal,
-                negated: false, // TODO Negation
+                negated: isNegated,
+            };
+        }
+        if (Pattern.isTypedPattern(node)) {
+            return {
+                value: node.name, // The required type
+                type: PatternType.Typed,
+                negated: isNegated,
+            };
+        }
+        if (Pattern.isGuardPattern(node)) {
+            // XXX Extract guardFn
+            return {
+                value: Boolean,
+                type: PatternType.Guard,
             };
         }
         // Object Destructuring Pattern
@@ -183,35 +195,58 @@ const Pattern = {
         }
         // Array Destructuring Pattern
         if (isArrayExpression(node)) {
-            // XXX
+            // TODO
         }
-        throw Error(JSON.stringify(node, null, 2));
+        throw Error('Unhandled node state');
+    },
+
+    /**
+     * Transform the node's value into a single pattern.
+     *
+     * @param node The parameter default value of a given branch
+     */
+    fromUnary(node: Expression): Pattern {
+        if (node.type === 'UnaryExpression' && node.operator === '!') {
+            return Pattern.from(node.argument, true);
+        }
+        return Pattern.from(node, false);
     },
 
     /**
      * Convert a known union of patterns into an array of them.
      */
     fromUnion(node: BinaryExpression): Pattern[] {
-        const result = [Pattern.from(node.right)];
+        const result = [Pattern.fromUnary(node.right)];
         if (Pattern.isUnion(node.left)) {
             result.push(...Pattern.fromUnion(node.left));
         } else {
-            result.push(Pattern.from(node.left));
+            result.push(Pattern.fromUnary(node.left));
         }
         return result;
     },
 
     /**
-     * Handles patterns not covered by `isNumericLiteral`.
+     * Handles patterns not covered by `isNumericLiteral` (excluding NaN, Infinity).
      * - Include cases like negative instances `-42`
      */
-    isNumber(
+    isSignedNumber(
         node: Expression
     ): node is UnaryExpression & { argument: NumericLiteral; operator: '+' | '-' } {
         if (node.type === 'UnaryExpression' && node.prefix) {
             if (node.operator === '-' || node.operator === '+') {
                 return isNumericLiteral(node.argument);
             }
+        }
+        return false;
+    },
+
+    /**
+     * For awkward JavaScript numbers like NaN and Infinity
+     */
+    isNumberOtherwise(node: Expression): node is Identifier {
+        if (node.type === 'Identifier') {
+            if (node.name === 'Infinity') return true;
+            // TODO NaN
         }
         return false;
     },
@@ -290,10 +325,7 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
                 /**
                  * Pattern matching
                  */
-                if (Pattern.isUnion(node.right)) {
-                    return Pattern.fromUnion(node.right);
-                }
-                return [Pattern.from(node.right)];
+                return Pattern.new(node);
             case 'Identifier':
                 const isUppercase = node.name[0].toUpperCase() === node.name[0];
                 if (isUppercase) {
