@@ -41,6 +41,35 @@ test('Positive Numbers', t => {
     );
 });
 
+test('Floats', t => {
+    // Guard
+    // TODO
+    // Literal
+    wavematch(1.0)(
+        (s = 0.9) => t.fail(),
+        (s = 1.1) => t.fail(),
+        (s = 1) => t.pass(),
+        _ => t.fail()
+    );
+    wavematch(1.0)(
+        (s = 0.9) => t.fail(),
+        (s = 1.1) => t.fail(),
+        (s = 1.0) => t.pass(),
+        _ => t.fail()
+    );
+    wavematch(4.2)(
+        (s = 4) => t.fail(),
+        (s = 4.0) => t.fail(),
+        (s = 4.1) => t.fail(),
+        (s = 4.2) => t.pass(),
+        (s = 4.3) => t.fail(),
+        (s = 5) => t.fail(),
+        (s = 5.0) => t.fail(),
+        _ => t.fail()
+    );
+    // Typed
+});
+
 test('Non-number', t => {
     [{}, () => {}, '42', Symbol(), Error(), false, []].forEach(notANumber => {
         // Guard
