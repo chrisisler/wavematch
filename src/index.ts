@@ -315,11 +315,29 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
     if (!isArrowFunctionExpression(parsedBranch)) {
         throw TypeError('Invariant: Expected function');
     }
-    if (parsedBranch.params.length === 0) {
-        throw Error('Invariant: Cannot match against zero parameters');
-    }
-    if (args.length !== parsedBranch.params.length) {
-        return false;
+    const isLastBranch = branches.length - 1 === branchIndex;
+    const branchArity = parsedBranch.params.length;
+    if (isLastBranch) {
+        if (branchArity > 1) {
+            throw Error('Invariant: Expected default branch to take zero or one arguments');
+        } else if (branchArity === 1) {
+            const [param] = parsedBranch.params;
+            if (!(param.type === 'Identifier' && param.name === '_')) {
+                throw Error('Invariant: Expect default to be `_ => {}` or `() => {}`');
+            }
+            return true;
+        } else {
+            /* Otherwise `branchArity === 0` and default branch is `() => {}` */
+            return true;
+        }
+    } else {
+        if (branchArity === 0) {
+            throw Error('Invariant: Expected branch to accept more than zero arguments');
+        }
+        // Skip branches that take a different number of arguments than provided
+        if (args.length !== branchArity) {
+            return false;
+        }
     }
     const patterns = parsedBranch.params.map((node): Pattern[] => {
         switch (node.type) {
@@ -387,13 +405,13 @@ export const wavematch = (...inputs: unknown[]) =>
      * - Order matters; a branch matching on `String` will match over `'foo'`
      */
     (...branches: Function[]): unknown => {
-        if (inputs.length === 0) throw TypeError('Invariant: No data');
-        if (branches.length === 0) throw TypeError('Invariant: No branches');
+        if (inputs.length === 0) throw Error('Invariant: No data');
+        if (branches.length === 0) throw Error('Invariant: No branches');
         for (let index = 0; index < branches.length; index++) {
             if (isMatch(inputs, branches, index)) {
                 const branch = branches[index];
                 /**
-                 * XXX Erase the default paramaters from `branch`.
+                 * XXX Erase the default parameters from `branch`.
                  */
                 return branch(...inputs);
             }
