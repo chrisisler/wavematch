@@ -10,11 +10,11 @@ test('Number', t => {
         (s = 42) => t.pass(),
         _ => t.fail()
     );
-    wavematch(42)(
-        (s = 0) => t.fail(),
-        (s = 79) => t.fail(),
-        _ => t.pass()
-    );
+    // wavematch(42)(
+    //     (s = 0) => t.fail(),
+    //     (s = 79) => t.fail(),
+    //     _ => t.pass()
+    // );
     // Typed
     // TODO
 });

@@ -12,6 +12,8 @@ import {
     isObjectExpression,
     isStringLiteral,
     Literal,
+    NumericLiteral,
+    UnaryExpression,
 } from '@babel/types';
 
 /**
@@ -63,7 +65,7 @@ enum PatternType {
     /** Instance of a primitive value. Interacts with PrimitiveConstructor. */
     Literal = 'Literal',
     /** Desired type. */
-    Typed = 'TypeCheck',
+    Typed = 'Typed',
     /** No restrictions on allowed data. */
     Any = 'Any',
     /** Object or array pattern. */
@@ -72,7 +74,11 @@ enum PatternType {
 
 interface BasePattern {
     type: PatternType;
-    value?: Exclude<unknown, null | undefined | void>;
+}
+
+/** Can this pattern be negated? */
+interface PatternNegation {
+    negated: boolean;
 }
 
 /** For objects and arrays. */
@@ -86,33 +92,27 @@ interface GuardPattern extends BasePattern {
     value(arg: unknown): boolean;
 }
 
-interface LiteralPattern extends BasePattern {
+interface LiteralPattern extends BasePattern, PatternNegation {
     type: PatternType.Literal;
     /**
      * Data that is not an object and has no methods.
      * A primitive instance.
      */
     value: string | number | boolean | null | undefined | symbol | bigint;
+    negated: boolean;
 }
 
-interface TypeCheckPattern extends BasePattern {
+interface TypedPattern extends BasePattern, PatternNegation {
     type: PatternType.Typed;
     value: PrimitiveConstructorName;
+    negated: boolean;
 }
 
 interface AnyPattern extends BasePattern {
     type: PatternType.Any;
 }
 
-type Pattern = GuardPattern | LiteralPattern | TypeCheckPattern | CollectionPattern | AnyPattern;
-
-/**
- * Is `node` === `undefined`?
- *
- * Does not work for `void 0`.
- */
-const isUndefinedLiteral = (node: Expression): node is Literal =>
-    node.type === 'Identifier' && node.name === 'undefined';
+type Pattern = GuardPattern | LiteralPattern | TypedPattern | CollectionPattern | AnyPattern;
 
 const Pattern = {
     any(): AnyPattern {
@@ -125,10 +125,12 @@ const Pattern = {
      * @param node The parameter default value of a given branch
      */
     from(node: Expression): Pattern {
-        if (Pattern.isTypeCheckPattern(node) && isPrimitiveConstructor(node.name)) {
+        const isNegated = node.type === 'UnaryExpression' && node.operator === '!';
+        if (Pattern.isTypedPattern(node)) {
             return {
                 value: node.name,
                 type: PatternType.Typed,
+                negated: isNegated,
             };
         }
         if (Pattern.isGuardPattern(node)) {
@@ -147,18 +149,28 @@ const Pattern = {
             return {
                 value: node.value,
                 type: PatternType.Literal,
+                negated: isNegated,
+            };
+        }
+        if (Pattern.isNumber(node)) {
+            return {
+                type: PatternType.Literal,
+                value: node.argument.value,
+                negated: isNegated,
             };
         }
         if (isNullLiteral(node)) {
             return {
                 value: 'null',
                 type: PatternType.Literal,
+                negated: false, // TODO Negation
             };
         }
-        if (isUndefinedLiteral(node)) {
+        if (Pattern.isUndefinedLiteral(node)) {
             return {
                 value: 'undefined',
                 type: PatternType.Literal,
+                negated: false, // TODO Negation
             };
         }
         // Object Destructuring Pattern
@@ -173,8 +185,7 @@ const Pattern = {
         if (isArrayExpression(node)) {
             // XXX
         }
-        // throw Error(`Unhandled pattern: ${JSON.stringify(node, null, 2)}`);
-        throw Error('Unhandled pattern');
+        throw Error(JSON.stringify(node, null, 2));
     },
 
     /**
@@ -191,6 +202,25 @@ const Pattern = {
     },
 
     /**
+     * Handles patterns not covered by `isNumericLiteral`.
+     * - Include cases like negative instances `-42`
+     */
+    isNumber(
+        node: Expression
+    ): node is UnaryExpression & { argument: NumericLiteral; operator: '+' | '-' } {
+        if (node.type === 'UnaryExpression' && node.prefix) {
+            if (node.operator === '-' || node.operator === '+') {
+                return isNumericLiteral(node.argument);
+            }
+        }
+        return false;
+    },
+
+    isUndefinedLiteral(node: Expression): node is Literal {
+        return node.type === 'Identifier' && node.name === 'undefined';
+    },
+
+    /**
      * Is this pattern a union of patterns?
      */
     isUnion(node: Expression): node is BinaryExpression {
@@ -200,23 +230,23 @@ const Pattern = {
     /**
      * Validates a known type.
      *
-     * @see PatternType.TypeCheck
      * @example
+     * // node: String
      * wavematch('foo')(
      *   (x = String) => {},
      * )
      */
-    isTypeCheckPattern(node: Expression): node is Identifier {
+    isTypedPattern(node: Expression): node is Identifier & { name: PrimitiveConstructorName } {
         if (node.type !== 'Identifier') return false;
-        if (isPrimitiveConstructor(node.name)) return true;
-        return false;
+        return isPrimitiveConstructor(node.name);
     },
 
     /**
-     * Validates a type-based matching "shape".
+     * Validates behavior.
      *
      * @see PatternType.Guard
      * @example
+     * // node: _ => _.length > 3
      * wavematch('foo')(
      *   (x = _ => _.length > 3) => {},
      * )
@@ -267,12 +297,10 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
             case 'Identifier':
                 const isUppercase = node.name[0].toUpperCase() === node.name[0];
                 if (isUppercase) {
+                    // TODO Custom Types
                     return [Pattern.any()];
                 }
-                /**
-                 * Plain JavaScript identifiers match any input data. This also
-                 * handles the required fallback branch.
-                 */
+                // Named patterns match any input.
                 return [Pattern.any()];
             case 'ObjectPattern':
                 throw Error(`Unimplemented: ${node}`);
@@ -288,11 +316,12 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
         patterns[position].some((pattern: Pattern): boolean => {
             switch (pattern.type) {
                 case PatternType.Literal:
-                    // Are these two values literally the same?
-                    return Object.is(pattern.value, input);
+                    const isMatched = Object.is(pattern.value, input);
+                    return pattern.negated ? !isMatched : isMatched;
                 case PatternType.Guard:
                     throw Error('Unimplemented: isMatch -> Guard');
                 case PatternType.Typed:
+                    // TODO pattern.negated
                     const desiredType: PrimitiveConstructorName = pattern.value;
                     if (primitiveConstructors.has(desiredType)) {
                         return Object.prototype.toString.call(input) === `[object ${desiredType}]`;
