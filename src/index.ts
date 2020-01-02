@@ -57,16 +57,18 @@ const primitiveConstructors = new Map<PrimitiveConstructorName, PrimitiveConstru
     ['Error', Error],
 ]);
 
-const isPrimitiveConstructor = (str: unknown): str is PrimitiveConstructorName =>
-    typeof str === 'string' && primitiveConstructors.has(str as PrimitiveConstructorName);
+const isPrimitiveConstructor = (str: string): str is PrimitiveConstructorName =>
+    primitiveConstructors.has(str as PrimitiveConstructorName);
 
 enum PatternType {
     /** Predicate function applied to the input. */
     Guard = 'Guard',
     /** Instance of a primitive value. Interacts with PrimitiveConstructor. */
     Literal = 'Literal',
-    /** Desired type. */
+    /** Desired type, like Number. */
     Typed = 'Typed',
+    /** Desired type, like Fruit. */
+    CustomTyped = 'CustomTyped',
     /** No restrictions on allowed data. */
     Any = 'Any',
     /** Object or array pattern. */
@@ -88,9 +90,9 @@ interface CollectionPattern extends BasePattern {
     value: object | unknown[];
 }
 
+/** `value` comes from `branch` :: (arg: unknown) => boolean */
 interface GuardPattern extends BasePattern {
     type: PatternType.Guard;
-    value(arg: unknown): boolean;
 }
 
 interface LiteralPattern extends BasePattern, PatternNegation {
@@ -109,11 +111,23 @@ interface TypedPattern extends BasePattern, PatternNegation {
     negated: boolean;
 }
 
+interface CustomTypedPattern extends BasePattern, PatternNegation {
+    type: PatternType.CustomTyped;
+    value: string;
+    negated: boolean;
+}
+
 interface AnyPattern extends BasePattern {
     type: PatternType.Any;
 }
 
-type Pattern = GuardPattern | LiteralPattern | TypedPattern | CollectionPattern | AnyPattern;
+type Pattern =
+    | GuardPattern
+    | LiteralPattern
+    | TypedPattern
+    | CustomTypedPattern
+    | CollectionPattern
+    | AnyPattern;
 
 const Pattern = {
     any(): AnyPattern {
@@ -147,11 +161,6 @@ const Pattern = {
         return result;
     },
 
-    /**
-     * Transform the node's value into a single pattern.
-     *
-     * @param node The parameter default value of a given branch
-     */
     fromUnary(node: Expression): Pattern {
         if (node.type === 'UnaryExpression' && node.operator === '!') {
             return Pattern.from(node.argument, true);
@@ -159,7 +168,29 @@ const Pattern = {
         return Pattern.from(node, false);
     },
 
+    /**
+     * Transform the given shape into a pattern.
+     *
+     * @param node The parameter default value of a given branch
+     */
     from(node: Expression, isNegated: boolean): Pattern {
+        console.log('node is:', node);
+        if (Pattern.isTypedPattern(node)) {
+            const assertedType = node.name;
+            return {
+                value: assertedType,
+                type: PatternType.Typed,
+                negated: isNegated,
+            };
+        }
+        if (Pattern.isCustomTypedPattern(node)) {
+            const assertedType = node.name;
+            return {
+                value: assertedType,
+                type: PatternType.CustomTyped,
+                negated: isNegated,
+            };
+        }
         if (
             isStringLiteral(node) ||
             isNumericLiteral(node) ||
@@ -196,17 +227,8 @@ const Pattern = {
                 negated: isNegated,
             };
         }
-        if (Pattern.isTypedPattern(node)) {
-            return {
-                value: node.name, // The required type
-                type: PatternType.Typed,
-                negated: isNegated,
-            };
-        }
         if (Pattern.isGuardPattern(node)) {
-            // XXX Extract guardFn
             return {
-                value: Boolean,
                 type: PatternType.Guard,
             };
         }
@@ -244,6 +266,7 @@ const Pattern = {
      * For awkward JavaScript numbers like NaN and Infinity
      */
     isNumberOtherwise(node: Expression): node is Identifier {
+        console.log('sup');
         if (node.type === 'Identifier') {
             if (node.name === 'Infinity') return true;
             // TODO NaN
@@ -280,6 +303,20 @@ const Pattern = {
     },
 
     /**
+     * Validates a unknown type.
+     *
+     * @example
+     * // node: Fruit
+     * class Fruit {}
+     * wavematch(new Fruit())(
+     *   (x = Fruit) => {},
+     * )
+     */
+    isCustomTypedPattern(node: Expression): node is Identifier {
+        return node.type === 'Identifier' && isUpperFirst(node.name);
+    },
+
+    /**
      * Validates behavior.
      *
      * @see PatternType.Guard
@@ -313,6 +350,7 @@ const isUpperFirst = (str: string): boolean => str[0] === str[0].toUpperCase();
  * @param branchIndex The position of the branch to evaluate
  */
 const isMatch = (args: unknown[], branches: Function[], branchIndex: number): boolean => {
+    // TODO Defer doing "data transformations" before doing argument type checks!
     const branchCode = branches[branchIndex].toString();
     const parsedBranch = babelParse(branchCode, { strictMode: true });
     if (!isArrowFunctionExpression(parsedBranch)) {
@@ -346,21 +384,18 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
     }
     const patterns = parsedBranch.params.map((node): Pattern[] => {
         switch (node.type) {
+            // Pattern matching
+            case 'AssignmentPattern':
+                return Pattern.new(node);
+            // Named patterns match any input
+            case 'Identifier':
+                if (isUpperFirst(node.name)) return [Pattern.any()];
+                return [Pattern.any()];
+            case 'RestElement':
+                throw Error(`Unimplemented: ${node}`);
             case 'ArrayPattern':
                 throw Error(`Unimplemented: ${node}`);
-            case 'AssignmentPattern':
-                /**
-                 * Pattern matching
-                 */
-                return Pattern.new(node);
-            case 'Identifier':
-                // TODO Support Custom Types
-                if (isUpperFirst(node.name)) return [Pattern.any()];
-                // Named patterns match any input.
-                return [Pattern.any()];
             case 'ObjectPattern':
-                throw Error(`Unimplemented: ${node}`);
-            case 'RestElement':
                 throw Error(`Unimplemented: ${node}`);
             case 'TSParameterProperty':
                 throw Error(`Unimplemented: ${node}`);
@@ -368,19 +403,29 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
                 throw TypeError(`Unreachable: ${node}`);
         }
     });
-    return args.every((input, position): boolean =>
+    return args.every((arg, position): boolean =>
         patterns[position].some((pattern: Pattern): boolean => {
             switch (pattern.type) {
                 case PatternType.Literal:
-                    const isMatched = Object.is(pattern.value, input);
+                    const isMatched = Object.is(pattern.value, arg);
                     return pattern.negated ? !isMatched : isMatched;
                 case PatternType.Guard:
-                    throw Error('Unimplemented: isMatch -> Guard');
+                    // const guard: unknown = eval(branchCode);
+                    // if (typeof guard !== 'function') throw TypeError(`Unreachable: ${guard}`);
+                    // if (guard.length !== 1) {
+                    //     throw TypeError('Invariant: Guard must take one argument.');
+                    // }
+                    // const result: unknown = guard(arg);
+                    // if (typeof result !== 'boolean') {
+                    //     throw TypeError('Invariant: Guard must return true/false.');
+                    // }
+                    // return result;
+                    throw Error('Unimplemented');
                 case PatternType.Typed:
                     // TODO pattern.negated
                     const desiredType: PrimitiveConstructorName = pattern.value;
                     if (primitiveConstructors.has(desiredType)) {
-                        return Object.prototype.toString.call(input) === `[object ${desiredType}]`;
+                        return Object.prototype.toString.call(arg) === `[object ${desiredType}]`;
                     }
                     throw Error('Unimplemented: isMatch -> Custom Types');
                 case PatternType.Any:
@@ -404,23 +449,21 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
  * pattern describing the kind of input data the corresponding function body
  * expects.
  */
-export const wavematch = (...inputs: unknown[]) =>
+export const wavematch = (...args: unknown[]) =>
     /**
-     * - Branches accepting a number of arguments other the amount received
      * - Order matters; a branch matching on `String` will match over `'foo'`
      */
     (...branches: Function[]): unknown => {
-        if (inputs.length === 0) throw Error('Invariant: No data');
+        if (args.length === 0) throw Error('Invariant: No data');
         if (branches.length === 0) throw Error('Invariant: No branches');
         for (let index = 0; index < branches.length; index++) {
-            if (isMatch(inputs, branches, index)) {
+            if (isMatch(args, branches, index)) {
                 const branch = branches[index];
                 /**
-                 * XXX Erase the default parameters from `branch`.
+                 * TODO Erase the default parameters from `branch`.
                  */
-                return branch(...inputs);
+                return branch(...args);
             }
         }
-        // Nothing matched, run the default.
         return branches[branches.length - 1].call(null);
     };
