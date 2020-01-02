@@ -71,23 +71,25 @@ test('Order Matters', t => {
 });
 
 test('Non-string', t => {
-    [{}, () => {}, 42, Symbol(), Error(), false, []].forEach(notAString => {
-        // Guard
-        // TODO
-        // wavematch(notAString)(
-        //     (s = _ => typeof _ === 'string') => t.fail(),
-        //     _ => t.pass()
-        // );
-        // Literal
-        wavematch(notAString)(
-            (s = '') => t.fail(),
-            (s = 'non-empty') => t.fail(),
-            _ => t.pass()
-        );
-        // Typed
-        wavematch(notAString)(
-            (s = String) => t.fail(),
-            _ => t.pass()
-        );
-    });
+    [{}, () => {}, -11, 0, 42, Symbol(), Error(), true, false, [], null, undefined].forEach(
+        notAString => {
+            // Guard
+            // TODO
+            // wavematch(notAString)(
+            //     (s = _ => typeof _ === 'string') => t.fail(),
+            //     _ => t.pass()
+            // );
+            // Literal
+            wavematch(notAString)(
+                (s = '') => t.fail(),
+                (s = 'non-empty') => t.fail(),
+                _ => t.pass()
+            );
+            // Typed
+            wavematch(notAString)(
+                (s = String) => t.fail(),
+                _ => t.pass()
+            );
+        }
+    );
 });

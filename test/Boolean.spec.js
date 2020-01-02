@@ -35,7 +35,7 @@ test('Boolean', t => {
 });
 
 test('Non-boolean', t => {
-    [{}, () => {}, '42', Symbol(), Error(), []].forEach(notABoolean => {
+    [{}, () => {}, null, undefined, -3, 0, '42', Symbol(), Error(), []].forEach(notABoolean => {
         // Guard
         // TODO
         // Literal

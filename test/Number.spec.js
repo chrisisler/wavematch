@@ -71,7 +71,7 @@ test('Floats', t => {
 });
 
 test('Non-number', t => {
-    [{}, () => {}, '42', Symbol(), Error(), false, []].forEach(notANumber => {
+    [{}, () => {}, '42', Symbol(), Error(), false, [], null, undefined].forEach(notANumber => {
         // Guard
         // TODO
         // Literal
@@ -107,3 +107,8 @@ test('Zero', t => {
         _ => t.pass()
     );
 });
+
+// Not Supported currently
+// test('BigInt', t => {
+//     t.pass()
+// })

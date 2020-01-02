@@ -4,6 +4,19 @@ Wavematch is a control flow mechanism for JavaScript.
 
 ## Dev
 
-- Can write Literal and Typed tests for
-  - Null
-  - Undefined
+#### Low Risk
+
+- `RegExp` pattern for strings
+- `Symbol`
+- Union `|`
+- `BigInt`
+- `Error`
+- Negation `!`
+
+#### Not-low Risk
+
+- Collection
+    - Records
+    - Array/N-Tuple
+- Custom Types
+    - Subclasses

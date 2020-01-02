@@ -12,7 +12,6 @@ import {
     isNumericLiteral,
     isObjectExpression,
     isStringLiteral,
-    Literal,
     NumericLiteral,
     UnaryExpression,
 } from '@babel/types';
@@ -189,7 +188,7 @@ const Pattern = {
                 negated: isNegated,
             };
         }
-        if (Pattern.isUndefinedLiteral(node)) {
+        if (Pattern.isUndefined(node)) {
             return {
                 value: undefined,
                 type: PatternType.Literal,
@@ -251,8 +250,13 @@ const Pattern = {
         return false;
     },
 
-    isUndefinedLiteral(node: Expression): node is Literal {
-        return node.type === 'Identifier' && node.name === 'undefined';
+    /**
+     * Handles `undefined` and `void`.
+     */
+    isUndefined(node: Expression): boolean {
+        if (node.type === 'Identifier' && node.name === 'undefined') return true;
+        if (node.type === 'UnaryExpression' && node.operator === 'void') return true;
+        return false;
     },
 
     /**
@@ -318,7 +322,9 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
     const isLastBranch = branches.length - 1 === branchIndex;
     const branchArity = parsedBranch.params.length;
     if (isLastBranch) {
-        if (branchArity > 1) {
+        // May want to allow any named patterns for default branch to capture while using `new wavematch` API
+        // const isOnlyNamedPatterns = parsedBranch.params.every(p => p.type === 'Identifier')
+        if (branchArity > 1 /* && isOnlyNamedPatterns */) {
             throw Error('Invariant: Expected default branch to take zero or one arguments');
         } else if (branchArity === 1) {
             const [param] = parsedBranch.params;
