@@ -12,6 +12,7 @@ import {
     isNumericLiteral,
     isObjectExpression,
     isStringLiteral,
+    Literal,
     NumericLiteral,
     UnaryExpression,
 } from '@babel/types';
@@ -188,7 +189,7 @@ const Pattern = {
                 negated: isNegated,
             };
         }
-        if (Pattern.isUndefined(node)) {
+        if (Pattern.isUndefinedLiteral(node)) {
             return {
                 value: undefined,
                 type: PatternType.Literal,
@@ -250,13 +251,11 @@ const Pattern = {
         return false;
     },
 
-    /**
-     * Handles `undefined` and `void`.
-     */
-    isUndefined(node: Expression): boolean {
-        if (node.type === 'Identifier' && node.name === 'undefined') return true;
-        if (node.type === 'UnaryExpression' && node.operator === 'void') return true;
-        return false;
+    isUndefinedLiteral(node: Expression): node is Literal {
+        if (node.type === 'UnaryExpression' && node.operator === 'void') {
+            throw Error('Invariant: `void` is not supported.');
+        }
+        return node.type === 'Identifier' && node.name === 'undefined';
     },
 
     /**

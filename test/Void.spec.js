@@ -19,10 +19,20 @@ test('Undefined', t => {
         (n = undefined) => t.pass(),
         _ => t.fail()
     );
-    wavematch(undefined)(
-        (n = void 0) => t.pass(),
-        _ => t.fail()
-    );
+});
+
+test('`void` usages throws an error', t => {
+    t.throws(() => {
+        // `void` handling code throws error before t.fail() does
+        wavematch('foo')(
+            (x = void 0) => t.fail(),
+            _ => t.fail()
+        );
+        wavematch(undefined)(
+            (x = void 3) => t.fail(),
+            _ => t.fail()
+        );
+    });
 });
 
 test('Non-Null', t => {
