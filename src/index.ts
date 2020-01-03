@@ -174,7 +174,6 @@ const Pattern = {
      * @param node The parameter default value of a given branch
      */
     from(node: Expression, isNegated: boolean): Pattern {
-        console.log('node is:', node);
         if (Pattern.isTypedPattern(node)) {
             const assertedType = node.name;
             return {
@@ -266,7 +265,6 @@ const Pattern = {
      * For awkward JavaScript numbers like NaN and Infinity
      */
     isNumberOtherwise(node: Expression): node is Identifier {
-        console.log('sup');
         if (node.type === 'Identifier') {
             if (node.name === 'Infinity') return true;
             // TODO NaN
@@ -383,13 +381,12 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
         }
     }
     const patterns = parsedBranch.params.map((node): Pattern[] => {
+        // https://www.ecma-international.org/ecma-262/6.0/#sec-destructuring-assignment
         switch (node.type) {
-            // Pattern matching
             case 'AssignmentPattern':
+                // Pattern matching
                 return Pattern.new(node);
-            // Named patterns match any input
             case 'Identifier':
-                if (isUpperFirst(node.name)) return [Pattern.any()];
                 return [Pattern.any()];
             case 'RestElement':
                 throw Error(`Unimplemented: ${node}`);
@@ -409,6 +406,29 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
                 case PatternType.Literal:
                     const isMatched = Object.is(pattern.value, arg);
                     return pattern.negated ? !isMatched : isMatched;
+                case PatternType.Typed:
+                    // TODO pattern.negated
+                    const desiredType: PrimitiveConstructorName = pattern.value;
+                    return (
+                        primitiveConstructors.has(desiredType) &&
+                        Object.prototype.toString.call(arg) === `[object ${desiredType}]`
+                    );
+                case PatternType.CustomTyped:
+                    if (!(typeof arg === 'object' && arg !== null)) return false;
+                    const isUnnamedConstructor = arg.constructor.name === '';
+                    const acceptedTypes = isUnnamedConstructor ? [] : [arg.constructor.name];
+                    const code = arg.constructor.toString();
+                    const hasParentClass = code.includes('extends');
+                    if (hasParentClass) {
+                        const tokens = code.split(/\s+/).slice(0, 4);
+                        const parentClass = tokens[isUnnamedConstructor ? 2 : 3];
+                        acceptedTypes.push(parentClass);
+                    }
+                    return acceptedTypes.includes(pattern.value);
+                case PatternType.Collection:
+                    throw Error('Unimplemented: isMatch -> Collection');
+                case PatternType.Any:
+                    return true;
                 case PatternType.Guard:
                     // const guard: unknown = eval(branchCode);
                     // if (typeof guard !== 'function') throw TypeError(`Unreachable: ${guard}`);
@@ -421,17 +441,6 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
                     // }
                     // return result;
                     throw Error('Unimplemented');
-                case PatternType.Typed:
-                    // TODO pattern.negated
-                    const desiredType: PrimitiveConstructorName = pattern.value;
-                    if (primitiveConstructors.has(desiredType)) {
-                        return Object.prototype.toString.call(arg) === `[object ${desiredType}]`;
-                    }
-                    throw Error('Unimplemented: isMatch -> Custom Types');
-                case PatternType.Any:
-                    return true;
-                case PatternType.Collection:
-                    throw Error('Unimplemented: isMatch -> Collection');
                 default:
                     throw Error(`Unreachable: ${pattern}`);
             }
