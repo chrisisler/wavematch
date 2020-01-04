@@ -2,14 +2,11 @@
 
 Wavematch is a control flow mechanism for JavaScript.
 
-### Remaining
+### Dev
 
-- Negation `!`
 - `RegExp` pattern for strings
-- `BigInt` ?
-- Guard
-    - Requires `eval`
 - Union `|`
+- `BigInt` ?
 - Collection
     - Records
         - What should `({ bar }) => {}` pattern-less object deconstruction match on?
@@ -17,10 +14,10 @@ Wavematch is a control flow mechanism for JavaScript.
             - Also need to consider this edge case: `({ length } = Array) => {}`
     - Array/N-Tuple
         - Support `([]) => {}` as shortcut for `(array = []) => {}`
-- Custom Types WIP
-    - Subclasses
+- Guard
+    - Requires `eval`
 
-#### Thoughts
+### Thoughts
 
 - Allow `Foo => {}` as shortcut for `(named = Foo) => {}`
     - Only applies to Typed (!) and CustomTyped patterns
@@ -28,7 +25,7 @@ Wavematch is a control flow mechanism for JavaScript.
         - Could use `$Foo => {}` as alternative, but introduces "weird" syntax
 - CallExpressions ?
     - `(err = Error(242)) => {}` for error codes
-    - `(array = Array(3)) => {}` for exact array sizes / tuple lengths
+    - `(array = Array(3)) => {}` for exact array sizes / tuple lengths w/o specifying type at each position
     - `(str = String(3)) => {}` for exact string lengths
     - Provide warning for `(array = Array(0)) => {}`
 - Guards v2

@@ -113,6 +113,11 @@ interface TypedPattern extends BasePattern, PatternNegation {
 
 interface CustomTypedPattern extends BasePattern, PatternNegation {
     type: PatternType.CustomTyped;
+    /**
+     * The name of the desired type.
+     *
+     * @example (x = Vehicle) => {}
+     */
     value: string;
     negated: boolean;
 }
@@ -132,6 +137,19 @@ type Pattern =
 const Pattern = {
     any(): AnyPattern {
         return { type: PatternType.Any };
+    },
+
+    /**
+     * Produce a PatternType.CustomTyped pattern from an Identifier node.
+     *  `(x = SomeClass) => {}`?
+     */
+    customTyped(node: Identifier, isNegated: boolean): CustomTypedPattern {
+        const assertedType = node.name;
+        return {
+            type: PatternType.CustomTyped,
+            value: assertedType,
+            negated: isNegated,
+        };
     },
 
     /**
@@ -183,12 +201,7 @@ const Pattern = {
             };
         }
         if (Pattern.isCustomTypedPattern(node)) {
-            const assertedType = node.name;
-            return {
-                value: assertedType,
-                type: PatternType.CustomTyped,
-                negated: isNegated,
-            };
+            return Pattern.customTyped(node, isNegated);
         }
         if (
             isStringLiteral(node) ||
@@ -357,7 +370,7 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
     const isLastBranch = branches.length - 1 === branchIndex;
     const branchArity = parsedBranch.params.length;
     if (isLastBranch) {
-        // May want to allow any named patterns for default branch to capture while using `new wavematch` API
+        // May want to allow any named patterns for default branch to capture
         // const isOnlyNamedPatterns = parsedBranch.params.every(p => p.type === 'Identifier')
         if (branchArity > 1 /* && isOnlyNamedPatterns */) {
             throw Error('Invariant: Expected default branch to take zero or one arguments');
@@ -404,15 +417,14 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
         patterns[position].some((pattern: Pattern): boolean => {
             switch (pattern.type) {
                 case PatternType.Literal:
-                    const isMatched = Object.is(pattern.value, arg);
-                    return pattern.negated ? !isMatched : isMatched;
+                    const isSameShape = Object.is(pattern.value, arg);
+                    return pattern.negated ? !isSameShape : isSameShape;
                 case PatternType.Typed:
-                    // TODO pattern.negated
                     const desiredType: PrimitiveConstructorName = pattern.value;
-                    return (
+                    const argIsDesiredType =
                         primitiveConstructors.has(desiredType) &&
-                        Object.prototype.toString.call(arg) === `[object ${desiredType}]`
-                    );
+                        Object.prototype.toString.call(arg) === `[object ${desiredType}]`;
+                    return pattern.negated ? !argIsDesiredType : argIsDesiredType;
                 case PatternType.CustomTyped:
                     if (!(typeof arg === 'object' && arg !== null)) return false;
                     const isUnnamedConstructor = arg.constructor.name === '';
@@ -424,7 +436,8 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
                         const parentClass = tokens[isUnnamedConstructor ? 2 : 3];
                         acceptedTypes.push(parentClass);
                     }
-                    return acceptedTypes.includes(pattern.value);
+                    const isAcceptedType = acceptedTypes.includes(pattern.value);
+                    return pattern.negated ? !isAcceptedType : isAcceptedType;
                 case PatternType.Collection:
                     throw Error('Unimplemented: isMatch -> Collection');
                 case PatternType.Any:
