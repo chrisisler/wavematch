@@ -93,3 +93,14 @@ test('Non-string', t => {
         }
     );
 });
+
+test('RegExp literal pattern', t => {
+    wavematch('foo')(
+        (x = /foo/) => t.pass(),
+        _ => t.fail()
+    );
+    wavematch('foo')(
+        (x = /fo+/) => t.pass(),
+        _ => t.fail()
+    );
+});

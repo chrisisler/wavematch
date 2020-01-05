@@ -11,6 +11,7 @@ import {
     isNullLiteral,
     isNumericLiteral,
     isObjectExpression,
+    isRegExpLiteral,
     isStringLiteral,
     Literal,
     NumericLiteral,
@@ -73,6 +74,8 @@ enum PatternType {
     Any = 'Any',
     /** Object or array pattern. */
     Collection = 'Collection',
+    /** RegExp testing against strings. */
+    RegExp = 'RegExp',
 }
 
 interface BasePattern {
@@ -122,6 +125,11 @@ interface CustomTypedPattern extends BasePattern, PatternNegation {
     negated: boolean;
 }
 
+interface RegExpPattern extends BasePattern {
+    type: PatternType.RegExp;
+    value: RegExp;
+}
+
 interface AnyPattern extends BasePattern {
     type: PatternType.Any;
 }
@@ -132,24 +140,12 @@ type Pattern =
     | TypedPattern
     | CustomTypedPattern
     | CollectionPattern
+    | RegExpPattern
     | AnyPattern;
 
 const Pattern = {
     any(): AnyPattern {
         return { type: PatternType.Any };
-    },
-
-    /**
-     * Produce a PatternType.CustomTyped pattern from an Identifier node.
-     *  `(x = SomeClass) => {}`?
-     */
-    customTyped(node: Identifier, isNegated: boolean): CustomTypedPattern {
-        const assertedType = node.name;
-        return {
-            type: PatternType.CustomTyped,
-            value: assertedType,
-            negated: isNegated,
-        };
     },
 
     /**
@@ -201,7 +197,12 @@ const Pattern = {
             };
         }
         if (Pattern.isCustomTypedPattern(node)) {
-            return Pattern.customTyped(node, isNegated);
+            const assertedType = node.name;
+            return {
+                type: PatternType.CustomTyped,
+                value: assertedType,
+                negated: isNegated,
+            };
         }
         if (
             isStringLiteral(node) ||
@@ -213,6 +214,12 @@ const Pattern = {
                 value: node.value,
                 type: PatternType.Literal,
                 negated: isNegated,
+            };
+        }
+        if (isRegExpLiteral(node)) {
+            return {
+                value: RegExp(node.pattern),
+                type: PatternType.RegExp,
             };
         }
         if (Pattern.isSignedNumber(node)) {
@@ -249,7 +256,7 @@ const Pattern = {
             // const value = recreateObject(node)
             return {
                 type: PatternType.Collection,
-                value: { id: 42 },
+                value: { id: 42 }, // XXX
             };
         }
         // Array Destructuring Pattern
@@ -419,6 +426,9 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
                 case PatternType.Literal:
                     const isSameShape = Object.is(pattern.value, arg);
                     return pattern.negated ? !isSameShape : isSameShape;
+                case PatternType.RegExp:
+                    if (typeof arg === 'string') return pattern.value.test(arg);
+                    return false;
                 case PatternType.Typed:
                     const desiredType: PrimitiveConstructorName = pattern.value;
                     const argIsDesiredType =
