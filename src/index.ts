@@ -223,9 +223,11 @@ const Pattern = {
             };
         }
         if (Pattern.isSignedNumber(node)) {
+            const isNegativeNumber = node.operator === '-';
+            const desired = node.argument.value;
             return {
                 type: PatternType.Literal,
-                value: node.operator === '-' ? -node.argument.value : node.argument.value,
+                value: isNegativeNumber ? -desired : desired,
                 negated: isNegated,
             };
         }
@@ -288,6 +290,7 @@ const Pattern = {
         if (node.type === 'Identifier') {
             if (node.name === 'Infinity') return true;
             // TODO NaN
+            // - Should Number pattern match NaN arg?
         }
         return false;
     },
@@ -374,32 +377,12 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
     if (!isArrowFunctionExpression(parsedBranch)) {
         throw TypeError('Invariant: Expected function');
     }
-    const isLastBranch = branches.length - 1 === branchIndex;
     const branchArity = parsedBranch.params.length;
-    if (isLastBranch) {
-        // May want to allow any named patterns for default branch to capture
-        // const isOnlyNamedPatterns = parsedBranch.params.every(p => p.type === 'Identifier')
-        if (branchArity > 1 /* && isOnlyNamedPatterns */) {
-            throw Error('Invariant: Expected default branch to take zero or one arguments');
-        } else if (branchArity === 1) {
-            const [param] = parsedBranch.params;
-            if (!(param.type === 'Identifier' && param.name === '_')) {
-                throw Error('Invariant: Expect default to be `_ => {}` or `() => {}`');
-            }
-            return true;
-        } else {
-            /* Otherwise `branchArity === 0` and default branch is `() => {}` */
-            return true;
-        }
-    } else {
-        if (branchArity === 0) {
-            throw Error('Invariant: Expected branch to accept more than zero arguments');
-        }
-        // Skip branches that take a different number of arguments than provided
-        if (args.length !== branchArity) {
-            return false;
-        }
+    if (branchArity === 0) {
+        throw Error('Invariant: Expected branch to accept more than zero arguments');
     }
+    // Skip branches that take a different number of arguments than provided
+    if (args.length !== branchArity) return false;
     const patterns = parsedBranch.params.map((node): Pattern[] => {
         // https://www.ecma-international.org/ecma-262/6.0/#sec-destructuring-assignment
         switch (node.type) {
@@ -451,7 +434,7 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
                 case PatternType.Collection:
                     throw Error('Unimplemented: isMatch -> Collection');
                 case PatternType.Any:
-                    return true;
+                    return true; // yolo
                 case PatternType.Guard:
                     // const guard: unknown = eval(branchCode);
                     // if (typeof guard !== 'function') throw TypeError(`Unreachable: ${guard}`);

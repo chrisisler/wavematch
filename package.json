@@ -48,6 +48,6 @@
     "@babel/types": "^7.7.4"
   },
   "eslintConfig": {
-		"extends": "plugin:ava/recommended"
+    "extends": "plugin:ava/recommended"
 	}
 }
