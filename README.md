@@ -16,3 +16,5 @@ Wavematch is a control flow mechanism for JavaScript.
     - Requires `eval`
     - Could do: `(x = $ => Number($ > 3)) => {}` or `(n = $ => Array($ >= 3))`
         - Would avoid `eval`
+- CustomType N-level subclassing
+    - Repeatedly call `Object.getPrototypeOf(arg)`
