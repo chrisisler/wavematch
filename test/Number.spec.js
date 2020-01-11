@@ -92,9 +92,8 @@ test('Non-number', t => {
 test('Zero', t => {
     // TODO Uncomment as feature coverage increases
     wavematch(0)(
-        // (n = null) => t.fail(),
-        // (n = undefined) => t.fail(),
-        // (n = void 0) => t.fail(),
+        (n = null) => t.fail(),
+        (n = undefined) => t.fail(),
         (n = '') => t.fail(),
         // (n = []) => t.fail(),
         (n = -1) => t.fail(),

@@ -1,6 +1,6 @@
 import { parseExpression as babelParse } from '@babel/parser';
 import {
-    AssignmentPattern,
+    ArrayExpression,
     BinaryExpression,
     Expression,
     Identifier,
@@ -66,14 +66,16 @@ enum PatternType {
     Guard = 'Guard',
     /** Instance of a primitive value. Interacts with PrimitiveConstructor. */
     Literal = 'Literal',
+    /** Array literals. */
+    Array = 'Array',
+    /** Plain JavaScript objects. */
+    Object = 'Object',
     /** Desired type, like Number. */
     Typed = 'Typed',
     /** Desired type, like Fruit. */
     CustomTyped = 'CustomTyped',
     /** No restrictions on allowed data. */
     Any = 'Any',
-    /** Object or array pattern. */
-    Collection = 'Collection',
     /** RegExp testing against strings. */
     RegExp = 'RegExp',
 }
@@ -87,10 +89,14 @@ interface PatternNegation {
     negated: boolean;
 }
 
-/** For objects and arrays. */
-interface CollectionPattern extends BasePattern {
-    type: PatternType.Collection;
-    value: object | unknown[];
+interface ArrayPattern extends BasePattern {
+    type: PatternType.Array;
+    value: ArrayExpression['elements'];
+}
+
+interface ObjectPattern extends BasePattern {
+    type: PatternType.Object;
+    value: object;
 }
 
 /** `value` comes from `branch` :: (arg: unknown) => boolean */
@@ -139,27 +145,14 @@ type Pattern =
     | LiteralPattern
     | TypedPattern
     | CustomTypedPattern
-    | CollectionPattern
+    | ArrayPattern
+    | ObjectPattern
     | RegExpPattern
     | AnyPattern;
 
 const Pattern = {
     any(): AnyPattern {
         return { type: PatternType.Any };
-    },
-
-    /**
-     * Entry point for creating patterns from the AST node of a given function
-     * argument that has a default AKA a user-provided pattern to match
-     * against.
-     *
-     * Pattern creation flow is `new -> fromUnion -> fromUnary -> from`
-     */
-    new(node: AssignmentPattern): Pattern[] {
-        if (Pattern.isUnion(node.right)) {
-            return Pattern.fromUnion(node.right);
-        }
-        return [Pattern.fromUnary(node.right)];
     },
 
     /**
@@ -257,13 +250,16 @@ const Pattern = {
         if (isObjectExpression(node)) {
             // const value = recreateObject(node)
             return {
-                type: PatternType.Collection,
+                type: PatternType.Object,
                 value: { id: 42 }, // XXX
             };
         }
         // Array Destructuring Pattern
         if (isArrayExpression(node)) {
-            // TODO
+            return {
+                type: PatternType.Array,
+                value: node.elements,
+            };
         }
         throw Error('Unhandled node state');
     },
@@ -371,70 +367,47 @@ const isUpperFirst = (str: string): boolean => str[0] === str[0].toUpperCase();
  * @param branchIndex The position of the branch to evaluate
  */
 const isMatch = (args: unknown[], branches: Function[], branchIndex: number): boolean => {
-    // TODO Defer doing "data transformations" before doing argument type checks!
     const branchCode = branches[branchIndex].toString();
     const parsedBranch = babelParse(branchCode, { strictMode: true });
     if (!isArrowFunctionExpression(parsedBranch)) {
         throw TypeError('Invariant: Expected function');
     }
-    const branchArity = parsedBranch.params.length;
-    if (branchArity === 0) {
-        throw Error('Invariant: Expected branch to accept more than zero arguments');
-    }
-    // Skip branches that take a different number of arguments than provided
-    if (args.length !== branchArity) return false;
+    if (args.length !== parsedBranch.params.length) return false;
     const patterns = parsedBranch.params.map((node): Pattern[] => {
-        // https://www.ecma-international.org/ecma-262/6.0/#sec-destructuring-assignment
         switch (node.type) {
             case 'AssignmentPattern':
-                // Pattern matching
-                return Pattern.new(node);
+                if (Pattern.isUnion(node.right)) {
+                    return Pattern.fromUnion(node.right);
+                }
+                return [Pattern.fromUnary(node.right)];
             case 'Identifier':
                 return [Pattern.any()];
-            case 'RestElement':
-                throw Error(`Unimplemented: ${node}`);
             case 'ArrayPattern':
-                throw Error(`Unimplemented: ${node}`);
             case 'ObjectPattern':
-                throw Error(`Unimplemented: ${node}`);
+            case 'RestElement':
             case 'TSParameterProperty':
-                throw Error(`Unimplemented: ${node}`);
+                throw Error(`Unimplemented: ${node.type}`);
             default:
                 throw TypeError(`Unreachable: ${node}`);
         }
     });
-    return args.every((arg, position): boolean =>
-        patterns[position].some((pattern: Pattern): boolean => {
+    return args.every((arg, position) =>
+        patterns[position].some((pattern: Pattern) => {
             switch (pattern.type) {
                 case PatternType.Literal:
-                    const isSameShape = Object.is(pattern.value, arg);
-                    return pattern.negated ? !isSameShape : isSameShape;
                 case PatternType.RegExp:
-                    if (typeof arg === 'string') return pattern.value.test(arg);
-                    return false;
                 case PatternType.Typed:
-                    const desiredType: PrimitiveConstructorName = pattern.value;
-                    const argIsDesiredType =
-                        primitiveConstructors.has(desiredType) &&
-                        Object.prototype.toString.call(arg) === `[object ${desiredType}]`;
-                    return pattern.negated ? !argIsDesiredType : argIsDesiredType;
                 case PatternType.CustomTyped:
-                    if (!(typeof arg === 'object' && arg !== null)) return false;
-                    const isUnnamedConstructor = arg.constructor.name === '';
-                    const acceptedTypes = isUnnamedConstructor ? [] : [arg.constructor.name];
-                    const code = arg.constructor.toString();
-                    const hasParentClass = code.includes('extends');
-                    if (hasParentClass) {
-                        const tokens = code.split(/\s+/).slice(0, 4);
-                        const parentClass = tokens[isUnnamedConstructor ? 2 : 3];
-                        acceptedTypes.push(parentClass);
-                    }
-                    const isAcceptedType = acceptedTypes.includes(pattern.value);
-                    return pattern.negated ? !isAcceptedType : isAcceptedType;
-                case PatternType.Collection:
-                    throw Error('Unimplemented: isMatch -> Collection');
+                    return isMatchedBy(pattern, arg);
+                case PatternType.Array:
+                    if (!Array.isArray(arg)) return false;
+                    if (pattern.value.length === 0 && arg.length === 0) return true;
+                    console.log('pattern.value is:', pattern.value);
+                    return false;
+                case PatternType.Object:
+                    throw Error('Unimplemented');
                 case PatternType.Any:
-                    return true; // yolo
+                    return true;
                 case PatternType.Guard:
                     // const guard: unknown = eval(branchCode);
                     // if (typeof guard !== 'function') throw TypeError(`Unreachable: ${guard}`);
@@ -452,6 +425,41 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
             }
         })
     );
+};
+
+const isMatchedBy = (
+    pattern: Exclude<Pattern, AnyPattern | GuardPattern | ArrayPattern>,
+    arg: unknown
+): boolean => {
+    switch (pattern.type) {
+        case PatternType.Literal:
+            const isSameShape = Object.is(pattern.value, arg);
+            return pattern.negated ? !isSameShape : isSameShape;
+        case PatternType.RegExp:
+            if (typeof arg === 'string') return pattern.value.test(arg);
+            return false;
+        case PatternType.Typed:
+            const desiredType: PrimitiveConstructorName = pattern.value;
+            const argIsDesiredType =
+                primitiveConstructors.has(desiredType) &&
+                Object.prototype.toString.call(arg) === `[object ${desiredType}]`;
+            return pattern.negated ? !argIsDesiredType : argIsDesiredType;
+        case PatternType.CustomTyped:
+            if (!(typeof arg === 'object' && arg !== null)) return false;
+            const isUnnamedConstructor = arg.constructor.name === '';
+            const acceptedTypes = isUnnamedConstructor ? [] : [arg.constructor.name];
+            const code = arg.constructor.toString();
+            const hasParentClass = code.includes('extends');
+            if (hasParentClass) {
+                const tokens = code.split(/\s+/).slice(0, 4);
+                const parentClass = tokens[isUnnamedConstructor ? 2 : 3];
+                acceptedTypes.push(parentClass);
+            }
+            const isAcceptedType = acceptedTypes.includes(pattern.value);
+            return pattern.negated ? !isAcceptedType : isAcceptedType;
+        default:
+            throw Error(`Unreachable: ${pattern}`);
+    }
 };
 
 /**
