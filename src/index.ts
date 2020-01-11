@@ -1,6 +1,7 @@
 import { parseExpression as babelParse } from '@babel/parser';
 import {
     ArrayExpression,
+    ArrowFunctionExpression,
     BinaryExpression,
     Expression,
     Identifier,
@@ -17,6 +18,8 @@ import {
     NumericLiteral,
     UnaryExpression,
 } from '@babel/types';
+
+type OneOf<T> = T extends (infer U)[] ? U : never;
 
 /**
  * Supported, native value constructors.
@@ -155,6 +158,25 @@ const Pattern = {
         return { type: PatternType.Any };
     },
 
+    parse(node: OneOf<ArrowFunctionExpression['params']>): Pattern[] {
+        switch (node.type) {
+            case 'AssignmentPattern':
+                if (Pattern.isUnion(node.right)) {
+                    return Pattern.fromUnion(node.right);
+                }
+                return [Pattern.fromUnary(node.right)];
+            case 'Identifier':
+                return [Pattern.any()];
+            case 'ArrayPattern':
+            case 'ObjectPattern':
+            case 'RestElement':
+            case 'TSParameterProperty':
+                throw Error(`Unimplemented: ${node.type}`);
+            default:
+                throw TypeError(`Unreachable: ${node}`);
+        }
+    },
+
     /**
      * Convert a known union of patterns into an array of them.
      */
@@ -225,7 +247,7 @@ const Pattern = {
             };
         }
         if (Pattern.isNumberOtherwise(node)) {
-            // TODO
+            throw Error('Unimplemented');
         }
         if (isNullLiteral(node)) {
             return {
@@ -348,7 +370,6 @@ const Pattern = {
         if (node.params.length !== 1) {
             throw Error(`Guard pattern expects one argument, received ${node.params.length}.`);
         }
-        // XXX Eval and apply the guardfn
         return true;
     },
 };
@@ -373,65 +394,16 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
         throw TypeError('Invariant: Expected function');
     }
     if (args.length !== parsedBranch.params.length) return false;
-    const patterns = parsedBranch.params.map((node): Pattern[] => {
-        switch (node.type) {
-            case 'AssignmentPattern':
-                if (Pattern.isUnion(node.right)) {
-                    return Pattern.fromUnion(node.right);
-                }
-                return [Pattern.fromUnary(node.right)];
-            case 'Identifier':
-                return [Pattern.any()];
-            case 'ArrayPattern':
-            case 'ObjectPattern':
-            case 'RestElement':
-            case 'TSParameterProperty':
-                throw Error(`Unimplemented: ${node.type}`);
-            default:
-                throw TypeError(`Unreachable: ${node}`);
-        }
+    return args.every((arg, index) => {
+        const all = Pattern.parse(parsedBranch.params[index]);
+        return all.some(pattern => determineMatch(pattern, arg));
     });
-    return args.every((arg, position) =>
-        patterns[position].some((pattern: Pattern) => {
-            switch (pattern.type) {
-                case PatternType.Literal:
-                case PatternType.RegExp:
-                case PatternType.Typed:
-                case PatternType.CustomTyped:
-                    return isMatchedBy(pattern, arg);
-                case PatternType.Array:
-                    if (!Array.isArray(arg)) return false;
-                    if (pattern.value.length === 0 && arg.length === 0) return true;
-                    console.log('pattern.value is:', pattern.value);
-                    return false;
-                case PatternType.Object:
-                    throw Error('Unimplemented');
-                case PatternType.Any:
-                    return true;
-                case PatternType.Guard:
-                    // const guard: unknown = eval(branchCode);
-                    // if (typeof guard !== 'function') throw TypeError(`Unreachable: ${guard}`);
-                    // if (guard.length !== 1) {
-                    //     throw TypeError('Invariant: Guard must take one argument.');
-                    // }
-                    // const result: unknown = guard(arg);
-                    // if (typeof result !== 'boolean') {
-                    //     throw TypeError('Invariant: Guard must return true/false.');
-                    // }
-                    // return result;
-                    throw Error('Unimplemented');
-                default:
-                    throw Error(`Unreachable: ${pattern}`);
-            }
-        })
-    );
 };
 
-const isMatchedBy = (
-    pattern: Exclude<Pattern, AnyPattern | GuardPattern | ArrayPattern>,
-    arg: unknown
-): boolean => {
+const determineMatch = (pattern: Pattern, arg: unknown): boolean => {
     switch (pattern.type) {
+        case PatternType.Any:
+            return true;
         case PatternType.Literal:
             const isSameShape = Object.is(pattern.value, arg);
             return pattern.negated ? !isSameShape : isSameShape;
@@ -457,6 +429,29 @@ const isMatchedBy = (
             }
             const isAcceptedType = acceptedTypes.includes(pattern.value);
             return pattern.negated ? !isAcceptedType : isAcceptedType;
+        case PatternType.Array:
+            if (!Array.isArray(arg)) return false;
+            if (pattern.value.length !== arg.length) return false;
+            return arg.every((value, index) => {
+                const node = pattern.value[index];
+                if (node === null) throw Error('Unreachable');
+                if (node.type === 'SpreadElement') throw Error('Unimplemented');
+                return determineMatch(Pattern.fromUnary(node), value);
+            });
+        case PatternType.Object:
+            throw Error('Unimplemented');
+        case PatternType.Guard:
+            // const guard: unknown = eval(branchCode);
+            // if (typeof guard !== 'function') throw TypeError(`Unreachable: ${guard}`);
+            // if (guard.length !== 1) {
+            //     throw TypeError('Invariant: Guard must take one argument.');
+            // }
+            // const result: unknown = guard(arg);
+            // if (typeof result !== 'boolean') {
+            //     throw TypeError('Invariant: Guard must return true/false.');
+            // }
+            // return result;
+            throw Error('Unimplemented');
         default:
             throw Error(`Unreachable: ${pattern}`);
     }
