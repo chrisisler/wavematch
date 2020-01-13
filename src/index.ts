@@ -494,18 +494,13 @@ const determineMatch = (pattern: Pattern, arg: unknown): boolean => {
     }
 };
 
-// const flatMap = <T, U>(array: T[], fn: (value: T, index: number) => U[]) =>
-//     array.reduce<U[]>((reduced, value, index) => reduced.concat(fn(value, index)), []);
-
 /**
- * A control flow mechanism.
+ * Evaluate the first branch with patterns successfully matching the given
+ * arguments.
  *
- * Takes all arguments, returns a function which takes all branches, and
- * evaluates the first branch to successfully match against the input.
- *
- * For each given branch, each default argument value constitutes a special
- * pattern describing the kind of input data the corresponding function body
- * expects.
+ * > A control flow mechanism; for each given branch, each default argument
+ * value constitutes a special pattern describing the kind of input data the
+ * corresponding function body expects.
  */
 export const wavematch = (...args: unknown[]) =>
     /**

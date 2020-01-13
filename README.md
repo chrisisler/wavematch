@@ -4,10 +4,12 @@ Wavematch is a control flow / pattern matching mechanism for JavaScript.
 
 ### Dev
 
-- Array
 - Objects
+    - Finish testing
+- Array
+    - Further testing
 - N-level subclassing
     - Repeatedly call `Object.getPrototypeOf(arg)`
 - BigInt
-- Array CallExpressions
+- Array CallExpressions ?
     - `(list = Array(String)) => {}`
