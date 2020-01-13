@@ -1,7 +1,6 @@
 import { parseExpression as babelParse } from '@babel/parser';
 import {
     ArrayExpression,
-    ArrowFunctionExpression,
     BinaryExpression,
     Expression,
     Identifier,
@@ -9,17 +8,19 @@ import {
     isArrowFunctionExpression,
     isBigIntLiteral,
     isBooleanLiteral,
+    isIdentifier,
     isNullLiteral,
     isNumericLiteral,
     isObjectExpression,
+    isPatternLike,
     isRegExpLiteral,
+    isRestElement,
     isStringLiteral,
     Literal,
     NumericLiteral,
+    ObjectExpression,
     UnaryExpression,
 } from '@babel/types';
-
-type OneOf<T> = T extends (infer U)[] ? U : never;
 
 /**
  * Supported, native value constructors.
@@ -99,7 +100,7 @@ interface ArrayPattern extends BasePattern {
 
 interface ObjectPattern extends BasePattern {
     type: PatternType.Object;
-    value: object;
+    value: ObjectExpression['properties'];
 }
 
 /** `value` comes from `branch` :: (arg: unknown) => boolean */
@@ -158,23 +159,11 @@ const Pattern = {
         return { type: PatternType.Any };
     },
 
-    parse(node: OneOf<ArrowFunctionExpression['params']>): Pattern[] {
-        switch (node.type) {
-            case 'AssignmentPattern':
-                if (Pattern.isUnion(node.right)) {
-                    return Pattern.fromUnion(node.right);
-                }
-                return [Pattern.fromUnary(node.right)];
-            case 'Identifier':
-                return [Pattern.any()];
-            case 'ArrayPattern':
-            case 'ObjectPattern':
-            case 'RestElement':
-            case 'TSParameterProperty':
-                throw Error(`Unimplemented: ${node.type}`);
-            default:
-                throw TypeError(`Unreachable: ${node}`);
+    fromPattern(node: Expression): Pattern[] {
+        if (Pattern.isUnion(node)) {
+            return Pattern.fromUnion(node);
         }
+        return [Pattern.fromUnary(node)];
     },
 
     /**
@@ -270,10 +259,9 @@ const Pattern = {
         }
         // Object Destructuring Pattern
         if (isObjectExpression(node)) {
-            // const value = recreateObject(node)
             return {
                 type: PatternType.Object,
-                value: { id: 42 }, // XXX
+                value: node.properties, // XXX
             };
         }
         // Array Destructuring Pattern
@@ -375,6 +363,19 @@ const Pattern = {
 };
 
 /**
+ * Check if something is a plain JS object. Returns false for class
+ * instances, `Object.create(null)`, arrays, and null.
+ */
+const isPlainObject = <K extends string | number | symbol, V>(
+    obj: unknown
+): obj is Record<K, V> => {
+    if (typeof obj !== 'object' || obj === null) return false;
+    let proto = obj;
+    while (Object.getPrototypeOf(proto) !== null) proto = Object.getPrototypeOf(proto);
+    return Object.getPrototypeOf(obj) === proto;
+};
+
+/**
  * Is the first character of a given string in capitalized?
  */
 const isUpperFirst = (str: string): boolean => str[0] === str[0].toUpperCase();
@@ -389,13 +390,25 @@ const isUpperFirst = (str: string): boolean => str[0] === str[0].toUpperCase();
  */
 const isMatch = (args: unknown[], branches: Function[], branchIndex: number): boolean => {
     const branchCode = branches[branchIndex].toString();
-    const parsedBranch = babelParse(branchCode, { strictMode: true });
-    if (!isArrowFunctionExpression(parsedBranch)) {
-        throw TypeError('Invariant: Expected function');
-    }
-    if (args.length !== parsedBranch.params.length) return false;
+    const parsed = babelParse(branchCode, { strictMode: true });
+    if (!isArrowFunctionExpression(parsed)) throw TypeError('Expected an arrow function.');
+    if (args.length !== parsed.params.length) return false;
     return args.every((arg, index) => {
-        const all = Pattern.parse(parsedBranch.params[index]);
+        const [all] = Array(parsed.params[index]).map(node => {
+            switch (node.type) {
+                case 'AssignmentPattern':
+                    return Pattern.fromPattern(node.right);
+                case 'Identifier':
+                    return [Pattern.any()];
+                case 'ArrayPattern':
+                case 'ObjectPattern':
+                case 'RestElement':
+                case 'TSParameterProperty':
+                    throw Error(`Unimplemented: ${node.type}`);
+                default:
+                    throw TypeError(`Unreachable: ${node}`);
+            }
+        });
         return all.some(pattern => determineMatch(pattern, arg));
     });
 };
@@ -439,7 +452,31 @@ const determineMatch = (pattern: Pattern, arg: unknown): boolean => {
                 return determineMatch(Pattern.fromUnary(node), value);
             });
         case PatternType.Object:
-            throw Error('Unimplemented');
+            if (!isPlainObject(arg)) return false;
+            const tuples = pattern.value.map<[string, Pattern[]]>(node => {
+                if (node.type === 'SpreadElement') {
+                    throw SyntaxError('SpreadElement is unsupported.');
+                } else if (node.type === 'ObjectMethod') {
+                    throw SyntaxError('Object methods are unsupported.');
+                }
+                if (node.value.type === 'Identifier' && !isUpperFirst(node.value.name)) {
+                    throw SyntaxError('Cannot use shorthand syntax or variables as values.');
+                }
+                if (isRestElement(node.value)) throw Error('Unimplemented'); // Can this happen?
+                if (isPatternLike(node.value) && !isIdentifier(node.value)) {
+                    throw Error('Unimplemented');
+                }
+                if (node.computed) throw SyntaxError('Computed keys are unsupported.');
+                // XXX @babel/types.ObjectProperty.key is `any`
+                const key: unknown = node.key; // key: computed ? Expression : (Identifier | Literal)
+                if (!(typeof key === 'object' && key !== null)) throw TypeError('Unreachable');
+                if (!isIdentifier(key)) {
+                    throw SyntaxError('Invariant: key must be an Identifier.');
+                }
+                if (typeof key.name !== 'string') throw TypeError('Unreachable');
+                return [key.name, Pattern.fromPattern(node.value)];
+            });
+            return tuples.every(([key, ps]) => ps.some(p => determineMatch(p, arg[key])));
         case PatternType.Guard:
             // const guard: unknown = eval(branchCode);
             // if (typeof guard !== 'function') throw TypeError(`Unreachable: ${guard}`);
@@ -456,6 +493,9 @@ const determineMatch = (pattern: Pattern, arg: unknown): boolean => {
             throw Error(`Unreachable: ${pattern}`);
     }
 };
+
+// const flatMap = <T, U>(array: T[], fn: (value: T, index: number) => U[]) =>
+//     array.reduce<U[]>((reduced, value, index) => reduced.concat(fn(value, index)), []);
 
 /**
  * A control flow mechanism.
