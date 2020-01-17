@@ -24,6 +24,10 @@ test('Empty Object', t => {
 });
 
 test('Object w/ Literal', t => {
+    wavematch({ x: 1, y: 2 })(
+        (obj = { x: 1, y: 2 }) => t.pass(),
+        _ => t.fail()
+    );
     wavematch({ prop: 42 })(
         (number = { prop: -42 }) => t.fail(),
         (number = { prop: -42.0 }) => t.fail(),
@@ -68,22 +72,100 @@ test('Object w/ Typed', t => {
     );
 });
 
-// test('Object w/ CustomTyped', t => {
+test('Object w/ CustomTyped', t => {
+    class Fruit {}
 
-// });
+    wavematch({ key: new Fruit() })(
+        (value = { key: Fruit }) => t.pass(),
+        _ => t.fail()
+    );
 
-// test('Object w/ Array', t => {
+    class Apple extends Fruit {}
 
-// });
+    wavematch({ x: new Apple() })(
+        (value = { x: Fruit }) => t.pass(),
+        _ => t.fail()
+    );
+    wavematch({ x: new Apple() })(
+        (value = { x: Apple }) => t.pass(),
+        _ => t.fail()
+    );
+});
+
+test('Object w/ Array', t => {
+    // Typed
+    wavematch({ array: [] })(
+        (obj = { array: Array }) => t.pass(),
+        _ => t.fail()
+    );
+    wavematch({ array: ['foo'] })(
+        (obj = { array: Array }) => t.pass(),
+        _ => t.fail()
+    );
+    // Empty Literal
+    wavematch({ array: [] })(
+        (obj = { array: [] }) => t.pass(),
+        _ => t.fail()
+    );
+    wavematch({ array: [] })(
+        (obj = { array: ['foo'] }) => t.fail(),
+        _ => t.pass()
+    );
+    // Array literal with Typed elements
+    wavematch({ array: [42, 'foo'] })(
+        (obj = { array: [Number, String] }) => t.pass(),
+        _ => t.fail()
+    );
+    wavematch({ array: [42, 'foo'] })(
+        (obj = { array: [String, String] }) => t.fail(),
+        _ => t.pass()
+    );
+});
 
 // test('Object w/ Object', t => {
 
 // });
 
-// test('Object w/ Negation', t => {
+test('Object w/ Negation', t => {
+    wavematch({ baz: 33 })(
+        (obj = { baz: !Symbol }) => t.pass(),
+        _ => t.fail()
+    );
+    wavematch({ baz: 33 })(
+        (obj = { baz: !4 }) => t.pass(),
+        _ => t.fail()
+    );
+    // Cannot negate an entire object pattern
+    t.throws(() => {
+        wavematch({ baz: 33 })(
+            (obj = !{ baz: Number }) => t.pass(),
+            _ => t.fail()
+        );
+    });
+});
 
-// });
+test('Object w/ Union', t => {
+    wavematch({ a: 1 })(
+        (obj = { a: 2 } | 3 | { a: Number }) => t.pass(),
+        _ => t.fail()
+    );
+});
 
-// test('Object w/ Union', t => {
-
-// });
+test('Object w/ Void', t => {
+    wavematch({ n: null })(
+        (obj = { n: undefined }) => t.fail(),
+        _ => t.pass()
+    );
+    wavematch({ n: null })(
+        (obj = { n: null }) => t.pass(),
+        _ => t.fail()
+    );
+    wavematch({ n: undefined })(
+        (obj = { n: null }) => t.fail(),
+        _ => t.pass()
+    );
+    wavematch({ n: undefined })(
+        (obj = { n: undefined }) => t.pass(),
+        _ => t.fail()
+    );
+});

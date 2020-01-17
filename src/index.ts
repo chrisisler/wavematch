@@ -257,8 +257,10 @@ const Pattern = {
                 type: PatternType.Guard,
             };
         }
-        // Object Destructuring Pattern
         if (isObjectExpression(node)) {
+            if (isNegated) {
+                throw SyntaxError('Invariant: Cannot negate object patterns');
+            }
             return {
                 type: PatternType.Object,
                 value: node.properties, // XXX
@@ -459,8 +461,11 @@ const determineMatch = (pattern: Pattern, arg: unknown): boolean => {
                 } else if (node.type === 'ObjectMethod') {
                     throw SyntaxError('Object methods are unsupported.');
                 }
-                if (node.value.type === 'Identifier' && !isUpperFirst(node.value.name)) {
-                    throw SyntaxError('Cannot use shorthand syntax or variables as values.');
+                if (node.value.type === 'Identifier') {
+                    const { name } = node.value;
+                    if (!(name === 'null' || name === 'undefined') && !isUpperFirst(name)) {
+                        throw SyntaxError('Cannot use shorthand syntax or variables as values.');
+                    }
                 }
                 if (isRestElement(node.value)) throw Error('Unimplemented'); // Can this happen?
                 if (isPatternLike(node.value) && !isIdentifier(node.value)) {
