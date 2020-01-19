@@ -132,7 +132,7 @@ test('Object w/ Negation', t => {
         _ => t.fail()
     );
     wavematch({ baz: 33 })(
-        (obj = { baz: !4 }) => t.pass(),
+        (obj = { baz: !32 }) => t.pass(),
         _ => t.fail()
     );
     // Cannot negate an entire object pattern

@@ -47,3 +47,14 @@ test('named subclass', t => {
         _ => t.fail()
     );
 });
+
+test('named subsubclass', t => {
+    class A {}
+    class B extends A {}
+    class C extends B {}
+
+    wavematch(new C())(
+        (value = A) => t.pass(),
+        _ => t.fail()
+    );
+});

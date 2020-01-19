@@ -266,7 +266,6 @@ const Pattern = {
                 value: node.properties, // XXX
             };
         }
-        // Array Destructuring Pattern
         if (isArrayExpression(node)) {
             return {
                 type: PatternType.Array,
@@ -433,14 +432,13 @@ const determineMatch = (pattern: Pattern, arg: unknown): boolean => {
             return pattern.negated ? !argIsDesiredType : argIsDesiredType;
         case PatternType.CustomTyped:
             if (!(typeof arg === 'object' && arg !== null)) return false;
-            const isUnnamedConstructor = arg.constructor.name === '';
-            const acceptedTypes = isUnnamedConstructor ? [] : [arg.constructor.name];
-            const code = arg.constructor.toString();
-            const hasParentClass = code.includes('extends');
-            if (hasParentClass) {
-                const tokens = code.split(/\s+/).slice(0, 4);
-                const parentClass = tokens[isUnnamedConstructor ? 2 : 3];
-                acceptedTypes.push(parentClass);
+            const acceptedTypes: string[] = [];
+            let proto = Object.getPrototypeOf(arg);
+            while (proto !== null) {
+                const { constructor } = proto;
+                if (constructor === Object) break;
+                if (constructor.name !== '') acceptedTypes.push(constructor.name);
+                proto = Object.getPrototypeOf(proto);
             }
             const isAcceptedType = acceptedTypes.includes(pattern.value);
             return pattern.negated ? !isAcceptedType : isAcceptedType;
