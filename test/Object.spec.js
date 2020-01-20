@@ -122,9 +122,16 @@ test('Object w/ Array', t => {
     );
 });
 
-// test('Object w/ Object', t => {
-
-// });
+test('Object w/ Object', t => {
+    wavematch({ data: { on: true } })(
+        (arg = { data: { on: Boolean } }) => t.pass(),
+        _ => t.fail()
+    );
+    wavematch({ data: { on: false } })(
+        (arg = { data: Symbol | { on: !3 } }) => t.pass(),
+        _ => t.fail()
+    );
+});
 
 test('Object w/ Negation', t => {
     wavematch({ baz: 33 })(
@@ -147,6 +154,11 @@ test('Object w/ Negation', t => {
 test('Object w/ Union', t => {
     wavematch({ a: 1 })(
         (obj = { a: 2 } | 3 | { a: Number }) => t.pass(),
+        _ => t.fail()
+    );
+    wavematch({ a: [Error(), Symbol()] })(
+        (obj = { a: [Symbol, Error] }) => t.fail(),
+        (obj = { a: 3 | [Error, Symbol] }) => t.pass(),
         _ => t.fail()
     );
 });

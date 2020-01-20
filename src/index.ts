@@ -403,9 +403,11 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
                     return [Pattern.any()];
                 case 'ArrayPattern':
                 case 'ObjectPattern':
+                    // TODO: Should match like AnyPattern
+                    throw Error('Unimplemented: Destructure w/ no pattern.');
                 case 'RestElement':
                 case 'TSParameterProperty':
-                    throw Error(`Unimplemented: ${node.type}`);
+                    throw Error('Unimplemented');
                 default:
                     throw TypeError(`Unreachable: ${node}`);
             }
@@ -435,9 +437,8 @@ const determineMatch = (pattern: Pattern, arg: unknown): boolean => {
             const acceptedTypes: string[] = [];
             let proto = Object.getPrototypeOf(arg);
             while (proto !== null) {
-                const { constructor } = proto;
-                if (constructor === Object) break;
-                if (constructor.name !== '') acceptedTypes.push(constructor.name);
+                if (proto.constructor === Object) break;
+                if (proto.constructor.name !== '') acceptedTypes.push(proto.constructor.name);
                 proto = Object.getPrototypeOf(proto);
             }
             const isAcceptedType = acceptedTypes.includes(pattern.value);
@@ -453,33 +454,33 @@ const determineMatch = (pattern: Pattern, arg: unknown): boolean => {
             });
         case PatternType.Object:
             if (!isPlainObject(arg)) return false;
-            const tuples = pattern.value.map<[string, Pattern[]]>(node => {
+            return pattern.value.every(node => {
+                // node.type
                 if (node.type === 'SpreadElement') {
                     throw SyntaxError('SpreadElement is unsupported.');
                 } else if (node.type === 'ObjectMethod') {
                     throw SyntaxError('Object methods are unsupported.');
                 }
+                // node.value
                 if (node.value.type === 'Identifier') {
                     const { name } = node.value;
                     if (!(name === 'null' || name === 'undefined') && !isUpperFirst(name)) {
-                        throw SyntaxError('Cannot use shorthand syntax or variables as values.');
+                        throw SyntaxError('Cannot use shorthand syntax.');
                     }
                 }
-                if (isRestElement(node.value)) throw Error('Unimplemented'); // Can this happen?
+                if (isRestElement(node.value)) throw Error('Unimplemented');
                 if (isPatternLike(node.value) && !isIdentifier(node.value)) {
                     throw Error('Unimplemented');
                 }
+                // node.key
                 if (node.computed) throw SyntaxError('Computed keys are unsupported.');
                 // XXX @babel/types.ObjectProperty.key is `any`
                 const key: unknown = node.key; // key: computed ? Expression : (Identifier | Literal)
-                if (!(typeof key === 'object' && key !== null)) throw TypeError('Unreachable');
-                if (!isIdentifier(key)) {
-                    throw SyntaxError('Invariant: key must be an Identifier.');
-                }
-                if (typeof key.name !== 'string') throw TypeError('Unreachable');
-                return [key.name, Pattern.fromPattern(node.value)];
+                if (!(typeof key === 'object' && key !== null)) throw TypeError('Unreachable'); // XXX @babel/types
+                if (!isIdentifier(key)) throw SyntaxError('Key must be an Identifier.'); // XXX @babel/types
+                if (typeof key.name !== 'string') throw TypeError('Unreachable'); // XXX @babel/types
+                return Pattern.fromPattern(node.value).some(p => determineMatch(p, arg[key.name]));
             });
-            return tuples.every(([key, ps]) => ps.some(p => determineMatch(p, arg[key])));
         case PatternType.Guard:
             // const guard: unknown = eval(branchCode);
             // if (typeof guard !== 'function') throw TypeError(`Unreachable: ${guard}`);
@@ -505,21 +506,14 @@ const determineMatch = (pattern: Pattern, arg: unknown): boolean => {
  * value constitutes a special pattern describing the kind of input data the
  * corresponding function body expects.
  */
-export const wavematch = (...args: unknown[]) =>
-    /**
-     * - Order matters; a branch matching on `String` will match over `'foo'`
-     */
-    (...branches: Function[]): unknown => {
-        if (args.length === 0) throw Error('Invariant: No data');
-        if (branches.length === 0) throw Error('Invariant: No branches');
-        for (let index = 0; index < branches.length; index++) {
-            if (isMatch(args, branches, index)) {
-                const branch = branches[index];
-                /**
-                 * TODO Erase the default parameters from `branch`.
-                 */
-                return branch(...args);
-            }
+export const wavematch = (...args: unknown[]) => (...branches: Function[]): unknown => {
+    if (args.length === 0) throw Error('Invariant: No data');
+    if (branches.length === 0) throw Error('Invariant: No branches');
+    for (let index = 0; index < branches.length; index++) {
+        if (isMatch(args, branches, index)) {
+            const branch = branches[index];
+            return branch(...args);
         }
-        return branches[branches.length - 1].call(null);
-    };
+    }
+    return branches[branches.length - 1].call(void 0);
+};

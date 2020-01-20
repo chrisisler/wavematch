@@ -4,11 +4,9 @@ Wavematch is a control flow / pattern matching mechanism for JavaScript.
 
 ### Dev
 
-- Object testing
-    - NaN
-    - Symbol
-    - Error
-- Object destructuring
 - Array destructuring
-- BigInt
+- Object destructuring
+- CustomTyped w/ Object
+    - `(value = Vehicle({ age: Number })) => {}`
 - Caching/recursion ?
+- BigInt

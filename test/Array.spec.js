@@ -44,6 +44,10 @@ test('Array literal with Literal elements', t => {
         (b = [42, 'foo']) => t.pass(),
         _ => t.fail()
     );
+    wavematch([Error(), []])(
+        (x = [Error, []]) => t.pass(),
+        _ => t.fail()
+    );
 });
 
 test('Non-Array', t => {
@@ -63,9 +67,46 @@ test('Non-Array', t => {
     });
 });
 
-// test.todo('With destructuring', t => {
-//     wavematch([3])(
-//         ([first] = Array) => t.pass(),
-//         _ => t.fail()
-//     )
-// })
+/**
+ * Array Destructuring
+ *
+ * > Should these be the same?
+ * ([foo]) => Currently matches anything
+ * ([foo] = Array) => Currently matches
+ *
+ * > This works: `([first, ...[]] = [1, 2, 3]) => {};`
+ *
+ * **********
+ *
+ * > Currently:
+ * (arr = Array)
+ * (arr = [])
+ * (arr = ['foo', !Fruit | Symbol])
+ *
+ * > Then:
+ * - Assert empty elements
+ * ([] = Array) useless pattern
+ * ([] = []) useless pattern
+ * ([] = ['foo', !Fruit | Symbol]) useless pattern
+ *
+ * - Assert one element
+ * ([foo] = Array) NOT useless pattern, could be on Strings
+ * ([foo] = []) useless pattern
+ * ([foo] = ['foo', !Fruit | Symbol]) GOOD: pattern length > param length
+ *
+ * - Assert one element, empty remaining elements
+ * ([foo, ...[]] = Array) useless pattern
+ * ([foo, ...[]] = []) useless
+ * ([foo, ...[]] = ['foo', !Fruit | Symbol]) GOOD: pattern length > param length
+ *
+ * - Assert one element, non-empty remaining elements
+ * ([foo, ...rest] = Array) useless pattern
+ * ([foo, ...rest] = []) useless
+ * ([foo, ...rest] = ['foo', !Fruit | Symbol]) GOOD: pattern length > param length
+ */
+test('With destructuring', t => {
+    wavematch([3])(
+        ([first] = Array) => t.pass(),
+        _ => t.fail()
+    );
+});
