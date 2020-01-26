@@ -1,6 +1,5 @@
 import { parseExpression as babelParse } from '@babel/parser';
 import {
-    ArrayExpression,
     BinaryExpression,
     Expression,
     Identifier,
@@ -19,6 +18,7 @@ import {
     Literal,
     NumericLiteral,
     ObjectExpression,
+    SpreadElement,
     UnaryExpression,
 } from '@babel/types';
 
@@ -95,7 +95,10 @@ interface PatternNegation {
 
 interface ArrayPattern extends BasePattern {
     type: PatternType.Array;
-    value: ArrayExpression['elements'];
+    /** When null, pattern acts like TypedPattern for Array. */
+    value: null | (null | Expression | SpreadElement)[];
+    /** @see Pattern.array */
+    requiredSize: number;
 }
 
 interface ObjectPattern extends BasePattern {
@@ -186,6 +189,13 @@ const Pattern = {
         return Pattern.from(node, false);
     },
 
+    array(args: Omit<ArrayPattern, 'type'>): ArrayPattern {
+        return {
+            ...args,
+            type: PatternType.Array,
+        };
+    },
+
     /**
      * Transform the given shape into a pattern.
      *
@@ -267,10 +277,10 @@ const Pattern = {
             };
         }
         if (isArrayExpression(node)) {
-            return {
-                type: PatternType.Array,
+            return Pattern.array({
                 value: node.elements,
-            };
+                requiredSize: 0,
+            });
         }
         throw Error('Unhandled node state');
     },
@@ -402,9 +412,16 @@ const isMatch = (args: unknown[], branches: Function[], branchIndex: number): bo
                 case 'Identifier':
                     return [Pattern.any()];
                 case 'ArrayPattern':
+                    const arrayPattern = Pattern.array({
+                        requiredSize: node.elements.length,
+                        value: null,
+                    });
+                    return [arrayPattern];
                 case 'ObjectPattern':
                     // TODO: Should match like AnyPattern
-                    throw Error('Unimplemented: Destructure w/ no pattern.');
+                    // const requiredKeys = 'TODO';
+                    // return [Pattern.object({ requiredKeys, value ObjectPatternKeysCheck })]
+                    throw Error('Unimplemented: Destructure object w/ no pattern.');
                 case 'RestElement':
                 case 'TSParameterProperty':
                     throw Error('Unimplemented');
@@ -445,9 +462,13 @@ const determineMatch = (pattern: Pattern, arg: unknown): boolean => {
             return pattern.negated ? !isAcceptedType : isAcceptedType;
         case PatternType.Array:
             if (!Array.isArray(arg)) return false;
-            if (pattern.value.length !== arg.length) return false;
+            const patternElements = pattern.value;
+            if (patternElements === null) {
+                return pattern.requiredSize <= arg.length;
+            }
+            if (patternElements.length !== arg.length) return false;
             return arg.every((value, index) => {
-                const node = pattern.value[index];
+                const node = patternElements[index];
                 if (node === null) throw Error('Unreachable');
                 if (node.type === 'SpreadElement') throw Error('Unimplemented');
                 return determineMatch(Pattern.fromUnary(node), value);

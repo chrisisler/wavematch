@@ -36,6 +36,10 @@ test('Array literal with Typed elements', t => {
         (a = [Number, String]) => t.pass(),
         _ => t.fail()
     );
+    wavematch([42, 'foo'])(
+        (a = [Number, Object]) => t.fail(),
+        _ => t.pass()
+    );
 });
 
 test('Array literal with Literal elements', t => {
@@ -51,60 +55,28 @@ test('Array literal with Literal elements', t => {
 });
 
 test('Non-Array', t => {
-    [{}, () => {}, '42', Symbol(), Error(), false, [], null, undefined].forEach(notANumber => {
+    [{}, () => {}, '42', Symbol(), Error(), false, null, undefined].forEach(notAnArray => {
         // Literal
-        wavematch(notANumber)(
-            (s = -1) => t.fail(),
-            (s = 0) => t.fail(),
-            (s = 42) => t.fail(),
+        wavematch(notAnArray)(
+            (s = []) => t.fail(),
             _ => t.pass()
         );
         // Typed
-        wavematch(notANumber)(
-            (s = Number) => t.fail(),
+        wavematch(notAnArray)(
+            (s = Array) => t.fail(),
             _ => t.pass()
         );
     });
 });
 
-/**
- * Array Destructuring
- *
- * > Should these be the same?
- * ([foo]) => Currently matches anything
- * ([foo] = Array) => Currently matches
- *
- * > This works: `([first, ...[]] = [1, 2, 3]) => {};`
- *
- * **********
- *
- * > Currently:
- * (arr = Array)
- * (arr = [])
- * (arr = ['foo', !Fruit | Symbol])
- *
- * > Then:
- * - Assert empty elements
- * ([] = Array) useless pattern
- * ([] = []) useless pattern
- * ([] = ['foo', !Fruit | Symbol]) useless pattern
- *
- * - Assert one element
- * ([foo] = Array) NOT useless pattern, could be on Strings
- * ([foo] = []) useless pattern
- * ([foo] = ['foo', !Fruit | Symbol]) GOOD: pattern length > param length
- *
- * - Assert one element, empty remaining elements
- * ([foo, ...[]] = Array) useless pattern
- * ([foo, ...[]] = []) useless
- * ([foo, ...[]] = ['foo', !Fruit | Symbol]) GOOD: pattern length > param length
- *
- * - Assert one element, non-empty remaining elements
- * ([foo, ...rest] = Array) useless pattern
- * ([foo, ...rest] = []) useless
- * ([foo, ...rest] = ['foo', !Fruit | Symbol]) GOOD: pattern length > param length
- */
-test('With destructuring', t => {
+test('Destructuring with no pattern', t => {
+    wavematch([])(
+        ([]) => t.pass(),
+        _ => t.fail()
+    );
+});
+
+test('Destructuring with pattern', t => {
     wavematch([3])(
         ([first] = Array) => t.pass(),
         _ => t.fail()

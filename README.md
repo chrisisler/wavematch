@@ -1,6 +1,6 @@
 ## Introduction
 
-Wavematch is a control flow / pattern matching mechanism for JavaScript.
+Wavematch is a control flow mechanism for JavaScript.
 
 ### Dev
 
