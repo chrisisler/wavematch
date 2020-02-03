@@ -72,7 +72,7 @@ test('Object w/ Typed', t => {
     );
 });
 
-test('Object w/ CustomTyped', t => {
+test('Object w/ ClassTyped', t => {
     class Fruit {}
 
     wavematch({ key: new Fruit() })(

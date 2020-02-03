@@ -54,6 +54,25 @@ test('Array literal with Literal elements', t => {
     );
 });
 
+// TODO
+// test('Array literal with Union elements', t => {
+//     wavematch([42])(
+//         // Typed and Typed
+//         (foo = [Symbol | Number]) => t.pass(),
+//         _ => t.fail()
+//     );
+//     wavematch([42])(
+//         // Literal and Literal
+//         (foo = [41 | 42]) => t.pass(),
+//         _ => t.fail()
+//     );
+//     wavematch([42])(
+//         // Typed and Literal
+//         (foo = [Number | 'zoo']) => t.pass(),
+//         _ => t.fail()
+//     );
+// });
+
 test('Non-Array', t => {
     [{}, () => {}, '42', Symbol(), Error(), false, null, undefined].forEach(notAnArray => {
         // Literal
@@ -69,16 +88,38 @@ test('Non-Array', t => {
     });
 });
 
-test('Destructuring with no pattern', t => {
+test('Destructuring patternless', t => {
     wavematch([])(
         ([]) => t.pass(),
         _ => t.fail()
     );
-});
 
-test('Destructuring with pattern', t => {
-    wavematch([3])(
-        ([first] = Array) => t.pass(),
+    wavematch(['doggo'])(
+        ([abc]) => t.pass(),
         _ => t.fail()
     );
 });
+
+// test.only('Destructured Typed', t => {
+//     // wavematch([3])(
+//     //     ([first] = Array) => t.pass(),
+//     //     _ => t.fail()
+//     // );
+
+//     // TODO
+//     // - Should throw due tue `first` not being assignable
+//     // - Instead passes because `Array` type is succesful
+//     wavematch([])(
+//         // Fails to match due to `first` being unassignable, the given array
+//         // input has no first element.
+//         ([first] = Array) => t.fail(),
+//         _ => t.pass()
+//     );
+// });
+
+// test('Destructuring with Literal Array pattern', t => {
+//     wavematch([3])(
+//         ([first] = [String]) => t.pass(),
+//         _ => t.fail()
+//     );
+// });

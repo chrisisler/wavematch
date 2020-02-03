@@ -1,5 +1,6 @@
-import { parseExpression as babelParse } from '@babel/parser';
+import { parseExpression as quote } from '@babel/parser';
 import {
+    ArrowFunctionExpression,
     BinaryExpression,
     Expression,
     Identifier,
@@ -17,7 +18,9 @@ import {
     isStringLiteral,
     Literal,
     NumericLiteral,
-    ObjectExpression,
+    ObjectMethod,
+    ObjectProperty,
+    Pattern as ArgPattern,
     SpreadElement,
     UnaryExpression,
 } from '@babel/types';
@@ -67,6 +70,8 @@ const isPrimitiveConstructor = (str: string): str is PrimitiveConstructorName =>
 
 enum PatternType {
     /** Predicate function applied to the input. */
+    // Requires `eval` to implement, likely will be removed from list of
+    // features intended to implement.
     Guard = 'Guard',
     /** Instance of a primitive value. Interacts with PrimitiveConstructor. */
     Literal = 'Literal',
@@ -77,13 +82,21 @@ enum PatternType {
     /** Desired type, like Number. */
     Typed = 'Typed',
     /** Desired type, like Fruit. */
-    CustomTyped = 'CustomTyped',
+    ClassTyped = 'ClassTyped',
     /** No restrictions on allowed data. */
     Any = 'Any',
     /** RegExp testing against strings. */
     RegExp = 'RegExp',
 }
 
+/**
+ * The below is an example of a pattern. A pattern consists of a left and a
+ * right. The left side of may be destructured or it may not. The right side
+ * may exist or it may not.
+ *
+ * @example (left = right) => {}
+ * @see Pattern
+ */
 interface BasePattern {
     type: PatternType;
 }
@@ -93,17 +106,37 @@ interface PatternNegation {
     negated: boolean;
 }
 
-interface ArrayPattern extends BasePattern {
-    type: PatternType.Array;
-    /** When null, pattern acts like TypedPattern for Array. */
-    value: null | (null | Expression | SpreadElement)[];
-    /** @see Pattern.array */
+/**
+ * A branch using a Pattern type which accepts arrays* as data may optionally
+ * use ES6 array destructuring syntax to "pull" elements out and bind them to
+ * variable names as desired. (These are 'bound by index')
+ *
+ * `*`: and Sets, Strings, and other number-indexable collections.
+ *
+ * TODO Not sure if this is the right way to add array-destrucutring feature.
+ * Most likely not.
+ *
+ * @example
+ * ([]) => {}
+ * ([first]) => {}
+ * ([first, second]) => {}
+ * ([...all]) => {}
+ * ([first, ...rest]) => {}
+ * ([first, second, ...rest]) => {}
+ */
+interface IndexBindingPattern {
     requiredSize: number;
+}
+
+interface ArrayPattern extends BasePattern, IndexBindingPattern {
+    type: PatternType.Array;
+    /** When null, pattern acts like TypedPattern for Array (and requiredSize is non-zero). */
+    elements: null | (null | Expression | SpreadElement)[];
 }
 
 interface ObjectPattern extends BasePattern {
     type: PatternType.Object;
-    value: ObjectExpression['properties'];
+    properties: (ObjectMethod | ObjectProperty | SpreadElement)[];
 }
 
 /** `value` comes from `branch` :: (arg: unknown) => boolean */
@@ -123,24 +156,19 @@ interface LiteralPattern extends BasePattern, PatternNegation {
 
 interface TypedPattern extends BasePattern, PatternNegation {
     type: PatternType.Typed;
-    value: PrimitiveConstructorName;
+    desiredType: PrimitiveConstructorName;
     negated: boolean;
 }
 
-interface CustomTypedPattern extends BasePattern, PatternNegation {
-    type: PatternType.CustomTyped;
-    /**
-     * The name of the desired type.
-     *
-     * @example (x = Vehicle) => {}
-     */
-    value: string;
+interface ClassTypedPattern extends BasePattern, PatternNegation {
+    type: PatternType.ClassTyped;
+    className: string;
     negated: boolean;
 }
 
 interface RegExpPattern extends BasePattern {
     type: PatternType.RegExp;
-    value: RegExp;
+    regExp: RegExp;
 }
 
 interface AnyPattern extends BasePattern {
@@ -151,7 +179,7 @@ type Pattern =
     | GuardPattern
     | LiteralPattern
     | TypedPattern
-    | CustomTypedPattern
+    | ClassTypedPattern
     | ArrayPattern
     | ObjectPattern
     | RegExpPattern
@@ -160,6 +188,26 @@ type Pattern =
 const Pattern = {
     any(): AnyPattern {
         return { type: PatternType.Any };
+    },
+
+    /**
+     * Caller must guarantee that either `value` is provided or `requiredSize` is provided; otherwise things will break.
+     */
+    array({
+        elements = null,
+        requiredSize = 0,
+    }: Partial<Omit<ArrayPattern, 'type'>>): ArrayPattern {
+        return {
+            elements,
+            requiredSize,
+            type: PatternType.Array,
+        };
+    },
+
+    from(node: ArgPattern): Pattern[] {
+        if (node.type !== 'AssignmentPattern') throw Error('Unimplemented');
+        // TODO
+        return Pattern.fromPattern(node.right);
     },
 
     fromPattern(node: Expression): Pattern[] {
@@ -183,17 +231,10 @@ const Pattern = {
     },
 
     fromUnary(node: Expression): Pattern {
-        if (node.type === 'UnaryExpression' && node.operator === '!') {
-            return Pattern.from(node.argument, true);
+        if (Pattern.isNegated(node)) {
+            return Pattern.fromRight(node.argument, true);
         }
-        return Pattern.from(node, false);
-    },
-
-    array(args: Omit<ArrayPattern, 'type'>): ArrayPattern {
-        return {
-            ...args,
-            type: PatternType.Array,
-        };
+        return Pattern.fromRight(node, false);
     },
 
     /**
@@ -201,23 +242,37 @@ const Pattern = {
      *
      * @param node The parameter default value of a given branch
      */
-    from(node: Expression, isNegated: boolean): Pattern {
+    fromRight(node: Expression, isNegated: boolean): Pattern {
         if (Pattern.isTypedPattern(node)) {
-            const assertedType = node.name;
             return {
-                value: assertedType,
+                desiredType: node.name,
                 type: PatternType.Typed,
                 negated: isNegated,
             };
         }
-        if (Pattern.isCustomTypedPattern(node)) {
-            const assertedType = node.name;
+        if (Pattern.isClassTypedPattern(node)) {
             return {
-                type: PatternType.CustomTyped,
-                value: assertedType,
+                type: PatternType.ClassTyped,
+                className: node.name,
                 negated: isNegated,
             };
         }
+        if (isObjectExpression(node)) {
+            if (isNegated) throw SyntaxError('Invariant: Cannot negate object patterns');
+            return {
+                type: PatternType.Object,
+                properties: node.properties, // XXX
+            };
+        }
+        if (isArrayExpression(node)) {
+            return Pattern.array({ elements: node.elements });
+        }
+        if (Pattern.isGuardPattern(node)) {
+            return {
+                type: PatternType.Guard,
+            };
+        }
+        // PatternType.Literal
         if (
             isStringLiteral(node) ||
             isNumericLiteral(node) ||
@@ -232,7 +287,7 @@ const Pattern = {
         }
         if (isRegExpLiteral(node)) {
             return {
-                value: RegExp(node.pattern),
+                regExp: RegExp(node.pattern),
                 type: PatternType.RegExp,
             };
         }
@@ -261,26 +316,6 @@ const Pattern = {
                 type: PatternType.Literal,
                 negated: isNegated,
             };
-        }
-        if (Pattern.isGuardPattern(node)) {
-            return {
-                type: PatternType.Guard,
-            };
-        }
-        if (isObjectExpression(node)) {
-            if (isNegated) {
-                throw SyntaxError('Invariant: Cannot negate object patterns');
-            }
-            return {
-                type: PatternType.Object,
-                value: node.properties, // XXX
-            };
-        }
-        if (isArrayExpression(node)) {
-            return Pattern.array({
-                value: node.elements,
-                requiredSize: 0,
-            });
         }
         throw Error('Unhandled node state');
     },
@@ -322,8 +357,12 @@ const Pattern = {
     /**
      * Is this pattern a union of patterns?
      */
-    isUnion(node: Expression): node is BinaryExpression {
+    isUnion(node: Expression): node is BinaryExpression & { operator: '|' } {
         return node.type === 'BinaryExpression' && node.operator === '|';
+    },
+
+    isNegated(node: Expression): node is UnaryExpression & { operator: '!' } {
+        return node.type === 'UnaryExpression' && node.operator === '!';
     },
 
     /**
@@ -350,7 +389,7 @@ const Pattern = {
      *   (x = Fruit) => {},
      * )
      */
-    isCustomTypedPattern(node: Expression): node is Identifier {
+    isClassTypedPattern(node: Expression): node is Identifier {
         return node.type === 'Identifier' && isUpperFirst(node.name);
     },
 
@@ -391,49 +430,34 @@ const isPlainObject = <K extends string | number | symbol, V>(
  */
 const isUpperFirst = (str: string): boolean => str[0] === str[0].toUpperCase();
 
-/**
- * Is the branch at the given index a match given how the input data fits (or
- * does not fit) the structural patterns within it?
- *
- * @param args The input data to match against
- * @param branches The possible logical code paths
- * @param branchIndex The position of the branch to evaluate
- */
-const isMatch = (args: unknown[], branches: Function[], branchIndex: number): boolean => {
-    const branchCode = branches[branchIndex].toString();
-    const parsed = babelParse(branchCode, { strictMode: true });
-    if (!isArrowFunctionExpression(parsed)) throw TypeError('Expected an arrow function.');
-    if (args.length !== parsed.params.length) return false;
-    return args.every((arg, index) => {
-        const [all] = Array(parsed.params[index]).map(node => {
-            switch (node.type) {
-                case 'AssignmentPattern':
-                    return Pattern.fromPattern(node.right);
-                case 'Identifier':
-                    return [Pattern.any()];
-                case 'ArrayPattern':
-                    const arrayPattern = Pattern.array({
-                        requiredSize: node.elements.length,
-                        value: null,
-                    });
-                    return [arrayPattern];
-                case 'ObjectPattern':
-                    // TODO: Should match like AnyPattern
-                    // const requiredKeys = 'TODO';
-                    // return [Pattern.object({ requiredKeys, value ObjectPatternKeysCheck })]
-                    throw Error('Unimplemented: Destructure object w/ no pattern.');
-                case 'RestElement':
-                case 'TSParameterProperty':
-                    throw Error('Unimplemented');
-                default:
-                    throw TypeError(`Unreachable: ${node}`);
-            }
-        });
-        return all.some(pattern => determineMatch(pattern, arg));
-    });
+const branchParamToPatterns = (
+    node: ArrowFunctionExpression['params'] extends (infer P)[] ? P : never
+): Pattern[] => {
+    switch (node.type) {
+        case 'Identifier':
+            return [Pattern.any()];
+        case 'ObjectPattern':
+            throw Error('Unimplemented');
+        case 'ArrayPattern':
+            return [Pattern.array({ requiredSize: node.elements.length })];
+        case 'AssignmentPattern':
+            return Pattern.from(node);
+        case 'RestElement':
+        case 'TSParameterProperty':
+            throw Error('Unimplemented');
+        default:
+            throw TypeError(`Unreachable: ${node}`);
+    }
 };
 
-const determineMatch = (pattern: Pattern, arg: unknown): boolean => {
+const doesMatch = (args: unknown[], branches: Function[], branchIndex: number): boolean => {
+    const ast = quote(branches[branchIndex].toString());
+    if (!isArrowFunctionExpression(ast)) throw TypeError('Expected an arrow function.');
+    if (args.length !== ast.params.length) return false;
+    return args.every((arg, index) => branchParamToPatterns(ast.params[index]).some(fits(arg)));
+};
+
+const fits = (arg: unknown) => (pattern: Pattern): boolean => {
     switch (pattern.type) {
         case PatternType.Any:
             return true;
@@ -441,15 +465,14 @@ const determineMatch = (pattern: Pattern, arg: unknown): boolean => {
             const isSameShape = Object.is(pattern.value, arg);
             return pattern.negated ? !isSameShape : isSameShape;
         case PatternType.RegExp:
-            if (typeof arg === 'string') return pattern.value.test(arg);
+            if (typeof arg === 'string') return pattern.regExp.test(arg);
             return false;
         case PatternType.Typed:
-            const desiredType: PrimitiveConstructorName = pattern.value;
             const argIsDesiredType =
-                primitiveConstructors.has(desiredType) &&
-                Object.prototype.toString.call(arg) === `[object ${desiredType}]`;
+                isPrimitiveConstructor(pattern.desiredType) &&
+                Object.prototype.toString.call(arg) === `[object ${pattern.desiredType}]`;
             return pattern.negated ? !argIsDesiredType : argIsDesiredType;
-        case PatternType.CustomTyped:
+        case PatternType.ClassTyped:
             if (!(typeof arg === 'object' && arg !== null)) return false;
             const acceptedTypes: string[] = [];
             let proto = Object.getPrototypeOf(arg);
@@ -458,24 +481,22 @@ const determineMatch = (pattern: Pattern, arg: unknown): boolean => {
                 if (proto.constructor.name !== '') acceptedTypes.push(proto.constructor.name);
                 proto = Object.getPrototypeOf(proto);
             }
-            const isAcceptedType = acceptedTypes.includes(pattern.value);
+            const isAcceptedType = acceptedTypes.includes(pattern.className);
             return pattern.negated ? !isAcceptedType : isAcceptedType;
         case PatternType.Array:
             if (!Array.isArray(arg)) return false;
-            const patternElements = pattern.value;
-            if (patternElements === null) {
-                return pattern.requiredSize <= arg.length;
-            }
+            const patternElements = pattern.elements;
+            if (patternElements === null) return pattern.requiredSize <= arg.length;
             if (patternElements.length !== arg.length) return false;
             return arg.every((value, index) => {
                 const node = patternElements[index];
                 if (node === null) throw Error('Unreachable');
                 if (node.type === 'SpreadElement') throw Error('Unimplemented');
-                return determineMatch(Pattern.fromUnary(node), value);
+                return fits(value)(Pattern.fromUnary(node));
             });
         case PatternType.Object:
             if (!isPlainObject(arg)) return false;
-            return pattern.value.every(node => {
+            return pattern.properties.every(node => {
                 // node.type
                 if (node.type === 'SpreadElement') {
                     throw SyntaxError('SpreadElement is unsupported.');
@@ -500,7 +521,7 @@ const determineMatch = (pattern: Pattern, arg: unknown): boolean => {
                 if (!(typeof key === 'object' && key !== null)) throw TypeError('Unreachable'); // XXX @babel/types
                 if (!isIdentifier(key)) throw SyntaxError('Key must be an Identifier.'); // XXX @babel/types
                 if (typeof key.name !== 'string') throw TypeError('Unreachable'); // XXX @babel/types
-                return Pattern.fromPattern(node.value).some(p => determineMatch(p, arg[key.name]));
+                return Pattern.fromPattern(node.value).some(fits(arg[key.name]));
             });
         case PatternType.Guard:
             // const guard: unknown = eval(branchCode);
@@ -531,7 +552,7 @@ export const wavematch = (...args: unknown[]) => (...branches: Function[]): unkn
     if (args.length === 0) throw Error('Invariant: No data');
     if (branches.length === 0) throw Error('Invariant: No branches');
     for (let index = 0; index < branches.length; index++) {
-        if (isMatch(args, branches, index)) {
+        if (doesMatch(args, branches, index)) {
             const branch = branches[index];
             return branch(...args);
         }

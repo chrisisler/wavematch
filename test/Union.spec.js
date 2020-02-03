@@ -65,7 +65,7 @@ test('Typed and Typed', t => {
     miss(Symbol());
 });
 
-test('Literal and CustomTyped', t => {
+test('Literal and ClassTyped', t => {
     class Foo {}
     const f = x =>
         wavematch(x)(

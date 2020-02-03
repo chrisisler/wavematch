@@ -73,7 +73,7 @@ test('Literal', t => {
     // );
 });
 
-test('CustomTyped', t => {
+test('ClassTyped', t => {
     class Foo {}
     wavematch(new Foo())(
         (x = !Foo) => t.fail(),

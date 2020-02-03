@@ -1,12 +1,13 @@
 ## Introduction
 
-Wavematch is a control flow mechanism for JavaScript.
+_A control flow mechanism for JavaScript._
 
-### Dev
+## Upcoming
 
 - Array destructuring
+    - Need a pattern for an "array of numbers"
+    - Extensive testing
+    - Simplify/remove IndexBindingPattern
 - Object destructuring
-- CustomTyped w/ Object
-    - `(value = Vehicle({ age: Number })) => {}`
-- Caching/recursion ?
 - BigInt
+- Caching
