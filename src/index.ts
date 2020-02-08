@@ -20,7 +20,6 @@ import {
     NumericLiteral,
     ObjectMethod,
     ObjectProperty,
-    Pattern as ArgPattern,
     SpreadElement,
     UnaryExpression,
 } from '@babel/types';
@@ -106,32 +105,11 @@ interface PatternNegation {
     negated: boolean;
 }
 
-/**
- * A branch using a Pattern type which accepts arrays* as data may optionally
- * use ES6 array destructuring syntax to "pull" elements out and bind them to
- * variable names as desired. (These are 'bound by index')
- *
- * `*`: and Sets, Strings, and other number-indexable collections.
- *
- * TODO Not sure if this is the right way to add array-destrucutring feature.
- * Most likely not.
- *
- * @example
- * ([]) => {}
- * ([first]) => {}
- * ([first, second]) => {}
- * ([...all]) => {}
- * ([first, ...rest]) => {}
- * ([first, second, ...rest]) => {}
- */
-interface IndexBindingPattern {
-    requiredSize: number;
-}
-
-interface ArrayPattern extends BasePattern, IndexBindingPattern {
+interface ArrayPattern extends BasePattern {
     type: PatternType.Array;
     /** When null, pattern acts like TypedPattern for Array (and requiredSize is non-zero). */
     elements: null | (null | Expression | SpreadElement)[];
+    requiredSize: number;
 }
 
 interface ObjectPattern extends BasePattern {
@@ -191,7 +169,8 @@ const Pattern = {
     },
 
     /**
-     * Caller must guarantee that either `value` is provided or `requiredSize` is provided; otherwise things will break.
+     * Caller must guarantee that either `value` is provided or `requiredSize`
+     * is provided; otherwise things will break.
      */
     array({
         elements = null,
@@ -204,22 +183,12 @@ const Pattern = {
         };
     },
 
-    from(node: ArgPattern): Pattern[] {
-        if (node.type !== 'AssignmentPattern') throw Error('Unimplemented');
-        // TODO
-        return Pattern.fromPattern(node.right);
-    },
-
-    fromPattern(node: Expression): Pattern[] {
-        if (Pattern.isUnion(node)) {
-            return Pattern.fromUnion(node);
-        }
+    from(node: Expression): Pattern[] {
+        if (Pattern.isUnion(node)) return Pattern.fromUnion(node);
         return [Pattern.fromUnary(node)];
     },
 
-    /**
-     * Convert a known union of patterns into an array of them.
-     */
+    // TODO: Inline fromUnion and turn fromMany into fromUnary
     fromUnion(node: BinaryExpression): Pattern[] {
         const result = [Pattern.fromUnary(node.right)];
         if (Pattern.isUnion(node.left)) {
@@ -230,19 +199,10 @@ const Pattern = {
         return result;
     },
 
-    fromUnary(node: Expression): Pattern {
-        if (Pattern.isNegated(node)) {
-            return Pattern.fromRight(node.argument, true);
-        }
-        return Pattern.fromRight(node, false);
-    },
-
-    /**
-     * Transform the given shape into a pattern.
-     *
-     * @param node The parameter default value of a given branch
-     */
-    fromRight(node: Expression, isNegated: boolean): Pattern {
+    fromUnary(rawNode: Expression): Pattern {
+        const [node, isNegated] = Pattern.isNegated(rawNode)
+            ? [rawNode.argument, true]
+            : [rawNode, false];
         if (Pattern.isTypedPattern(node)) {
             return {
                 desiredType: node.name,
@@ -272,7 +232,7 @@ const Pattern = {
                 type: PatternType.Guard,
             };
         }
-        // PatternType.Literal
+        // PatternType.Literal cases
         if (
             isStringLiteral(node) ||
             isNumericLiteral(node) ||
@@ -361,6 +321,9 @@ const Pattern = {
         return node.type === 'BinaryExpression' && node.operator === '|';
     },
 
+    /**
+     * @see PatternNegation
+     */
     isNegated(node: Expression): node is UnaryExpression & { operator: '!' } {
         return node.type === 'UnaryExpression' && node.operator === '!';
     },
@@ -441,7 +404,7 @@ const branchParamToPatterns = (
         case 'ArrayPattern':
             return [Pattern.array({ requiredSize: node.elements.length })];
         case 'AssignmentPattern':
-            return Pattern.from(node);
+            return Pattern.from(node.right);
         case 'RestElement':
         case 'TSParameterProperty':
             throw Error('Unimplemented');
@@ -521,7 +484,7 @@ const fits = (arg: unknown) => (pattern: Pattern): boolean => {
                 if (!(typeof key === 'object' && key !== null)) throw TypeError('Unreachable'); // XXX @babel/types
                 if (!isIdentifier(key)) throw SyntaxError('Key must be an Identifier.'); // XXX @babel/types
                 if (typeof key.name !== 'string') throw TypeError('Unreachable'); // XXX @babel/types
-                return Pattern.fromPattern(node.value).some(fits(arg[key.name]));
+                return Pattern.from(node.value).some(fits(arg[key.name]));
             });
         case PatternType.Guard:
             // const guard: unknown = eval(branchCode);

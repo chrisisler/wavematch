@@ -88,6 +88,8 @@ test('Non-Array', t => {
     });
 });
 
+//#region Array Destructuring
+
 test('Destructuring patternless', t => {
     wavematch([])(
         ([]) => t.pass(),
@@ -100,6 +102,8 @@ test('Destructuring patternless', t => {
     );
 });
 
+// Destructuring Typed is just `([] = Array) => {}` variants, these are
+// internally "re-routed" to just `([foo]) => {}` branches
 // test.only('Destructured Typed', t => {
 //     // wavematch([3])(
 //     //     ([first] = Array) => t.pass(),
@@ -123,3 +127,5 @@ test('Destructuring patternless', t => {
 //         _ => t.fail()
 //     );
 // });
+
+//#endregion
