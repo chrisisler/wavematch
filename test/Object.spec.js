@@ -181,3 +181,27 @@ test('Object w/ Void', t => {
         _ => t.fail()
     );
 });
+
+// #region Destructuring
+
+test('Destructured Patternless', t => {
+    wavematch({})(
+        ({}) => t.pass(),
+        _ => t.fail()
+    );
+    wavematch({ id: 42 })(
+        ({ id }) => t.pass(),
+        _ => t.fail()
+    );
+
+    wavematch({})(
+        ({ id }) => t.fail(),
+        _ => t.pass()
+    );
+    wavematch({ id: 42 })(
+        ({}) => t.fail(),
+        _ => t.pass()
+    );
+});
+
+// #endregion

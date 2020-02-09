@@ -88,10 +88,10 @@ test('Non-Array', t => {
     });
 });
 
-//#region Array Destructuring
+//#region Destructuring
 
 // The simplest version of array destructure matching
-test('Destructuring patternless', t => {
+test('Destructuring Patternless', t => {
     wavematch([])(
         ([]) => t.pass(),
         _ => t.fail()
