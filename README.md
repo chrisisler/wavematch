@@ -4,7 +4,6 @@ _A control flow mechanism for JavaScript._
 
 ## Upcoming
 
-- Remove GuardPattern
 - Object destructuring
 - BigInt
 - Caching

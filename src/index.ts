@@ -71,10 +71,6 @@ const isPrimitiveConstructor = (str: string): str is PrimitiveConstructorName =>
     primitiveConstructors.has(str as PrimitiveConstructorName);
 
 enum PatternType {
-    /** Predicate function applied to the input. */
-    // Requires `eval` to implement, likely will be removed from list of
-    // features intended to implement.
-    Guard = 'Guard',
     /** Instance of a primitive value. Interacts with PrimitiveConstructor. */
     Literal = 'Literal',
     /** Array literals. */
@@ -120,10 +116,6 @@ interface PatternObject extends PatternBase {
     properties: (ObjectMethod | ObjectProperty | SpreadElement)[];
 }
 
-interface PatternGuard extends PatternBase {
-    type: PatternType.Guard;
-}
-
 interface PatternLiteral extends PatternBase, PatternNegation {
     type: PatternType.Literal;
     /**
@@ -156,7 +148,6 @@ interface PatternAny extends PatternBase {
 }
 
 type Pattern =
-    | PatternGuard
     | PatternLiteral
     | PatternTyped
     | PatternClassTyped
@@ -248,11 +239,6 @@ const Pattern = {
                 type: PatternType.ClassTyped,
                 className: node.name,
                 negated: isNegated,
-            };
-        }
-        if (Pattern.isGuardPattern(node)) {
-            return {
-                type: PatternType.Guard,
             };
         }
         // PatternType.Literal cases
@@ -378,24 +364,6 @@ const Pattern = {
     isClassTypedPattern(node: Expression): node is Identifier {
         return node.type === 'Identifier' && isUpperFirst(node.name);
     },
-
-    /**
-     * Validates behavior.
-     *
-     * @see PatternType.Guard
-     * @example
-     * // node: _ => _.length > 3
-     * wavematch('foo')(
-     *   (x = _ => _.length > 3) => {},
-     * )
-     */
-    isGuardPattern(node: Expression): boolean {
-        if (!isArrowFunctionExpression(node)) return false;
-        if (node.params.length !== 1) {
-            throw Error(`Guard pattern expects one argument, received ${node.params.length}.`);
-        }
-        return true;
-    },
 };
 
 /**
@@ -514,18 +482,6 @@ const fits = (arg: unknown, pattern: Pattern): boolean => {
                 if (typeof key.name !== 'string') throw TypeError('Unreachable'); // XXX @babel/types
                 return Pattern.from(node.value).some(subPattern => fits(arg[key.name], subPattern));
             });
-        case PatternType.Guard:
-            // const guard: unknown = eval(branchCode);
-            // if (typeof guard !== 'function') throw TypeError(`Unreachable: ${guard}`);
-            // if (guard.length !== 1) {
-            //     throw TypeError('Invariant: Guard must take one argument.');
-            // }
-            // const result: unknown = guard(arg);
-            // if (typeof result !== 'boolean') {
-            //     throw TypeError('Invariant: Guard must return true/false.');
-            // }
-            // return result;
-            throw Error('Unimplemented');
         default:
             throw Error(`Unreachable: ${pattern}`);
     }
