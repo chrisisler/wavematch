@@ -90,6 +90,7 @@ test('Non-Array', t => {
 
 //#region Array Destructuring
 
+// The simplest version of array destructure matching
 test('Destructuring patternless', t => {
     wavematch([])(
         ([]) => t.pass(),
@@ -97,35 +98,64 @@ test('Destructuring patternless', t => {
     );
 
     wavematch(['doggo'])(
+        ([x, y]) => t.fail(),
         ([abc]) => t.pass(),
         _ => t.fail()
     );
 });
 
-// Destructuring Typed is just `([] = Array) => {}` variants, these are
-// internally "re-routed" to just `([foo]) => {}` branches
-// test.only('Destructured Typed', t => {
-//     // wavematch([3])(
-//     //     ([first] = Array) => t.pass(),
-//     //     _ => t.fail()
-//     // );
+test('Destructured Typed', t => {
+    wavematch([])(
+        ([] = Array) => t.pass(),
+        _ => t.fail()
+    );
 
-//     // TODO
-//     // - Should throw due tue `first` not being assignable
-//     // - Instead passes because `Array` type is succesful
-//     wavematch([])(
-//         // Fails to match due to `first` being unassignable, the given array
-//         // input has no first element.
-//         ([first] = Array) => t.fail(),
-//         _ => t.pass()
-//     );
-// });
+    wavematch([])(
+        // Fails to match due to `first` being unassignable, the given array
+        // input has no first element.
+        ([first] = Array) => t.fail(),
+        _ => t.pass()
+    );
+});
 
-// test('Destructuring with Literal Array pattern', t => {
-//     wavematch([3])(
-//         ([first] = [String]) => t.pass(),
-//         _ => t.fail()
-//     );
-// });
+test('Destructuring with Literal Array pattern', t => {
+    wavematch([3])(
+        ([first] = [Number]) => t.pass(),
+        _ => t.fail()
+    );
+    wavematch(['bar'])(
+        ([first] = [String]) => t.pass(),
+        _ => t.fail()
+    );
+    wavematch([true])(
+        ([first] = [Boolean]) => t.pass(),
+        _ => t.fail()
+    );
+    wavematch([[]])(
+        ([first] = [Array]) => t.pass(),
+        _ => t.fail()
+    );
+    wavematch([Error()])(
+        ([first] = [Error]) => t.pass(),
+        _ => t.fail()
+    );
+    wavematch([Symbol()])(
+        ([first] = [Symbol]) => t.pass(),
+        _ => t.fail()
+    );
+    wavematch([['a']])(
+        ([first] = [['a']]) => t.pass(),
+        _ => t.fail()
+    );
+
+    wavematch([3, 2])(
+        ([first] = [Number]) => t.fail(),
+        _ => t.pass()
+    );
+    wavematch(['foo'])(
+        ([first] = [Number]) => t.fail(),
+        _ => t.pass()
+    );
+});
 
 //#endregion

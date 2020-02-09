@@ -1,6 +1,8 @@
 import { parseExpression as quote } from '@babel/parser';
 import {
+    ArrayPattern,
     ArrowFunctionExpression,
+    AssignmentPattern,
     BinaryExpression,
     Expression,
     Identifier,
@@ -19,6 +21,7 @@ import {
     Literal,
     NumericLiteral,
     ObjectMethod,
+    ObjectPattern,
     ObjectProperty,
     SpreadElement,
     UnaryExpression,
@@ -96,7 +99,7 @@ enum PatternType {
  * @example (left = right) => {}
  * @see Pattern
  */
-interface BasePattern {
+interface PatternBase {
     type: PatternType;
 }
 
@@ -105,24 +108,23 @@ interface PatternNegation {
     negated: boolean;
 }
 
-interface ArrayPattern extends BasePattern {
+interface PatternArray extends PatternBase {
     type: PatternType.Array;
     /** When null, pattern acts like TypedPattern for Array (and requiredSize is non-zero). */
     elements: null | (null | Expression | SpreadElement)[];
     requiredSize: number;
 }
 
-interface ObjectPattern extends BasePattern {
+interface PatternObject extends PatternBase {
     type: PatternType.Object;
     properties: (ObjectMethod | ObjectProperty | SpreadElement)[];
 }
 
-/** `value` comes from `branch` :: (arg: unknown) => boolean */
-interface GuardPattern extends BasePattern {
+interface PatternGuard extends PatternBase {
     type: PatternType.Guard;
 }
 
-interface LiteralPattern extends BasePattern, PatternNegation {
+interface PatternLiteral extends PatternBase, PatternNegation {
     type: PatternType.Literal;
     /**
      * Data that is not an object and has no methods.
@@ -132,39 +134,39 @@ interface LiteralPattern extends BasePattern, PatternNegation {
     negated: boolean;
 }
 
-interface TypedPattern extends BasePattern, PatternNegation {
+interface PatternTyped extends PatternBase, PatternNegation {
     type: PatternType.Typed;
     desiredType: PrimitiveConstructorName;
     negated: boolean;
 }
 
-interface ClassTypedPattern extends BasePattern, PatternNegation {
+interface PatternClassTyped extends PatternBase, PatternNegation {
     type: PatternType.ClassTyped;
     className: string;
     negated: boolean;
 }
 
-interface RegExpPattern extends BasePattern {
+interface PatternRegExp extends PatternBase {
     type: PatternType.RegExp;
     regExp: RegExp;
 }
 
-interface AnyPattern extends BasePattern {
+interface PatternAny extends PatternBase {
     type: PatternType.Any;
 }
 
 type Pattern =
-    | GuardPattern
-    | LiteralPattern
-    | TypedPattern
-    | ClassTypedPattern
-    | ArrayPattern
-    | ObjectPattern
-    | RegExpPattern
-    | AnyPattern;
+    | PatternGuard
+    | PatternLiteral
+    | PatternTyped
+    | PatternClassTyped
+    | PatternArray
+    | PatternObject
+    | PatternRegExp
+    | PatternAny;
 
 const Pattern = {
-    any(): AnyPattern {
+    any(): PatternAny {
         return { type: PatternType.Any };
     },
 
@@ -175,7 +177,7 @@ const Pattern = {
     array({
         elements = null,
         requiredSize = 0,
-    }: Partial<Omit<ArrayPattern, 'type'>>): ArrayPattern {
+    }: Partial<Omit<PatternArray, 'type'>>): PatternArray {
         return {
             elements,
             requiredSize,
@@ -183,26 +185,57 @@ const Pattern = {
         };
     },
 
-    from(node: Expression): Pattern[] {
-        if (Pattern.isUnion(node)) return Pattern.fromUnion(node);
-        return [Pattern.fromUnary(node)];
-    },
-
-    // TODO: Inline fromUnion and turn fromMany into fromUnary
-    fromUnion(node: BinaryExpression): Pattern[] {
-        const result = [Pattern.fromUnary(node.right)];
-        if (Pattern.isUnion(node.left)) {
-            result.push(...Pattern.fromUnion(node.left));
-        } else {
-            result.push(Pattern.fromUnary(node.left));
+    from(node: AssignmentPattern | Expression): Pattern[] {
+        let nodes: Expression[];
+        if (node.type === 'AssignmentPattern') {
+            nodes = Pattern.isUnion(node.right) ? Pattern.extractUnion(node.right) : [node.right];
+            // Left side of pattern only matters if the param node uses array/object
+            // destructuring
+            const left =
+                node.left.type === 'ArrayPattern' || node.left.type === 'ObjectPattern'
+                    ? node.left
+                    : undefined;
+            return nodes.map(right => Pattern.fromUnary(right, left));
         }
-        return result;
+        nodes = Pattern.isUnion(node) ? Pattern.extractUnion(node) : [node];
+        return nodes.map(right => Pattern.fromUnary(right));
     },
 
-    fromUnary(rawNode: Expression): Pattern {
-        const [node, isNegated] = Pattern.isNegated(rawNode)
-            ? [rawNode.argument, true]
-            : [rawNode, false];
+    extractUnion(node: BinaryExpression): Expression[] {
+        const nodes = [node.right];
+        if (Pattern.isUnion(node.left)) {
+            nodes.push(...Pattern.extractUnion(node.left));
+        } else {
+            nodes.push(node.left);
+        }
+        return nodes;
+    },
+
+    fromUnary(right: Expression, destructured?: ArrayPattern | ObjectPattern): Pattern {
+        const [node, isNegated] = Pattern.isNegated(right)
+            ? [right.argument, true]
+            : [right, false];
+
+        const requiredSize =
+            destructured?.type === 'ArrayPattern' ? destructured.elements.length : undefined;
+        if (isArrayExpression(node)) {
+            return Pattern.array({ requiredSize, elements: node.elements });
+        }
+        if (requiredSize !== undefined) {
+            if (Pattern.isTypedPattern(node)) {
+                console.warn('Warning: Unnecessary Array type pattern');
+                // Act like `([]) => {}`
+                return Pattern.array({ requiredSize });
+            }
+            throw SyntaxError('Invariant: Invalid array-destructuring pattern');
+        }
+        if (isObjectExpression(node)) {
+            if (isNegated) throw SyntaxError('Invariant: Cannot negate object patterns');
+            return {
+                type: PatternType.Object,
+                properties: node.properties,
+            };
+        }
         if (Pattern.isTypedPattern(node)) {
             return {
                 desiredType: node.name,
@@ -216,16 +249,6 @@ const Pattern = {
                 className: node.name,
                 negated: isNegated,
             };
-        }
-        if (isObjectExpression(node)) {
-            if (isNegated) throw SyntaxError('Invariant: Cannot negate object patterns');
-            return {
-                type: PatternType.Object,
-                properties: node.properties, // XXX
-            };
-        }
-        if (isArrayExpression(node)) {
-            return Pattern.array({ elements: node.elements });
         }
         if (Pattern.isGuardPattern(node)) {
             return {
@@ -393,6 +416,9 @@ const isPlainObject = <K extends string | number | symbol, V>(
  */
 const isUpperFirst = (str: string): boolean => str[0] === str[0].toUpperCase();
 
+/**
+ * Maps a parameter Node from a parsed branch into a set of patterns.
+ */
 const branchParamToPatterns = (
     node: ArrowFunctionExpression['params'] extends (infer P)[] ? P : never
 ): Pattern[] => {
@@ -404,7 +430,7 @@ const branchParamToPatterns = (
         case 'ArrayPattern':
             return [Pattern.array({ requiredSize: node.elements.length })];
         case 'AssignmentPattern':
-            return Pattern.from(node.right);
+            return Pattern.from(node);
         case 'RestElement':
         case 'TSParameterProperty':
             throw Error('Unimplemented');
@@ -417,10 +443,12 @@ const doesMatch = (args: unknown[], branches: Function[], branchIndex: number): 
     const ast = quote(branches[branchIndex].toString());
     if (!isArrowFunctionExpression(ast)) throw TypeError('Expected an arrow function.');
     if (args.length !== ast.params.length) return false;
-    return args.every((arg, index) => branchParamToPatterns(ast.params[index]).some(fits(arg)));
+    return args.every((arg, index) =>
+        branchParamToPatterns(ast.params[index]).some(pattern => fits(arg, pattern))
+    );
 };
 
-const fits = (arg: unknown) => (pattern: Pattern): boolean => {
+const fits = (arg: unknown, pattern: Pattern): boolean => {
     switch (pattern.type) {
         case PatternType.Any:
             return true;
@@ -455,7 +483,7 @@ const fits = (arg: unknown) => (pattern: Pattern): boolean => {
                 const node = patternElements[index];
                 if (node === null) throw Error('Unreachable');
                 if (node.type === 'SpreadElement') throw Error('Unimplemented');
-                return fits(value)(Pattern.fromUnary(node));
+                return fits(value, Pattern.fromUnary(node));
             });
         case PatternType.Object:
             if (!isPlainObject(arg)) return false;
@@ -484,7 +512,7 @@ const fits = (arg: unknown) => (pattern: Pattern): boolean => {
                 if (!(typeof key === 'object' && key !== null)) throw TypeError('Unreachable'); // XXX @babel/types
                 if (!isIdentifier(key)) throw SyntaxError('Key must be an Identifier.'); // XXX @babel/types
                 if (typeof key.name !== 'string') throw TypeError('Unreachable'); // XXX @babel/types
-                return Pattern.from(node.value).some(fits(arg[key.name]));
+                return Pattern.from(node.value).some(subPattern => fits(arg[key.name], subPattern));
             });
         case PatternType.Guard:
             // const guard: unknown = eval(branchCode);
