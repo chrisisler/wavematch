@@ -106,9 +106,14 @@ interface PatternNegation {
 
 interface PatternArray extends PatternBase {
     type: PatternType.Array;
-    /** When null, pattern acts like TypedPattern for Array (and requiredSize is non-zero). */
+    /**
+     * If `elements` is null, then `requiredSize` is not null.
+     */
     elements: null | (null | Expression | SpreadElement)[];
-    requiredSize: number;
+    /**
+     * Exists if a branch destructures an array input.
+     */
+    requiredSize: null | number;
 }
 
 interface PatternObject extends PatternBase {
@@ -166,8 +171,7 @@ const Pattern = {
     // is provided; otherwise things will break.
     array({
         elements = null,
-        // TODO change default to null, requiredSize of 0 should be for `([]) => {}`
-        requiredSize = 0,
+        requiredSize = null,
     }: Partial<Omit<PatternArray, 'type'>>): PatternArray {
         return {
             elements,
@@ -305,6 +309,18 @@ const Pattern = {
     },
 
     /**
+     * @see fits
+     */
+    // Issue within the @babel/types package: ObjectProperty.key should not be `any`
+    // but instead ObjectProperty.computed ? Expression : (Identifier | Literal)
+    validateKey(key: unknown): key is Identifier & { name: string } {
+        if (!(typeof key === 'object' && key !== null)) return Unreachable();
+        if (!isIdentifier(key)) throw SyntaxError('Key must be an Identifier.');
+        if (typeof key.name !== 'string') return Unreachable();
+        return true;
+    },
+
+    /**
      * Handles patterns not covered by `isNumericLiteral` (excluding NaN, Infinity).
      * - Include cases like negative instances `-42`
      */
@@ -382,6 +398,24 @@ const Pattern = {
 };
 
 /**
+ * For impossible states.
+ *
+ * @example
+ *
+ * // Bad, TypeScript will not acknowledge control flow redirection:
+ * Unreachable();
+ *
+ * // Good:
+ * return Unreachable();
+ */
+const Unreachable = (data?: unknown): never => {
+    if (data !== undefined && data !== null) {
+        throw TypeError(`Unreachable: ${data}`);
+    }
+    throw TypeError('Unreachable');
+};
+
+/**
  * Check if something is a plain JS object. Returns false for class
  * instances, `Object.create(null)`, arrays, and null.
  */
@@ -399,12 +433,15 @@ const isPlainObject = <K extends string | number | symbol, V>(
  */
 const isUpperFirst = (str: string): boolean => str[0] === str[0].toUpperCase();
 
-const flatMap = <Result, T = unknown>(
+const flatMap = <T, Result>(
     array: T[],
     fn: (value: T, index: number, array: T[]) => Result[]
 ): Result[] => ([] as Result[]).concat(...array.map(fn));
 
-const hasProperty = Function.call.bind(Object.prototype.hasOwnProperty);
+const hasProperty = Function.call.bind(Object.prototype.hasOwnProperty) as <T, K extends keyof T>(
+    obj: T,
+    ...props: K[]
+) => obj is Exclude<Record<K, T>, {}>;
 
 /**
  * Maps a parameter Node from a parsed branch into a set of patterns.
@@ -416,15 +453,10 @@ const branchParamToPatterns = (
         case 'Identifier':
             return [Pattern.any()];
         case 'ObjectPattern':
-            const requiredKeys = flatMap(node.properties, prop => {
-                if (prop.type === 'ObjectProperty') {
-                    // XXX @babel/types ObjectProperty.key
-                    if (!isValidObjectPatternKey(prop.key)) throw Error('Unreachable');
-                    return [prop.key.name as string];
-                }
-                // Filter this property from the resulting array.
-                return [];
-            });
+            const requiredKeys = flatMap(node.properties, (prop): string[] =>
+                // XXX @babel/types ObjectProperty.key
+                prop.type === 'ObjectProperty' ? [prop.key.name] : []
+            );
             return [Pattern.object({ requiredKeys })];
         case 'ArrayPattern':
             return [Pattern.array({ requiredSize: node.elements.length })];
@@ -434,7 +466,7 @@ const branchParamToPatterns = (
         case 'TSParameterProperty':
             throw Error('Unimplemented');
         default:
-            throw TypeError(`Unreachable: ${node}`);
+            return Unreachable(node);
     }
 };
 
@@ -476,12 +508,15 @@ const fits = (arg: unknown, pattern: Pattern): boolean => {
         case PatternType.Array:
             if (!Array.isArray(arg)) return false;
             const patternElements = pattern.elements;
-            if (patternElements === null) return pattern.requiredSize <= arg.length;
+            if (patternElements === null) {
+                if (pattern.requiredSize === null) return Unreachable();
+                return pattern.requiredSize <= arg.length;
+            }
             if (patternElements.length !== arg.length) return false;
             return arg.every((value, index) => {
                 const node = patternElements[index];
-                if (node === null) throw Error('Unreachable');
-                if (node.type === 'SpreadElement') throw Error('Unimplemented');
+                if (node === null) return Unreachable();
+                if (node.type === 'SpreadElement') throw TypeError('Unimplemented');
                 return fits(value, Pattern.fromUnary(node));
             });
         case PatternType.Object:
@@ -516,26 +551,14 @@ const fits = (arg: unknown, pattern: Pattern): boolean => {
                 }
                 // node.key
                 if (node.computed) throw SyntaxError('Computed keys are unsupported.');
-                if (!isValidObjectPatternKey(node.key)) throw Error('Unreachable');
+                if (!Pattern.validateKey(node.key)) return Unreachable(node.key);
                 return Pattern.from(node.value).some(subPattern =>
                     fits(arg[node.key.name], subPattern)
                 );
             });
         default:
-            throw Error(`Unreachable: ${pattern}`);
+            return Unreachable(pattern);
     }
-};
-
-/**
- * @see fits
- */
-// Issue within the @babel/types package: ObjectProperty.key should not be `any`
-// but instead ObjectProperty.computed ? Expression : (Identifier | Literal)
-const isValidObjectPatternKey = (key: unknown): key is Identifier & { name: string } => {
-    if (!(typeof key === 'object' && key !== null)) throw TypeError('Unreachable');
-    if (!isIdentifier(key)) throw SyntaxError('Key must be an Identifier.');
-    if (typeof key.name !== 'string') throw TypeError('Unreachable');
-    return true;
 };
 
 /**
