@@ -67,7 +67,7 @@ const primitiveConstructors = new Map<PrimitiveConstructorName, PrimitiveConstru
     ['Error', Error],
 ]);
 
-const isPrimitiveConstructor = (str: string): str is PrimitiveConstructorName =>
+const isKnownConstructor = (str: string): str is PrimitiveConstructorName =>
     primitiveConstructors.has(str as PrimitiveConstructorName);
 
 enum PatternType {
@@ -219,11 +219,13 @@ const Pattern = {
         return nodes;
     },
 
+    /**
+     * Classify the given node into a Pattern based on the node's shape.
+     */
     fromUnary(right: Expression, destructured?: ArrayPattern | ObjectPattern): Pattern {
         const [node, isNegated] = Pattern.isNegated(right)
             ? [right.argument, true]
             : [right, false];
-
         const requiredSize =
             destructured?.type === 'ArrayPattern' ? destructured.elements.length : undefined;
         if (isArrayExpression(node)) {
@@ -379,7 +381,7 @@ const Pattern = {
      */
     isTypedPattern(node: Expression): node is Identifier & { name: PrimitiveConstructorName } {
         if (node.type !== 'Identifier') return false;
-        return isPrimitiveConstructor(node.name);
+        return isKnownConstructor(node.name);
     },
 
     /**
@@ -438,31 +440,28 @@ const flatMap = <T, Result>(
     fn: (value: T, index: number, array: T[]) => Result[]
 ): Result[] => ([] as Result[]).concat(...array.map(fn));
 
-const hasProperty = Function.call.bind(Object.prototype.hasOwnProperty) as <T, K extends keyof T>(
-    obj: T,
-    ...props: K[]
-) => obj is Exclude<Record<K, T>, {}>;
+const hasProperty = Function.call.bind(Object.prototype.hasOwnProperty);
 
 /**
- * Maps a parameter Node from a parsed branch into a set of patterns.
+ * Maps a branch parameter into its patterns.
  */
 const branchParamToPatterns = (
     node: ArrowFunctionExpression['params'] extends (infer P)[] ? P : never
 ): Pattern[] => {
     switch (node.type) {
-        case 'Identifier':
+        case 'Identifier': // (foo) => {}
             return [Pattern.any()];
-        case 'ObjectPattern':
+        case 'ObjectPattern': // (x = {}) => {}
             const requiredKeys = flatMap(node.properties, (prop): string[] =>
                 // XXX @babel/types ObjectProperty.key
                 prop.type === 'ObjectProperty' ? [prop.key.name] : []
             );
             return [Pattern.object({ requiredKeys })];
-        case 'ArrayPattern':
+        case 'ArrayPattern': // (x = []) => {}
             return [Pattern.array({ requiredSize: node.elements.length })];
-        case 'AssignmentPattern':
+        case 'AssignmentPattern': // (x = ???) => {}
             return Pattern.from(node);
-        case 'RestElement':
+        case 'RestElement': // (...x) => {}
         case 'TSParameterProperty':
             throw Error('Unimplemented');
         default:
@@ -490,14 +489,16 @@ const fits = (arg: unknown, pattern: Pattern): boolean => {
             if (typeof arg === 'string') return pattern.regExp.test(arg);
             return false;
         case PatternType.Typed:
+            if (pattern.desiredType === 'Object' && !isPlainObject(arg)) return false;
             const argIsDesiredType =
-                isPrimitiveConstructor(pattern.desiredType) &&
+                isKnownConstructor(pattern.desiredType) &&
                 Object.prototype.toString.call(arg) === `[object ${pattern.desiredType}]`;
             return pattern.negated ? !argIsDesiredType : argIsDesiredType;
         case PatternType.ClassTyped:
             if (!(typeof arg === 'object' && arg !== null)) return false;
             const acceptedTypes: string[] = [];
             let proto = Object.getPrototypeOf(arg);
+            // Collect the constructors `arg` inherits from
             while (proto !== null) {
                 if (proto.constructor === Object) break;
                 if (proto.constructor.name !== '') acceptedTypes.push(proto.constructor.name);

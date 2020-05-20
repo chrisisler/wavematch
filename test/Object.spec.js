@@ -14,6 +14,22 @@ test('Typed', t => {
         (s = Object) => t.pass(),
         _ => t.fail()
     );
+
+    wavematch(3)(
+        (n = Object) => t.fail(),
+        _ => t.pass()
+    );
+    wavematch('')(
+        (n = Object) => t.fail(),
+        _ => t.pass()
+    );
+
+    // `Object` pattern is only for plain objects
+    class A {}
+    wavematch(new A())(
+        (n = Object) => t.fail(),
+        _ => t.pass()
+    );
 });
 
 test('Empty Object', t => {
