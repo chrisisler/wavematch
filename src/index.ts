@@ -344,7 +344,7 @@ const Pattern = {
         if (node.type === 'Identifier') {
             if (node.name === 'Infinity') return true;
             // TODO NaN
-            // - Should Number pattern match NaN arg?
+            // - Should Number pattern match NaN arg? No.
         }
         return false;
     },

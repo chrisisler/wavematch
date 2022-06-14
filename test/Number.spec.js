@@ -95,10 +95,10 @@ test('Zero', t => {
         (n = null) => t.fail(),
         (n = undefined) => t.fail(),
         (n = '') => t.fail(),
-        // (n = []) => t.fail(),
+        (n = []) => t.fail(),
         (n = -1) => t.fail(),
         (n = 1) => t.fail(),
-        // (n = NaN) => t.fail(),
+        (n = NaN) => t.fail(),
         // (n = Infinity) => t.fail(),
         // (n = -Infinity) => t.fail(),
         // Pass
