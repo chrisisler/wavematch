@@ -54,24 +54,23 @@ test('Array literal with Literal elements', t => {
     );
 });
 
-// TODO
-// test('Array literal with Union elements', t => {
-//     wavematch([42])(
-//         // Typed and Typed
-//         (foo = [Symbol | Number]) => t.pass(),
-//         _ => t.fail()
-//     );
-//     wavematch([42])(
-//         // Literal and Literal
-//         (foo = [41 | 42]) => t.pass(),
-//         _ => t.fail()
-//     );
-//     wavematch([42])(
-//         // Typed and Literal
-//         (foo = [Number | 'zoo']) => t.pass(),
-//         _ => t.fail()
-//     );
-// });
+test('Array literal with Union elements', t => {
+    wavematch([42])(
+        // Typed and Typed
+        (foo = [Symbol | Number]) => t.pass(),
+        _ => t.fail()
+    );
+    wavematch([42])(
+        // Literal and Literal
+        (foo = [41 | 42]) => t.pass(),
+        _ => t.fail()
+    );
+    wavematch([42])(
+        // Typed and Literal
+        (foo = [Number | 'zoo']) => t.pass(),
+        _ => t.fail()
+    );
+});
 
 test('Non-Array', t => {
     [{}, () => {}, '42', Symbol(), Error(), false, null, undefined].forEach(notAnArray => {

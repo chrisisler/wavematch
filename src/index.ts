@@ -83,6 +83,39 @@ const Pattern = {
         return nodes.map(right => Pattern.fromUnary(right));
     },
 
+    /**
+     * Maps a branch parameter into its patterns.
+     */
+    fromBranchArgument(
+        node:
+            | AssignmentPattern
+            | Identifier
+            | ObjectPattern
+            | ArrayPattern
+            | RestElement
+            | TSParameterProperty
+    ): Pattern[] {
+        switch (node.type) {
+            case 'Identifier': // (foo) => {}
+                return [Pattern.any()];
+            case 'ObjectPattern': // (x = {}) => {}
+                const requiredKeys = flatMap(node.properties, (prop): string[] =>
+                    // XXX @babel/types ObjectProperty.key
+                    prop.type === 'ObjectProperty' ? [prop.key.name] : []
+                );
+                return [Pattern.object({ requiredKeys })];
+            case 'ArrayPattern': // (x = []) => {}
+                return [Pattern.array({ requiredSize: node.elements.length })];
+            case 'AssignmentPattern': // (x = ???) => {}
+                return Pattern.from(node);
+            case 'RestElement': // (...x) => {}
+            case 'TSParameterProperty':
+                throw Error('Unimplemented');
+            default:
+                return Unreachable(node);
+        }
+    },
+
     extractUnion(node: BinaryExpression): Expression[] {
         const nodes = [node.right];
         if (Pattern.isUnion(node.left)) {
@@ -185,7 +218,7 @@ const Pattern = {
     },
 
     /**
-     * @see fits
+     * @see Pattern.fits
      */
     // Issue within the @babel/types package: ObjectProperty.key should not be `any`
     // but instead ObjectProperty.computed ? Expression : (Identifier | Literal)
@@ -271,126 +304,109 @@ const Pattern = {
     isClassTypedPattern(node: Expression): node is Identifier {
         return node.type === 'Identifier' && isUpperFirst(node.name);
     },
-};
 
-/**
- * Maps a branch parameter into its patterns.
- */
-const branchParamToPatterns = (
-    node: AssignmentPattern | Identifier | ObjectPattern | ArrayPattern | RestElement | TSParameterProperty
-): Pattern[] => {
-    switch (node.type) {
-        case 'Identifier': // (foo) => {}
-            return [Pattern.any()];
-        case 'ObjectPattern': // (x = {}) => {}
-            const requiredKeys = flatMap(node.properties, (prop): string[] =>
-                // XXX @babel/types ObjectProperty.key
-                prop.type === 'ObjectProperty' ? [prop.key.name] : []
-            );
-            return [Pattern.object({ requiredKeys })];
-        case 'ArrayPattern': // (x = []) => {}
-            return [Pattern.array({ requiredSize: node.elements.length })];
-        case 'AssignmentPattern': // (x = ???) => {}
-            return Pattern.from(node);
-        case 'RestElement': // (...x) => {}
-        case 'TSParameterProperty':
-            throw Error('Unimplemented');
-        default:
-            return Unreachable(node);
-    }
-};
-
-const doesMatch = (args: unknown[], branches: Function[], branchIndex: number): boolean => {
-    const ast = quote(branches[branchIndex].toString());
-    if (!isArrowFunctionExpression(ast)) throw TypeError('Expected an arrow function.');
-    if (args.length !== ast.params.length) return false;
-    return args.every((arg, index) =>
-        branchParamToPatterns(ast.params[index]).some(pattern => fits(arg, pattern))
-    );
-};
-
-const fits = (arg: unknown, pattern: Pattern): boolean => {
-    switch (pattern.type) {
-        case PatternType.Any:
-            return true;
-        case PatternType.Literal:
-            const isSameShape = Object.is(pattern.value, arg);
-            return pattern.negated ? !isSameShape : isSameShape;
-        case PatternType.RegExp:
-            if (typeof arg === 'string') return pattern.regExp.test(arg);
-            return false;
-        case PatternType.Typed:
-            if (pattern.desiredType === 'Object' && !isPlainObject(arg)) return false;
-            const argIsDesiredType =
-                isKnownConstructor(pattern.desiredType) &&
-                Object.prototype.toString.call(arg) === `[object ${pattern.desiredType}]`;
-            return pattern.negated ? !argIsDesiredType : argIsDesiredType;
-        case PatternType.ClassTyped:
-            if (!(typeof arg === 'object' && arg !== null)) return false;
-            const acceptedTypes: string[] = [];
-            let proto = Object.getPrototypeOf(arg);
-            // Collect the constructors `arg` inherits from
-            while (proto !== null) {
-                if (proto.constructor === Object) break;
-                if (proto.constructor.name !== '') acceptedTypes.push(proto.constructor.name);
-                proto = Object.getPrototypeOf(proto);
-            }
-            const isAcceptedType = acceptedTypes.includes(pattern.className);
-            return pattern.negated ? !isAcceptedType : isAcceptedType;
-        case PatternType.Array:
-            if (!Array.isArray(arg)) return false;
-            const patternElements = pattern.elements;
-            if (patternElements === null) {
-                if (pattern.requiredSize === null) return Unreachable();
-                return pattern.requiredSize <= arg.length;
-            }
-            if (patternElements.length !== arg.length) return false;
-            return arg.every((value, index) => {
-                const node = patternElements[index];
-                if (node === null) return Unreachable();
-                if (node.type === 'SpreadElement') throw TypeError('Unimplemented');
-                return fits(value, Pattern.fromUnary(node));
-            });
-        case PatternType.Object:
-            if (!isPlainObject(arg)) return false;
-            if (!!pattern.requiredKeys) {
-                const argSize = Object.keys(arg).length;
-                const patternSize = pattern.requiredKeys.length;
-                if (patternSize === 0) return argSize === 0;
-                if (patternSize > argSize) return false;
-                if (!pattern.requiredKeys.every(requiredKey => hasProperty(arg, requiredKey))) {
-                    return false;
+    /**
+     * Check if the provided argument fits the structure/data described by given
+     * pattern.
+     * 
+     * Contains rules for matching agains every kind of accepted pattern.
+     */
+    fits(arg: unknown, pattern: Pattern): boolean {
+        switch (pattern.type) {
+            case PatternType.Any:
+                return true;
+            case PatternType.Literal:
+                const isSameShape = Object.is(pattern.value, arg);
+                return pattern.negated ? !isSameShape : isSameShape;
+            case PatternType.RegExp:
+                if (typeof arg === 'string') return pattern.regExp.test(arg);
+                return false;
+            case PatternType.Typed:
+                if (pattern.desiredType === 'Object' && !isPlainObject(arg)) return false;
+                const argIsDesiredType =
+                    isKnownConstructor(pattern.desiredType) &&
+                    Object.prototype.toString.call(arg) === `[object ${pattern.desiredType}]`;
+                return pattern.negated ? !argIsDesiredType : argIsDesiredType;
+            case PatternType.ClassTyped:
+                if (!(typeof arg === 'object' && arg !== null)) return false;
+                const acceptedTypes: string[] = [];
+                let proto = Object.getPrototypeOf(arg);
+                // Collect the constructors `arg` inherits from
+                while (proto !== null) {
+                    if (proto.constructor === Object) break;
+                    if (proto.constructor.name !== '') acceptedTypes.push(proto.constructor.name);
+                    proto = Object.getPrototypeOf(proto);
                 }
-            }
-            if (pattern.properties === null) return true;
-            return pattern.properties.every(node => {
-                // node.type
-                if (node.type === 'SpreadElement') {
-                    throw SyntaxError('SpreadElement is unsupported.');
-                } else if (node.type === 'ObjectMethod') {
-                    throw SyntaxError('Object methods are unsupported.');
+                const isAcceptedType = acceptedTypes.includes(pattern.className);
+                return pattern.negated ? !isAcceptedType : isAcceptedType;
+            case PatternType.Array:
+                if (!Array.isArray(arg)) return false;
+                const patternElements = pattern.elements;
+                if (patternElements === null) {
+                    if (pattern.requiredSize === null) return Unreachable();
+                    return pattern.requiredSize <= arg.length;
                 }
-                // node.value
-                if (node.value.type === 'Identifier') {
-                    const { name } = node.value;
-                    if (!(name === 'null' || name === 'undefined') && !isUpperFirst(name)) {
-                        throw SyntaxError('Cannot use shorthand syntax.');
+                if (patternElements.length !== arg.length) return false;
+                return arg.every((value, index) => {
+                    const node = patternElements[index];
+                    if (node === null) return Unreachable();
+                    if (node.type === 'SpreadElement') throw TypeError('Unimplemented');
+                    return Pattern.from(node).some(subPattern => Pattern.fits(value, subPattern));
+                    // return Pattern.fits(value, Pattern.fromUnary(node));
+                });
+            case PatternType.Object:
+                if (!isPlainObject(arg)) return false;
+                if (!!pattern.requiredKeys) {
+                    const argSize = Object.keys(arg).length;
+                    const patternSize = pattern.requiredKeys.length;
+                    if (patternSize === 0) return argSize === 0;
+                    if (patternSize > argSize) return false;
+                    if (!pattern.requiredKeys.every(requiredKey => hasProperty(arg, requiredKey))) {
+                        return false;
                     }
                 }
-                if (isRestElement(node.value)) throw Error('Unimplemented');
-                if (isPatternLike(node.value) && !isIdentifier(node.value)) {
-                    throw Error('Unimplemented');
-                }
-                // node.key
-                if (node.computed) throw SyntaxError('Computed keys are unsupported.');
-                if (!Pattern.validateKey(node.key)) return Unreachable(node.key);
-                return Pattern.from(node.value).some(subPattern =>
-                    fits(arg[node.key.name], subPattern)
-                );
-            });
-        default:
-            return Unreachable(pattern);
+                if (pattern.properties === null) return true;
+                return pattern.properties.every(node => {
+                    // node.type
+                    if (node.type === 'SpreadElement') {
+                        throw SyntaxError('SpreadElement is unsupported.');
+                    } else if (node.type === 'ObjectMethod') {
+                        throw SyntaxError('Object methods are unsupported.');
+                    }
+                    // node.value
+                    if (node.value.type === 'Identifier') {
+                        const { name } = node.value;
+                        if (!(name === 'null' || name === 'undefined') && !isUpperFirst(name)) {
+                            throw SyntaxError('Cannot use shorthand syntax.');
+                        }
+                    }
+                    if (isRestElement(node.value)) throw Error('Unimplemented');
+                    if (isPatternLike(node.value) && !isIdentifier(node.value)) {
+                        throw Error('Unimplemented');
+                    }
+                    // node.key
+                    if (node.computed) throw SyntaxError('Computed keys are unsupported.');
+                    if (!Pattern.validateKey(node.key)) return Unreachable(node.key);
+                    return Pattern.from(node.value).some(subPattern =>
+                        Pattern.fits(arg[node.key.name], subPattern)
+                    );
+                });
+            default:
+                return Unreachable(pattern);
+        }
+    },
+};
+
+const doesMatch = (args: unknown[], branch: Function): boolean => {
+    // TODO Check quote(x).errors
+    const ast = quote(branch.toString());
+    if (!isArrowFunctionExpression(ast)) {
+        throw TypeError(`Expected an arrow function. Received: ${ast}`);
     }
+    if (args.length !== ast.params.length) {
+        return false;
+    }
+    return args.every((arg, index) => Pattern.fromBranchArgument(ast.params[index]).some(pattern => Pattern.fits(arg, pattern)));
 };
 
 /**
@@ -405,8 +421,9 @@ export const wavematch = (...args: unknown[]) => (...branches: Function[]): unkn
     if (args.length === 0) throw Error('Invariant: No data');
     if (branches.length === 0) throw Error('Invariant: No branches');
     for (let index = 0; index < branches.length; index++) {
-        if (doesMatch(args, branches, index)) {
-            return branches[index](...args);
+        const branch = branches[index];
+        if (doesMatch(args, branch)) {
+            return branch(...args);
         }
     }
     // Return the last branch, assumed to be the default behavior
