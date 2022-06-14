@@ -1,7 +1,6 @@
 import { parseExpression as quote } from '@babel/parser';
 import {
     ArrayPattern,
-    ArrowFunctionExpression,
     AssignmentPattern,
     BinaryExpression,
     Expression,
@@ -20,147 +19,22 @@ import {
     isStringLiteral,
     Literal,
     NumericLiteral,
-    ObjectMethod,
     ObjectPattern,
-    ObjectProperty,
-    SpreadElement,
     UnaryExpression,
+    RestElement,
+    TSParameterProperty,
 } from '@babel/types';
 
-/**
- * Supported, native value constructors.
- */
-type PrimitiveConstructorName =
-    | 'String'
-    | 'Function'
-    | 'Number'
-    | 'Boolean'
-    | 'Symbol'
-    | 'BigInt'
-    | 'Object'
-    | 'Array'
-    | 'RegExp'
-    | 'Error';
+import {
+    Pattern,
+    PatternAny,
+    PatternArray,
+    PatternObject,
+    PatternType,
+    PrimitiveConstructorName,
+} from './interfaces';
+import { isKnownConstructor, Unreachable, isUpperFirst, flatMap, isPlainObject, hasProperty } from './util';
 
-type PrimitiveConstructor =
-    | StringConstructor
-    | FunctionConstructor
-    | NumberConstructor
-    | BooleanConstructor
-    | SymbolConstructor
-    | BigIntConstructor
-    | ObjectConstructor
-    | ArrayConstructor
-    | RegExpConstructor
-    | ErrorConstructor;
-
-const primitiveConstructors = new Map<PrimitiveConstructorName, PrimitiveConstructor>([
-    ['String', String],
-    ['Function', Function],
-    ['Number', Number],
-    ['Boolean', Boolean],
-    ['Symbol', Symbol],
-    ['BigInt', BigInt],
-    ['Object', Object],
-    ['Array', Array],
-    ['RegExp', RegExp],
-    ['Error', Error],
-]);
-
-const isKnownConstructor = (str: string): str is PrimitiveConstructorName =>
-    primitiveConstructors.has(str as PrimitiveConstructorName);
-
-enum PatternType {
-    /** Instance of a primitive value. Interacts with PrimitiveConstructor. */
-    Literal = 'Literal',
-    /** Array literals. */
-    Array = 'Array',
-    /** Plain JavaScript objects. */
-    Object = 'Object',
-    /** Desired type, like Number. */
-    Typed = 'Typed',
-    /** Desired type, like Fruit. */
-    ClassTyped = 'ClassTyped',
-    /** No restrictions on allowed data. */
-    Any = 'Any',
-    /** RegExp testing against strings. */
-    RegExp = 'RegExp',
-}
-
-/**
- * The below is an example of a pattern. A pattern consists of a left and a
- * right. The left side of may be destructured or it may not. The right side
- * may exist or it may not.
- *
- * @example (left = right) => {}
- * @see Pattern
- */
-interface PatternBase {
-    type: PatternType;
-}
-
-/** Can this pattern be negated? */
-interface PatternNegation {
-    negated: boolean;
-}
-
-interface PatternArray extends PatternBase {
-    type: PatternType.Array;
-    /**
-     * If `elements` is null, then `requiredSize` is not null.
-     */
-    elements: null | (null | Expression | SpreadElement)[];
-    /**
-     * Exists if a branch destructures an array input.
-     */
-    requiredSize: null | number;
-}
-
-interface PatternObject extends PatternBase {
-    type: PatternType.Object;
-    properties: null | (ObjectMethod | ObjectProperty | SpreadElement)[];
-    requiredKeys: null | string[];
-}
-
-interface PatternLiteral extends PatternBase, PatternNegation {
-    type: PatternType.Literal;
-    /**
-     * Data that is not an object and has no methods.
-     * A primitive instance.
-     */
-    value: string | number | boolean | null | undefined | symbol | bigint;
-    negated: boolean;
-}
-
-interface PatternTyped extends PatternBase, PatternNegation {
-    type: PatternType.Typed;
-    desiredType: PrimitiveConstructorName;
-    negated: boolean;
-}
-
-interface PatternClassTyped extends PatternBase, PatternNegation {
-    type: PatternType.ClassTyped;
-    className: string;
-    negated: boolean;
-}
-
-interface PatternRegExp extends PatternBase {
-    type: PatternType.RegExp;
-    regExp: RegExp;
-}
-
-interface PatternAny extends PatternBase {
-    type: PatternType.Any;
-}
-
-type Pattern =
-    | PatternLiteral
-    | PatternTyped
-    | PatternClassTyped
-    | PatternArray
-    | PatternObject
-    | PatternRegExp
-    | PatternAny;
 
 const Pattern = {
     any(): PatternAny {
@@ -400,53 +274,10 @@ const Pattern = {
 };
 
 /**
- * For impossible states.
- *
- * @example
- *
- * // Bad, TypeScript will not acknowledge control flow redirection:
- * Unreachable();
- *
- * // Good:
- * return Unreachable();
- */
-const Unreachable = (data?: unknown): never => {
-    if (data !== undefined && data !== null) {
-        throw TypeError(`Unreachable: ${data}`);
-    }
-    throw TypeError('Unreachable');
-};
-
-/**
- * Check if something is a plain JS object. Returns false for class
- * instances, `Object.create(null)`, arrays, and null.
- */
-const isPlainObject = <K extends string | number | symbol, V>(
-    obj: unknown
-): obj is Record<K, V> => {
-    if (typeof obj !== 'object' || obj === null) return false;
-    let proto = obj;
-    while (Object.getPrototypeOf(proto) !== null) proto = Object.getPrototypeOf(proto);
-    return Object.getPrototypeOf(obj) === proto;
-};
-
-/**
- * Is the first character of a given string in capitalized?
- */
-const isUpperFirst = (str: string): boolean => str[0] === str[0].toUpperCase();
-
-const flatMap = <T, Result>(
-    array: T[],
-    fn: (value: T, index: number, array: T[]) => Result[]
-): Result[] => ([] as Result[]).concat(...array.map(fn));
-
-const hasProperty = Function.call.bind(Object.prototype.hasOwnProperty);
-
-/**
  * Maps a branch parameter into its patterns.
  */
 const branchParamToPatterns = (
-    node: ArrowFunctionExpression['params'] extends (infer P)[] ? P : never
+    node: AssignmentPattern | Identifier | ObjectPattern | ArrayPattern | RestElement | TSParameterProperty
 ): Pattern[] => {
     switch (node.type) {
         case 'Identifier': // (foo) => {}
@@ -567,17 +398,17 @@ const fits = (arg: unknown, pattern: Pattern): boolean => {
  * arguments.
  *
  * > A control flow mechanism; for each given branch, each default argument
- * value constitutes a special pattern describing the kind of input data the
- * corresponding function body expects.
+ * constitutes a special pattern describing the kind of input data that branch
+ * expects.
  */
 export const wavematch = (...args: unknown[]) => (...branches: Function[]): unknown => {
     if (args.length === 0) throw Error('Invariant: No data');
     if (branches.length === 0) throw Error('Invariant: No branches');
     for (let index = 0; index < branches.length; index++) {
         if (doesMatch(args, branches, index)) {
-            const branch = branches[index];
-            return branch(...args);
+            return branches[index](...args);
         }
     }
-    return branches[branches.length - 1].call(void 0);
+    // Return the last branch, assumed to be the default behavior
+    return branches[branches.length - 1]();
 };
