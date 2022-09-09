@@ -7,7 +7,11 @@ _A control flow mechanism for JavaScript._
 #### From Scala 3:
 
 - [ ] Guards
-- [ ] Number Ranges `(_ = Number(0, 5)) => {}`
+- [wip] Number Ranges `(val = Number(0, 5)) => {}`
+  - String Ranges `(val = String('b', 'k'))`
+  - String Ranges `(val = ['b', ...'k'])`
+  - Let's decide to use the constructor for matching ranges for clarity
+    - Also, cannot iterate (...foo) on a number literal
 
 - [ ] Object destructuring
 - [ ] BigInt

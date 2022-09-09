@@ -23,6 +23,7 @@ import {
     UnaryExpression,
     RestElement,
     TSParameterProperty,
+    CallExpression,
 } from '@babel/types';
 
 import {
@@ -214,6 +215,22 @@ const Pattern = {
                 negated: isNegated,
             };
         }
+        if (Pattern.isNumberRange(node)) {
+            const [low, high] = node.arguments.map(_ => {
+                // Positive number
+                if (_.type === 'NumericLiteral') return _.value;
+                // Negative number
+                if (_.type === 'UnaryExpression' && _.argument.type === 'NumericLiteral') {
+                    return -_.argument.value;
+                }
+                throw TypeError(`Expected a numeric literal. Received: ${JSON.stringify(_)}`);
+            });
+            return {
+                type: PatternType.NumberRange,
+                low,
+                high,
+            }
+        }
         throw Error('Unhandled node state');
     },
 
@@ -263,6 +280,23 @@ const Pattern = {
         return node.type === 'Identifier' && node.name === 'undefined';
     },
 
+    isNumberRange(node: Expression): node is CallExpression {
+            console.log("🚀 ~ file: index.ts ~ line 219 ~ fromUnary ~ node", node)
+        if (node.type === 'CallExpression' && node.arguments.length === 2) {
+            const validNumbers = node.arguments.every(_ => {
+                // Number or negative number
+                return (
+                    _.type === 'NumericLiteral' ||
+                    (_.type === 'UnaryExpression' && _.argument.type === 'NumericLiteral')
+                );
+            });
+            if (validNumbers) {
+                return true;
+            }
+        }
+        return false;
+    },
+
     /**
      * Is this pattern a union of patterns?
      */
@@ -308,7 +342,7 @@ const Pattern = {
     /**
      * Check if the provided argument fits the structure/data described by given
      * pattern.
-     * 
+     *
      * Contains rules for matching agains every kind of accepted pattern.
      */
     fits(arg: unknown, pattern: Pattern): boolean {
@@ -391,8 +425,16 @@ const Pattern = {
                         Pattern.fits(arg[node.key.name], subPattern)
                     );
                 });
+            case PatternType.NumberRange:
+                if (typeof arg !== 'number') return false;
+                const { low, high } = pattern;
+                if (low >= high) throw RangeError('Expected a valid range. Received an invalid range.');
+                if (low <= arg && high >= arg) {
+                    return true;
+                }
+                return false;
             default:
-                return Unreachable(pattern);
+                return Unreachable(`Unhandled pattern type: ${JSON.stringify(pattern)}`);
         }
     },
 };

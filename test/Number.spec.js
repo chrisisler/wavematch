@@ -1,7 +1,7 @@
 import test from 'ava';
 import { wavematch } from '../dist/wavematch.cjs.development';
 
-test('Negative  Numbers', t => {
+test('Negative Numbers', t => {
     // Guard
     // TODO
     // Literal
@@ -109,6 +109,24 @@ test('Zero', t => {
         _ => t.pass()
     );
 });
+
+test('Number Ranges', t => {
+    // In range
+    // wavematch(3)(
+    //     (n = Number(0, 5)) => t.pass(),
+    //     _ => t.fail()
+    // )
+    // // Out of range
+    // wavematch(6)(
+    //     (n = Number(0, 5)) => t.fail(),
+    //     _ => t.pass()
+    // )
+    // Negative numbers
+    wavematch(-2)(
+        (n = Number(-10, 0)) => t.pass(),
+        _ => t.fail()
+    )
+})
 
 // Not Supported currently
 // test('BigInt', t => {

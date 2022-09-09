@@ -42,6 +42,8 @@ export enum PatternType {
     Any = 'Any',
     /** RegExp testing against strings. */
     RegExp = 'RegExp',
+    /** Valid ranges of numbers, inclusive. */
+    NumberRange = 'NumberRange',
 }
 
 /**
@@ -110,6 +112,12 @@ export interface PatternAny extends PatternBase {
     type: PatternType.Any;
 }
 
+export interface PatternNumberRange extends PatternBase {
+    type: PatternType.NumberRange;
+    low: number;
+    high: number;
+}
+
 export type Pattern =
     | PatternLiteral
     | PatternTyped
@@ -117,4 +125,5 @@ export type Pattern =
     | PatternArray
     | PatternObject
     | PatternRegExp
+    | PatternNumberRange
     | PatternAny;
