@@ -33,7 +33,7 @@ import {
     PatternType,
     PrimitiveConstructorName,
 } from './interfaces';
-import { isKnownConstructor, Unreachable, isUpperFirst, flatMap, isPlainObject, hasProperty } from './util';
+import { isKnownConstructor, Unreachable, isUpperFirst, isPlainObject, hasProperty } from './util';
 
 
 const Pattern = {
@@ -57,8 +57,8 @@ const Pattern = {
     // Caller must guarantee that either `properties` is provided or
     // `requiredKeys` is provided; otherwise things will break.
     object({
-        properties = null,
-        requiredKeys = null,
+        properties = undefined,
+        requiredKeys = undefined,
     }: Partial<Omit<PatternObject, 'type'>>): PatternObject {
         return {
             type: PatternType.Object,
@@ -99,7 +99,7 @@ const Pattern = {
             case 'Identifier': // (foo) => {}
                 return [Pattern.any()];
             case 'ObjectPattern': // (x = {}) => {}
-                const requiredKeys = flatMap(node.properties, (prop): string[] =>
+                const requiredKeys = node.properties.flatMap((prop): string[] =>
                     // XXX @babel/types ObjectProperty.key
                     prop.type === 'ObjectProperty' ? [prop.key.name] : []
                 );
@@ -119,7 +119,7 @@ const Pattern = {
     extractUnion(node: BinaryExpression): Expression[] {
         const nodes = [node.right];
         if (Pattern.isUnion(node.left)) {
-            nodes.push(...Pattern.extractUnion(node.left));
+            nodes.push.apply(nodes, Pattern.extractUnion(node.left));
         } else {
             nodes.push(node.left);
         }
@@ -365,7 +365,7 @@ const Pattern = {
                         return false;
                     }
                 }
-                if (pattern.properties === null) return true;
+                if (pattern.properties === undefined) return true;
                 return pattern.properties.every(node => {
                     // node.type
                     if (node.type === 'SpreadElement') {
@@ -423,7 +423,7 @@ export const wavematch = (...args: unknown[]) => (...branches: Function[]): unkn
     for (let index = 0; index < branches.length; index++) {
         const branch = branches[index];
         if (doesMatch(args, branch)) {
-            return branch(...args);
+            return branch.apply(branch, args);
         }
     }
     // Return the last branch, assumed to be the default behavior

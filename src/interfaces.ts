@@ -75,8 +75,8 @@ export interface PatternArray extends PatternBase {
 
 export interface PatternObject extends PatternBase {
     type: PatternType.Object;
-    properties: null | (ObjectMethod | ObjectProperty | SpreadElement)[];
-    requiredKeys: null | string[];
+    properties: undefined | (ObjectMethod | ObjectProperty | SpreadElement)[];
+    requiredKeys: undefined | string[];
 }
 
 export interface PatternLiteral extends PatternBase, PatternNegation {

@@ -52,9 +52,4 @@ export const isPlainObject = <K extends string | number | symbol, V>(
  */
 export const isUpperFirst = (str: string): boolean => str[0] === str[0].toUpperCase();
 
-export const flatMap = <T, Result>(
-    array: T[],
-    fn: (value: T, index: number, array: T[]) => Result[]
-): Result[] => ([] as Result[]).concat(...array.map(fn));
-
 export const hasProperty = Function.call.bind(Object.prototype.hasOwnProperty);

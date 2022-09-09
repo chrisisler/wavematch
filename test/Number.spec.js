@@ -23,7 +23,10 @@ test('Negative  Numbers', t => {
 
 test('Positive Numbers', t => {
     // Guard
-    // TODO
+    // wavematch(42)(
+    //     (s = _ => _ === 42) => t.pass(),
+    //     _ => t.fail(),
+    // )
     // Literal
     wavematch(42)(
         (s = 42) => t.pass(),
