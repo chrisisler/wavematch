@@ -126,6 +126,24 @@ test('Number Ranges', t => {
         (n = Number(-10, 0)) => t.pass(),
         _ => t.fail()
     )
+    // Minimum number up to infinity
+    wavematch(77)(
+        (n = Number(34, Infinity)) => t.pass(),
+        _ => t.fail(),
+    )
+    wavematch(77)(
+        (n = Number(94, Infinity)) => t.fail(),
+        _ => t.pass(),
+    )
+    // Maximum number up from Negative Infinity
+    wavematch(8)(
+        (n = Number(-Infinity, 12)) => t.pass(),
+        _ => t.fail(),
+    )
+    wavematch(73)(
+        (n = Number(-Infinity, 12)) => t.fail(),
+        _ => t.pass(),
+    )
 })
 
 // Not Supported currently

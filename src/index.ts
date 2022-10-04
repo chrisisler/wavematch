@@ -223,6 +223,14 @@ const Pattern = {
                 if (_.type === 'UnaryExpression' && _.argument.type === 'NumericLiteral') {
                     return -_.argument.value;
                 }
+                // Infinity
+                if (isIdentifierInfinity(_)) {
+                    return Infinity;
+                }
+                // -Infinity
+                if (isIdentifierNegativeInfinity(_)) {
+                    return -Infinity;
+                }
                 throw TypeError(`Expected a numeric literal. Received: ${JSON.stringify(_)}`);
             });
             return {
@@ -283,10 +291,13 @@ const Pattern = {
     isNumberRange(node: Expression): node is CallExpression {
         if (node.type === 'CallExpression' && node.arguments.length === 2) {
             const validNumbers = node.arguments.every(_ => {
-                // Number or negative number
+                // A regular number instance or a negative number or Infinity or
+                // Negative Infinity
                 return (
                     _.type === 'NumericLiteral' ||
-                    (_.type === 'UnaryExpression' && _.argument.type === 'NumericLiteral')
+                    (_.type === 'UnaryExpression' && _.argument.type === 'NumericLiteral') ||
+                    isIdentifierInfinity(_) ||
+                    (isIdentifierNegativeInfinity(_))
                 );
             });
             if (validNumbers) {
@@ -470,3 +481,12 @@ export const wavematch = (...args: unknown[]) => (...branches: Function[]): unkn
     // Return the last branch, assumed to be the default behavior
     return branches[branches.length - 1]();
 };
+
+function isIdentifierNegativeInfinity(_: CallExpression['arguments'][number]): boolean {
+    return _.type === 'UnaryExpression' && _.operator === '-' && isIdentifierInfinity(_.argument);
+}
+
+function isIdentifierInfinity(_: CallExpression['arguments'][number]): _ is Identifier {
+    return _.type === 'Identifier' && _.name === 'Infinity';
+}
+
