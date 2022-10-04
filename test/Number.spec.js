@@ -112,15 +112,15 @@ test('Zero', t => {
 
 test('Number Ranges', t => {
     // In range
-    // wavematch(3)(
-    //     (n = Number(0, 5)) => t.pass(),
-    //     _ => t.fail()
-    // )
+    wavematch(3)(
+        (n = Number(0, 5)) => t.pass(),
+        _ => t.fail()
+    )
     // // Out of range
-    // wavematch(6)(
-    //     (n = Number(0, 5)) => t.fail(),
-    //     _ => t.pass()
-    // )
+    wavematch(6)(
+        (n = Number(0, 5)) => t.fail(),
+        _ => t.pass()
+    )
     // Negative numbers
     wavematch(-2)(
         (n = Number(-10, 0)) => t.pass(),

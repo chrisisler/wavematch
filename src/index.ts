@@ -281,7 +281,6 @@ const Pattern = {
     },
 
     isNumberRange(node: Expression): node is CallExpression {
-            console.log("🚀 ~ file: index.ts ~ line 219 ~ fromUnary ~ node", node)
         if (node.type === 'CallExpression' && node.arguments.length === 2) {
             const validNumbers = node.arguments.every(_ => {
                 // Number or negative number
