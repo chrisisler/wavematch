@@ -88,7 +88,7 @@
     "no-var-keyword": true,
     "object-literal-shorthand": true,
     "one-variable-per-declaration": { "options": ["ignore-for-loop"] },
-    "only-arrow-functions": true,
+    "only-arrow-functions": false,
     "ordered-imports": [
       true,
       {

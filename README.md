@@ -4,9 +4,7 @@ _A control flow mechanism for JavaScript._
 
 ## Upcoming
 
-#### From Scala 3:
-
-- [ ] Guards
+- [wip] Guards
 - [wip] Number Ranges `(val = Number(0, 5)) => {}`
   - String Ranges `(val = String('b', 'k'))`
   - String Ranges `(val = ['b', ...'k'])`
@@ -17,7 +15,5 @@ _A control flow mechanism for JavaScript._
 - [ ] BigInt
 - [ ] NaN
 
-
-- [ ] Better TypeScript definition
 - [ ] Caching
   - Is this something we want?

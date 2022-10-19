@@ -3,6 +3,7 @@ import {
     ArrayPattern,
     AssignmentPattern,
     BinaryExpression,
+    CallExpression,
     Expression,
     Identifier,
     isArrayExpression,
@@ -20,10 +21,9 @@ import {
     Literal,
     NumericLiteral,
     ObjectPattern,
-    UnaryExpression,
     RestElement,
     TSParameterProperty,
-    CallExpression,
+    UnaryExpression,
 } from '@babel/types';
 
 import {
@@ -34,8 +34,7 @@ import {
     PatternType,
     PrimitiveConstructorName,
 } from './interfaces';
-import { isKnownConstructor, Unreachable, isUpperFirst, isPlainObject, hasProperty } from './util';
-
+import { hasProperty, isKnownConstructor, isPlainObject, isUpperFirst, Unreachable } from './util';
 
 const Pattern = {
     any(): PatternAny {
@@ -237,8 +236,11 @@ const Pattern = {
                 type: PatternType.NumberRange,
                 low,
                 high,
-            }
+            };
         }
+        // console.log('node is:', node);
+        // Check for guards:
+        // if (node.type === 'ArrowFunctionExpression')
         throw Error('Unhandled node state');
     },
 
@@ -297,7 +299,7 @@ const Pattern = {
                     _.type === 'NumericLiteral' ||
                     (_.type === 'UnaryExpression' && _.argument.type === 'NumericLiteral') ||
                     isIdentifierInfinity(_) ||
-                    (isIdentifierNegativeInfinity(_))
+                    isIdentifierNegativeInfinity(_)
                 );
             });
             if (validNumbers) {
@@ -438,7 +440,9 @@ const Pattern = {
             case PatternType.NumberRange:
                 if (typeof arg !== 'number') return false;
                 const { low, high } = pattern;
-                if (low >= high) throw RangeError('Expected a valid range. Received an invalid range.');
+                if (low >= high) {
+                    throw RangeError('Expected a valid range. Received an invalid range.');
+                }
                 if (low <= arg && high >= arg) {
                     return true;
                 }
@@ -458,7 +462,9 @@ const doesMatch = (args: unknown[], branch: Function): boolean => {
     if (args.length !== ast.params.length) {
         return false;
     }
-    return args.every((arg, index) => Pattern.fromBranchArgument(ast.params[index]).some(pattern => Pattern.fits(arg, pattern)));
+    return args.every((arg, index) =>
+        Pattern.fromBranchArgument(ast.params[index]).some(pattern => Pattern.fits(arg, pattern))
+    );
 };
 
 /**
@@ -469,7 +475,9 @@ const doesMatch = (args: unknown[], branch: Function): boolean => {
  * constitutes a special pattern describing the kind of input data that branch
  * expects.
  */
-export const wavematch = (...args: unknown[]) => (...branches: Function[]): unknown => {
+export const wavematch = <T extends unknown[]>(...args: T) => <U>(
+    ...branches: ((...args: T) => U)[]
+): U => {
     if (args.length === 0) throw Error('Invariant: No data');
     if (branches.length === 0) throw Error('Invariant: No branches');
     for (let index = 0; index < branches.length; index++) {
@@ -479,6 +487,7 @@ export const wavematch = (...args: unknown[]) => (...branches: Function[]): unkn
         }
     }
     // Return the last branch, assumed to be the default behavior
+    // @ts-ignore
     return branches[branches.length - 1]();
 };
 
@@ -489,4 +498,3 @@ function isIdentifierNegativeInfinity(_: CallExpression['arguments'][number]): b
 function isIdentifierInfinity(_: CallExpression['arguments'][number]): _ is Identifier {
     return _.type === 'Identifier' && _.name === 'Infinity';
 }
-

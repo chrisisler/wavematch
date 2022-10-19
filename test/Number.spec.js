@@ -22,7 +22,7 @@ test('Negative Numbers', t => {
 });
 
 test('Positive Numbers', t => {
-    // Guard
+    // Guard TODO
     // wavematch(42)(
     //     (s = _ => _ === 42) => t.pass(),
     //     _ => t.fail(),
@@ -115,36 +115,36 @@ test('Number Ranges', t => {
     wavematch(3)(
         (n = Number(0, 5)) => t.pass(),
         _ => t.fail()
-    )
+    );
     // // Out of range
     wavematch(6)(
         (n = Number(0, 5)) => t.fail(),
         _ => t.pass()
-    )
+    );
     // Negative numbers
     wavematch(-2)(
         (n = Number(-10, 0)) => t.pass(),
         _ => t.fail()
-    )
+    );
     // Minimum number up to infinity
     wavematch(77)(
         (n = Number(34, Infinity)) => t.pass(),
-        _ => t.fail(),
-    )
+        _ => t.fail()
+    );
     wavematch(77)(
         (n = Number(94, Infinity)) => t.fail(),
-        _ => t.pass(),
-    )
+        _ => t.pass()
+    );
     // Maximum number up from Negative Infinity
     wavematch(8)(
         (n = Number(-Infinity, 12)) => t.pass(),
-        _ => t.fail(),
-    )
+        _ => t.fail()
+    );
     wavematch(73)(
         (n = Number(-Infinity, 12)) => t.fail(),
-        _ => t.pass(),
-    )
-})
+        _ => t.pass()
+    );
+});
 
 // Not Supported currently
 // test('BigInt', t => {
