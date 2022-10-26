@@ -28,6 +28,7 @@
   "devDependencies": {
     "@types/jest": "^24.0.25",
     "@typescript-eslint/eslint-plugin-tslint": "^2.13.0",
+    "@typescript-eslint/parser": "^5.41.0",
     "ava": "^2.4.0",
     "eslint": "^6.8.0",
     "eslint-plugin-ava": "^9.0.0",
@@ -42,6 +43,7 @@
     "@babel/types": "7.8.0"
   },
   "eslintConfig": {
-    "extends": "plugin:ava/recommended"
+    "extends": "plugin:ava/recommended",
+    "parser": "@typescript-eslint/parser"
   }
 }

@@ -15,17 +15,17 @@ export type PrimitiveConstructorName =
     | 'RegExp'
     | 'Error';
 
-// export type PrimitiveConstructor =
-//     | StringConstructor
-//     | FunctionConstructor
-//     | NumberConstructor
-//     | BooleanConstructor
-//     | SymbolConstructor
-//     | BigIntConstructor
-//     | ObjectConstructor
-//     | ArrayConstructor
-//     | RegExpConstructor
-//     | ErrorConstructor;
+export type PrimitiveConstructor =
+    | StringConstructor
+    | FunctionConstructor
+    | NumberConstructor
+    | BooleanConstructor
+    | SymbolConstructor
+    | BigIntConstructor
+    | ObjectConstructor
+    | ArrayConstructor
+    | RegExpConstructor
+    | ErrorConstructor;
 
 export enum PatternType {
     /** Instance of a primitive value. Interacts with PrimitiveConstructor. */
