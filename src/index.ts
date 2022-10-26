@@ -36,7 +36,7 @@ import {
 } from './interfaces';
 import { hasProperty, isKnownConstructor, isPlainObject, isUpperFirst, Unreachable } from './util';
 
-// eslint-disable-next-line no-redeclaration
+// eslint-disable-next-line no-redeclare
 const Pattern = {
     any(): PatternAny {
         return { type: PatternType.Any };
