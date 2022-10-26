@@ -36,6 +36,7 @@ import {
 } from './interfaces';
 import { hasProperty, isKnownConstructor, isPlainObject, isUpperFirst, Unreachable } from './util';
 
+// eslint-disable-next-line no-redeclaration
 const Pattern = {
     any(): PatternAny {
         return { type: PatternType.Any };
@@ -468,12 +469,12 @@ const doesMatch = (args: unknown[], branch: Function): boolean => {
 };
 
 /**
- * Evaluate the first branch with patterns successfully matching the given
+ * Evaluate the first branch whose patterns successfully match the provided
  * arguments.
  *
- * > A control flow mechanism; for each given branch, each default argument
- * constitutes a special pattern describing the kind of input data that branch
- * expects.
+ * Wavematch is a control flow mechanism, almost like a new keyword. For each
+ * given branch, each default argument constitutes a special pattern describing
+ * the kind of input data that branch expects.
  */
 export const wavematch = <T extends unknown[]>(...args: T) => <U>(
     ...branches: ((...args: T) => U)[]

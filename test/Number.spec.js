@@ -110,6 +110,14 @@ test('Zero', t => {
     );
 });
 
+// test('NaN', t => {
+//     wavematch(NaN)(
+//         (n = null) => t.fail(),
+//         (n = NaN) => t.pass(),
+//         _ => t.fail()
+//     );
+// });
+
 test('Number Ranges', t => {
     // In range
     wavematch(3)(
@@ -126,6 +134,7 @@ test('Number Ranges', t => {
         (n = Number(-10, 0)) => t.pass(),
         _ => t.fail()
     );
+
     // Minimum number up to infinity
     wavematch(77)(
         (n = Number(34, Infinity)) => t.pass(),
