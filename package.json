@@ -39,7 +39,7 @@
   },
   "dependencies": {
     "fast-deep-equal": "^2.0.1",
-    "json5": "^2.1.1",
+    "json5": "^2.2.2",
     "parse-function": "^5.2.11"
   },
   "eslint": {
