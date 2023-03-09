@@ -101,6 +101,11 @@ test('Destructuring Patternless', t => {
         ([abc]) => t.pass(),
         _ => t.fail()
     );
+    wavematch([3])(
+        ([]) => t.fail(),
+        ([first]) => t.pass(),
+        _ => t.fail()
+    );
 });
 
 test('Destructured Typed', t => {
@@ -119,6 +124,7 @@ test('Destructured Typed', t => {
 
 test('Destructuring with Literal Array pattern', t => {
     wavematch([3])(
+        ([]) => t.fail(),
         ([first] = [Number]) => t.pass(),
         _ => t.fail()
     );

@@ -391,7 +391,7 @@ const Pattern = {
                 const patternElements = pattern.elements;
                 if (patternElements === null) {
                     if (pattern.requiredSize === null) return Unreachable();
-                    return pattern.requiredSize <= arg.length;
+                    return pattern.requiredSize === arg.length;
                 }
                 if (patternElements.length !== arg.length) return false;
                 return arg.every((value, index) => {
