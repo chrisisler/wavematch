@@ -454,7 +454,7 @@ const Pattern = {
     },
 };
 
-const doesMatch = (args: unknown[], branch: Function): boolean => {
+const doesMatch = (args: readonly unknown[], branch: Function): boolean => {
     // TODO Check quote(x).errors
     const ast = quote(branch.toString());
     if (!isArrowFunctionExpression(ast)) {
@@ -476,15 +476,16 @@ const doesMatch = (args: unknown[], branch: Function): boolean => {
  * given branch, each default argument constitutes a special pattern describing
  * the kind of input data that branch expects.
  */
-export const wavematch = <T extends unknown[]>(...args: T) => <U>(
-    ...branches: ((...args: T) => U)[]
+
+export const wavematch = (...args: unknown[]) => <U>(
+    ...branches: ((...xs: any[]) => U)[]
 ): U => {
     if (args.length === 0) throw Error('Invariant: No data');
     if (branches.length === 0) throw Error('Invariant: No branches');
     for (let index = 0; index < branches.length; index++) {
         const branch = branches[index];
         if (doesMatch(args, branch)) {
-            return branch.apply(branch, args);
+            return branch(...args);
         }
     }
     // Return the last branch, assumed to be the default behavior
