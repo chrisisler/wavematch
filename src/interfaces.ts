@@ -28,7 +28,7 @@ export type PrimitiveConstructor =
     | ErrorConstructor;
 
 export enum PatternType {
-    /** Instance of a primitive value. Interacts with PrimitiveConstructor. */
+    /** Instance of a primitive JS value. Interacts with PrimitiveConstructor. */
     Literal = 'Literal',
     /** Array literals. */
     Array = 'Array',
@@ -54,26 +54,25 @@ export enum PatternType {
  * @example (left = right) => {}
  * @see Pattern
  */
-export interface PatternBase {
+interface PatternBase {
     type: PatternType;
 }
 
-/** Can this pattern be negated? */
-export interface PatternNegation {
+/** Can this pattern be negated (using `!`)? */
+interface PatternNegation {
     negated: boolean;
 }
 
-export interface PatternArray extends PatternBase {
-    type: PatternType.Array;
-    /**
-     * If `elements` is null, then `requiredSize` is not null.
-     */
-    elements: null | (null | Expression | SpreadElement)[];
-    /**
-     * Exists if a branch destructures an array input.
-     */
-    requiredSize: null | number;
-}
+export type PatternArray = PatternBase & { type: PatternType.Array } & (
+        | {
+              elements: null;
+              requiredSize: number;
+          }
+        | {
+              elements: (Expression | SpreadElement | null)[];
+              requiredSize: null;
+          }
+    );
 
 export interface PatternObject extends PatternBase {
     type: PatternType.Object;

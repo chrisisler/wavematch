@@ -48,6 +48,7 @@ const Pattern = {
         elements = null,
         requiredSize = null,
     }: Partial<Omit<PatternArray, 'type'>>): PatternArray {
+        // @ts-ignore
         return {
             elements,
             requiredSize,
@@ -293,16 +294,14 @@ const Pattern = {
 
     isNumberRange(node: Expression): node is CallExpression {
         if (node.type === 'CallExpression' && node.arguments.length === 2) {
-            const validNumbers = node.arguments.every(_ => {
-                // A regular number instance or a negative number or Infinity or
-                // Negative Infinity
-                return (
+            // A regular number instance or a negative number or Infinity or Negative Infinity
+            const validNumbers = node.arguments.every(
+                _ =>
                     _.type === 'NumericLiteral' ||
                     (_.type === 'UnaryExpression' && _.argument.type === 'NumericLiteral') ||
                     isIdentifierInfinity(_) ||
                     isIdentifierNegativeInfinity(_)
-                );
-            });
+            );
             if (validNumbers) {
                 return true;
             }
@@ -356,7 +355,7 @@ const Pattern = {
      * Check if the provided argument fits the structure/data described by given
      * pattern.
      *
-     * Contains rules for matching agains every kind of accepted pattern.
+     * Contains rules for matching against every kind of accepted pattern.
      */
     fits(arg: unknown, pattern: Pattern): boolean {
         switch (pattern.type) {
@@ -455,17 +454,20 @@ const Pattern = {
 };
 
 const doesMatch = (args: readonly unknown[], branch: Function): boolean => {
-    // TODO Check quote(x).errors
     const ast = quote(branch.toString());
     if (!isArrowFunctionExpression(ast)) {
         throw TypeError(`Expected an arrow function. Received: ${ast}`);
     }
+    // Only match against branches that take the same number of inputs
     if (args.length !== ast.params.length) {
         return false;
     }
-    return args.every((arg, index) =>
-        Pattern.fromBranchArgument(ast.params[index]).some(pattern => Pattern.fits(arg, pattern))
-    );
+    // True if each arg fits the pattern provided by the `branch` parameter at that index
+    return args.every((arg, index) => {
+        const branchParam = ast.params[index];
+        const patterns = Pattern.fromBranchArgument(branchParam);
+        return patterns.some(pattern => Pattern.fits(arg, pattern));
+    });
 };
 
 /**
@@ -476,10 +478,7 @@ const doesMatch = (args: readonly unknown[], branch: Function): boolean => {
  * given branch, each default argument constitutes a special pattern describing
  * the kind of input data that branch expects.
  */
-
-export const wavematch = (...args: unknown[]) => <U>(
-    ...branches: ((...xs: any[]) => U)[]
-): U => {
+export const wavematch = (...args: unknown[]) => <U>(...branches: ((...xs: any[]) => U)[]): U => {
     if (args.length === 0) throw Error('Invariant: No data');
     if (branches.length === 0) throw Error('Invariant: No branches');
     for (let index = 0; index < branches.length; index++) {

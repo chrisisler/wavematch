@@ -2,6 +2,8 @@
 
 _A control flow mechanism for JavaScript._
 
+> Reduce the ceremony of conditional state extraction
+
 ## Upcoming
 
 - [ ] Array destructuring with rest elements (matching array lengths)
@@ -15,3 +17,7 @@ _A control flow mechanism for JavaScript._
 - [ ] NaN
 
 - [ ] Caching
+
+## History
+
+## Limitations
