@@ -1,3 +1,4 @@
+import generate from '@babel/generator';
 import { parseExpression } from '@babel/parser';
 import {
     ArrayPattern,
@@ -240,14 +241,17 @@ const Pattern = {
                 high,
             };
         }
-        // Check for guards:
-        if (node.type === 'ArrowFunctionExpression') {
-            // @babel/generator
-            // const code = generate(node)
-
-            // console.log('fn is:', new Function(node.toString()));
-            console.log('node ---------------is:', node.toString());
-            // node.returnType
+        if (isArrowFunctionExpression(node)) {
+            if (node.params.length !== 1) {
+                throw SyntaxError('Guards must have exactly one parameter.');
+            }
+            const { code } = generate(node, {}, '');
+            const guard = new Function('return ' + code)();
+            if (typeof guard !== 'function') return Unreachable();
+            return {
+                type: PatternType.Guard,
+                guard,
+            };
         }
         throw Error('Unhandled node state');
     },
@@ -453,6 +457,10 @@ const Pattern = {
                     return true;
                 }
                 return false;
+            case PatternType.Guard:
+                const res = pattern.guard(arg);
+                if (typeof res === 'boolean') return res;
+                throw TypeError('Guard patterns must return a boolean.');
             default:
                 return Unreachable(`Unhandled pattern type: ${JSON.stringify(pattern)}`);
         }

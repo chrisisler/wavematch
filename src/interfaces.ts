@@ -44,6 +44,8 @@ export enum PatternType {
     RegExp = 'RegExp',
     /** Valid ranges of numbers, inclusive. */
     NumberRange = 'NumberRange',
+    /** Allowed data is described by a predicate "guard" function. */
+    Guard = 'Guard',
 }
 
 /**
@@ -58,7 +60,7 @@ interface PatternBase {
     type: PatternType;
 }
 
-/** Can this pattern be negated (using `!`)? */
+/** Whether or not this pattern be negated (using `!`). */
 interface PatternNegation {
     negated: boolean;
 }
@@ -117,6 +119,11 @@ export interface PatternNumberRange extends PatternBase {
     high: number;
 }
 
+export interface PatternGuard extends PatternBase {
+    type: PatternType.Guard;
+    guard(arg: unknown): boolean;
+}
+
 export type Pattern =
     | PatternLiteral
     | PatternTyped
@@ -125,4 +132,5 @@ export type Pattern =
     | PatternObject
     | PatternRegExp
     | PatternNumberRange
-    | PatternAny;
+    | PatternAny
+    | PatternGuard;

@@ -1,14 +1,16 @@
 import test from 'ava';
 import { wavematch } from '../dist/wavematch.cjs.development';
 
-// eslint-disable-next-line
-// test.only('Numbers Guard fn', t => {
-// // Guard
-// wavematch(-3)(
-//     (_ = $ => $ === -3) => t.pass(),
-//     _ => t.fail()
-// );
-// });
+test('Numbers Guard fn', t => {
+    wavematch(-3)(
+        (_ = $ => $ === -3) => t.pass(),
+        _ => t.fail()
+    );
+    wavematch(8)(
+        (_ = $ => $ > 4) => t.pass(),
+        _ => t.fail()
+    );
+});
 
 test('Negative Numbers', t => {
     // Literal

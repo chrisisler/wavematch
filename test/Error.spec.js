@@ -3,7 +3,12 @@ import { wavematch } from '../dist/wavematch.cjs.development';
 
 test('Error', t => {
     // Guard
-    // TODO
+    const e = Error({ code: 403 });
+    e.code = 403;
+    wavematch(e)(
+        (_ = $ => $.code === 403) => t.pass(),
+        _ => t.fail()
+    );
     // Typed
     wavematch(new Error())(
         (e = Error) => t.pass(),
@@ -16,8 +21,6 @@ test('Error', t => {
 });
 
 test('Custom Error', t => {
-    // Guard
-    // TODO
     // Literal
     // Typed
     wavematch(new (class extends Error {})())(

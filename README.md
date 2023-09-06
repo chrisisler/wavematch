@@ -58,7 +58,7 @@ Each branch function provided must return the same type.
 
 ## Roadmap
 
-- [wip] Guards
+- [wip] Guards testing
 - [ ] Array destructuring with rest elements (matching array lengths)
 - [ ] Object destructuring with rest elements (matching object keys)
 - [ ] Object destructuring 
