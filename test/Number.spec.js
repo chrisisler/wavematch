@@ -1,9 +1,16 @@
 import test from 'ava';
 import { wavematch } from '../dist/wavematch.cjs.development';
 
+// eslint-disable-next-line
+// test.only('Numbers Guard fn', t => {
+// // Guard
+// wavematch(-3)(
+//     (_ = $ => $ === -3) => t.pass(),
+//     _ => t.fail()
+// );
+// });
+
 test('Negative Numbers', t => {
-    // Guard
-    // TODO
     // Literal
     wavematch(-42)(
         (s = -42) => t.pass(),
@@ -124,7 +131,7 @@ test('Number Ranges', t => {
         (n = Number(0, 5)) => t.pass(),
         _ => t.fail()
     );
-    // // Out of range
+    // Out of range
     wavematch(6)(
         (n = Number(0, 5)) => t.fail(),
         _ => t.pass()

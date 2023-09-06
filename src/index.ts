@@ -1,4 +1,4 @@
-import { parseExpression as quote } from '@babel/parser';
+import { parseExpression } from '@babel/parser';
 import {
     ArrayPattern,
     AssignmentPattern,
@@ -240,9 +240,15 @@ const Pattern = {
                 high,
             };
         }
-        // console.log('node is:', node);
         // Check for guards:
-        // if (node.type === 'ArrowFunctionExpression')
+        if (node.type === 'ArrowFunctionExpression') {
+            // @babel/generator
+            // const code = generate(node)
+
+            // console.log('fn is:', new Function(node.toString()));
+            console.log('node ---------------is:', node.toString());
+            // node.returnType
+        }
         throw Error('Unhandled node state');
     },
 
@@ -338,7 +344,7 @@ const Pattern = {
     },
 
     /**
-     * Validates a unknown type.
+     * Validates an unknown type.
      *
      * @example
      * // node: Fruit
@@ -352,8 +358,8 @@ const Pattern = {
     },
 
     /**
-     * Check if the provided argument fits the structure/data described by given
-     * pattern.
+     * Scrutinizes the provided argument based on whether it fits the
+     * structure/data described by given pattern.
      *
      * Contains rules for matching against every kind of accepted pattern.
      */
@@ -454,7 +460,10 @@ const Pattern = {
 };
 
 const doesMatch = (args: readonly unknown[], branch: Function): boolean => {
-    const ast = quote(branch.toString());
+    const ast = parseExpression(branch.toString(), {
+        // TODO?
+        // plugins: ['typescript'],
+    });
     if (!isArrowFunctionExpression(ast)) {
         throw TypeError(`Expected an arrow function. Received: ${ast}`);
     }

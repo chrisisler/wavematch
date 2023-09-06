@@ -53,7 +53,7 @@
     "no-banned-terms": true,
     "no-boolean-literal-compare": true,
     "no-conditional-assignment": true,
-    "no-console": [true, "debug", "log", "info"],
+    "no-console": [true, "debug", "info"],
     "no-construct": true,
     "no-debugger": true,
     "no-default-export": false,
