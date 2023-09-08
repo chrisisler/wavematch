@@ -30,11 +30,36 @@ const message = wavematch(9)(
 );
 ```
 
-Note: The `Number(2, 9)` is a number range pattern, 9 itself is excluded.
+> Note: The `Number(2, 9)` is a number range, matching on numbers between 2 and 9.
 
-Each branch function provided must return the same type.
+Each branch function provided must return the same type (above it's `string`).
 
+Branch functions can accept a boolean-returning *guard* to specify requirements.
 
+```JavaScript
+wavematch(1)(
+  // Executes if `num` is greater than zero
+  (num = $ => $ > 0) => {},
+  _ => {},
+)
+```
+
+Using multiple branch functions, we can take special actions for particular
+values. For all other values, we take a default action (`_ => {}`) which is the
+fallback branch.
+
+Such control flow enables conditional assignment (`if let`).
+
+```JavaScript
+const todo = todos.find(item => item.id === id);
+const text = wavematch(todo)(
+  ({ name, isDone } = Todo) => isDone ? `${name} is done` : `${name} is not done`,
+  _ => null,
+);
+```
+
+The code in the branch function is not executed if the value does not match the
+pattern.
 
 
 

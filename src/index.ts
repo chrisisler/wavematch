@@ -37,6 +37,9 @@ import {
 } from './interfaces';
 import { hasProperty, isKnownConstructor, isPlainObject, isUpperFirst, Unreachable } from './util';
 
+/**
+ * Namespace for functions which create Patterns.
+ */
 // eslint-disable-next-line no-redeclare
 const Pattern = {
     any(): PatternAny {
@@ -70,26 +73,27 @@ const Pattern = {
         };
     },
 
+    /**
+     * Wraps `fromUnary` for each pattern extracted from `node`.
+     */
     from(node: AssignmentPattern | Expression): Pattern[] {
-        let nodes: Expression[];
         if (node.type === 'AssignmentPattern') {
-            nodes = Pattern.isUnion(node.right) ? Pattern.extractUnion(node.right) : [node.right];
-            // Left side of pattern only matters if the param node uses array/object
-            // destructuring
-            const left =
-                node.left.type === 'ArrayPattern' || node.left.type === 'ObjectPattern'
-                    ? node.left
-                    : undefined;
-            return nodes.map(right => Pattern.fromUnary(right, left));
+            const { left, right } = node;
+            const rightNodes = Pattern.isUnion(right) ? Pattern.extractUnion(right) : [right];
+            // Left side only matters if the param uses array/object destructuring `([] = []) =>`
+            const leftMaybe =
+                left.type === 'ArrayPattern' || left.type === 'ObjectPattern' ? left : undefined;
+            return rightNodes.map(rightNode => Pattern.fromUnary(rightNode, leftMaybe));
         }
-        nodes = Pattern.isUnion(node) ? Pattern.extractUnion(node) : [node];
+        const nodes = Pattern.isUnion(node) ? Pattern.extractUnion(node) : [node];
         return nodes.map(right => Pattern.fromUnary(right));
     },
 
     /**
-     * Maps a branch parameter into its patterns.
+     * Given the ast node for some argument that a branch function takes,
+     * return the patterns that should be used to match that argument.
      */
-    fromBranchArgument(
+    fromBranchParam(
         node:
             | AssignmentPattern
             | Identifier
@@ -99,19 +103,24 @@ const Pattern = {
             | TSParameterProperty
     ): Pattern[] {
         switch (node.type) {
-            case 'Identifier': // (foo) => {}
+            // (foo) => {}
+            case 'Identifier':
                 return [Pattern.any()];
-            case 'ObjectPattern': // (x = {}) => {}
+            // (x = {}) => {}
+            case 'ObjectPattern':
                 const requiredKeys = node.properties.flatMap((prop): string[] =>
                     // XXX @babel/types ObjectProperty.key
                     prop.type === 'ObjectProperty' ? [prop.key.name] : []
                 );
                 return [Pattern.object({ requiredKeys })];
-            case 'ArrayPattern': // (x = []) => {}
+            // (x = []) => {}
+            case 'ArrayPattern':
                 return [Pattern.array({ requiredSize: node.elements.length })];
-            case 'AssignmentPattern': // (x = ???) => {}
+            // (x = ???) => {}
+            case 'AssignmentPattern':
                 return Pattern.from(node);
-            case 'RestElement': // (...x) => {}
+            // (...x) => {}
+            case 'RestElement':
             case 'TSParameterProperty':
                 throw Error('Unimplemented');
             default:
@@ -122,7 +131,7 @@ const Pattern = {
     extractUnion(node: BinaryExpression): Expression[] {
         const nodes = [node.right];
         if (Pattern.isUnion(node.left)) {
-            nodes.push.apply(nodes, Pattern.extractUnion(node.left));
+            nodes.push(...Pattern.extractUnion(node.left));
         } else {
             nodes.push(node.left);
         }
@@ -257,7 +266,7 @@ const Pattern = {
     },
 
     /**
-     * @see Pattern.fits
+     * @see Pattern.matches
      */
     // Issue within the @babel/types package: ObjectProperty.key should not be `any`
     // but instead ObjectProperty.computed ? Expression : (Identifier | Literal)
@@ -367,7 +376,7 @@ const Pattern = {
      *
      * Contains rules for matching against every kind of accepted pattern.
      */
-    fits(arg: unknown, pattern: Pattern): boolean {
+    matches(arg: unknown, pattern: Pattern): boolean {
         switch (pattern.type) {
             case PatternType.Any:
                 return true;
@@ -397,18 +406,16 @@ const Pattern = {
                 return pattern.negated ? !isAcceptedType : isAcceptedType;
             case PatternType.Array:
                 if (!Array.isArray(arg)) return false;
-                const patternElements = pattern.elements;
-                if (patternElements === null) {
+                if (pattern.elements === null) {
                     if (pattern.requiredSize === null) return Unreachable();
                     return pattern.requiredSize === arg.length;
                 }
-                if (patternElements.length !== arg.length) return false;
+                if (pattern.elements.length !== arg.length) return false;
                 return arg.every((value, index) => {
-                    const node = patternElements[index];
+                    const node: typeof pattern.elements[number] = pattern.elements[index];
                     if (node === null) return Unreachable();
                     if (node.type === 'SpreadElement') throw TypeError('Unimplemented');
-                    return Pattern.from(node).some(subPattern => Pattern.fits(value, subPattern));
-                    // return Pattern.fits(value, Pattern.fromUnary(node));
+                    return Pattern.from(node).some(p => Pattern.matches(value, p));
                 });
             case PatternType.Object:
                 if (!isPlainObject(arg)) return false;
@@ -443,9 +450,8 @@ const Pattern = {
                     // node.key
                     if (node.computed) throw SyntaxError('Computed keys are unsupported.');
                     if (!Pattern.validateKey(node.key)) return Unreachable(node.key);
-                    return Pattern.from(node.value).some(subPattern =>
-                        Pattern.fits(arg[node.key.name], subPattern)
-                    );
+                    const value = arg[node.key.name];
+                    return Pattern.from(node.value).some(p => Pattern.matches(value, p));
                 });
             case PatternType.NumberRange:
                 if (typeof arg !== 'number') return false;
@@ -475,16 +481,13 @@ const doesMatch = (args: readonly unknown[], branch: Function): boolean => {
     if (!isArrowFunctionExpression(ast)) {
         throw TypeError(`Expected an arrow function. Received: ${ast}`);
     }
-    // Only match against branches that take the same number of inputs
+    // Only match branches that take the same number of inputs
     if (args.length !== ast.params.length) {
         return false;
     }
-    // True if each arg fits the pattern provided by the `branch` parameter at that index
-    return args.every((arg, index) => {
-        const branchParam = ast.params[index];
-        const patterns = Pattern.fromBranchArgument(branchParam);
-        return patterns.some(pattern => Pattern.fits(arg, pattern));
-    });
+    return args.every((arg, index) =>
+        Pattern.fromBranchParam(ast.params[index]).some(p => Pattern.matches(arg, p))
+    );
 };
 
 /**
@@ -505,7 +508,6 @@ export const wavematch = (...args: unknown[]) => <U>(...branches: ((...xs: any[]
         }
     }
     // Return the last branch, assumed to be the default behavior
-    // @ts-ignore
     return branches[branches.length - 1]();
 };
 
