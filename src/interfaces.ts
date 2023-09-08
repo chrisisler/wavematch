@@ -1,4 +1,4 @@
-import { ObjectMethod, Expression, SpreadElement, ObjectProperty } from '@babel/types';
+import { Expression, ObjectMethod, ObjectProperty, SpreadElement } from '@babel/types';
 
 /**
  * Supported, native value constructors.

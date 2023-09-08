@@ -1,4 +1,6 @@
-import { PrimitiveConstructorName, PrimitiveConstructor } from 'interfaces';
+import { CallExpression, Identifier } from '@babel/types';
+
+import { PrimitiveConstructor, PrimitiveConstructorName } from './interfaces';
 
 const primitiveConstructors = new Map<PrimitiveConstructorName, PrimitiveConstructor>([
     ['String', String],
@@ -47,9 +49,12 @@ export const isPlainObject = <K extends string | number | symbol, V>(
     return Object.getPrototypeOf(obj) === proto;
 };
 
-/**
- * Is the first character of a given string in capitalized?
- */
 export const isUpperFirst = (str: string): boolean => str[0] === str[0].toUpperCase();
 
 export const hasProperty = Function.call.bind(Object.prototype.hasOwnProperty);
+
+export const isIdentifierNegativeInfinity = (arg: CallExpression['arguments'][number]): boolean =>
+    arg.type === 'UnaryExpression' && arg.operator === '-' && isIdentifierInfinity(arg.argument);
+
+export const isIdentifierInfinity = (arg: CallExpression['arguments'][number]): arg is Identifier =>
+    arg.type === 'Identifier' && arg.name === 'Infinity';
