@@ -49,11 +49,13 @@ import {
  */
 export const Patterns = {
     any(): PatternAny {
+        // TODO Allocating unnecessary object
         return { type: PatternType.Any };
     },
 
     // Caller must guarantee that either `value` is provided or `requiredSize`
     // is provided; otherwise things will break.
+    // TODO Allocating unnecessary object in parameters
     array({
         elements = null,
         requiredSize = null,
@@ -68,6 +70,7 @@ export const Patterns = {
 
     // Caller must guarantee that either `properties` is provided or
     // `requiredKeys` is provided; otherwise things will break.
+    // TODO Allocating unnecessary object in parameters
     object({
         properties = undefined,
         requiredKeys = undefined,
@@ -95,10 +98,11 @@ export const Patterns = {
     },
 
     /**
-     * Given the ast node for some argument that a branch function takes,
-     * return the patterns that should be used to match that argument.
+     * Given the ast node for some argument, parse the node into its patterns
+     * and return whether or not they match the argument.
      */
-    fromBranchParam(
+    doesMatch(
+        arg: unknown,
         node:
             | AssignmentPattern
             | Identifier
@@ -106,25 +110,25 @@ export const Patterns = {
             | ArrayPattern
             | RestElement
             | TSParameterProperty
-    ): Pattern[] {
+    ): boolean {
         switch (node.type) {
             // (foo) => {}
             case 'Identifier':
-                return [Patterns.any()];
+                return Patterns.matches(arg, Patterns.any());
             // (x = {}) => {}
             case 'ObjectPattern':
                 const requiredKeys = node.properties.flatMap((prop): string[] =>
                     // XXX @babel/types ObjectProperty.key
                     prop.type === 'ObjectProperty' ? [prop.key.name] : []
                 );
-                return [Patterns.object({ requiredKeys })];
+                return Patterns.matches(arg, Patterns.object({ requiredKeys }));
             // (x = []) => {}
             case 'ArrayPattern':
                 const requiredSize = node.elements.length;
-                return [Patterns.array({ requiredSize })];
+                return Patterns.matches(arg, Patterns.array({ requiredSize }));
             // (x = ???) => {}
             case 'AssignmentPattern':
-                return Patterns.from(node);
+                return Patterns.from(node).some(p => Patterns.matches(arg, p));
             // (...x) => {}
             case 'RestElement':
             case 'TSParameterProperty':

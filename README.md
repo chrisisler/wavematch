@@ -2,9 +2,10 @@
 
 ## Introduction
 
-Wavematch is a control flow construct that allows you to execute code conditionally.
+`wavematch` calls the first function whose patterns fit the arguments,
+executing code conditionally.
 
-An example of `wavematch` usage:
+An example of usage:
 
 ```JavaScript
 const x = 1;
@@ -32,7 +33,7 @@ const message = wavematch(9)(
 
 > Note: The `Number(2, 9)` is a number range, matching on numbers between 2 and 9.
 
-Each branch function provided must return the same type (above it's `string`).
+Each function provided must return the same type (above it's `string`).
 
 Branch functions can accept a boolean-returning *guard* to specify requirements.
 

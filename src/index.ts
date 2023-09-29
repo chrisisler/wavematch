@@ -19,6 +19,7 @@ export const wavematch = (...args: unknown[]) => <U>(...branches: ((...xs: any[]
             return branch(...args);
         }
     }
+    // Return the last branch, assumed to be the default behavior
     return branches[branches.length - 1]();
 };
 
@@ -27,9 +28,7 @@ function doesMatch(args: readonly unknown[], branch: Function): boolean {
     if (ast.type !== 'ArrowFunctionExpression') {
         throw TypeError(`Expected an arrow function. Received: ${ast}`);
     }
+    // Only match branches that take the same number of inputs
     if (args.length !== ast.params.length) return false;
-    return args.every((arg, index) => {
-        const patterns = Patterns.fromBranchParam(ast.params[index]);
-        return patterns.some(p => Patterns.matches(arg, p));
-    });
+    return args.every((arg, index) => Patterns.doesMatch(arg, ast.params[index]));
 }
