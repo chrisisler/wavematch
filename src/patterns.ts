@@ -83,18 +83,21 @@ export const Patterns = {
     },
 
     /**
-     * Wraps `fromUnary` for each pattern extracted from `node` and
-     * flattens union patterns.
+     * Extract pattern from `node` -> extract patterns from pattern if its a
+     * union -> match patterns up against the provided `arg`.
      */
-    from(node: AssignmentPattern | Expression): Pattern[] {
+    matchesExpression(arg: unknown, node: AssignmentPattern | Expression): boolean {
+        let pats: Pattern[] = [];
         if (node.type === 'AssignmentPattern') {
             const { left, right } = node;
             // Left side only matters if the param uses array/object destructuring `([] = []) =>`
             const leftMaybe =
                 left.type === 'ArrayPattern' || left.type === 'ObjectPattern' ? left : undefined;
-            return Patterns.flatten(right).map(node2 => Patterns.fromUnary(node2, leftMaybe));
+            pats = Patterns.flatten(right).map(_node => Patterns.fromUnary(_node, leftMaybe));
+        } else {
+            pats = Patterns.flatten(node).map(_node => Patterns.fromUnary(_node));
         }
-        return Patterns.flatten(node).map(node2 => Patterns.fromUnary(node2));
+        return pats.some(p => Patterns.matches(arg, p));
     },
 
     /**
@@ -128,7 +131,7 @@ export const Patterns = {
                 return Patterns.matches(arg, Patterns.array({ requiredSize }));
             // (x = ???) => {}
             case 'AssignmentPattern':
-                return Patterns.from(node).some(p => Patterns.matches(arg, p));
+                return Patterns.matchesExpression(arg, node);
             // (...x) => {}
             case 'RestElement':
             case 'TSParameterProperty':
@@ -427,7 +430,7 @@ export const Patterns = {
                     const node: typeof pattern.elements[number] = pattern.elements[index];
                     if (node === null) return Unreachable();
                     if (node.type === 'SpreadElement') throw TypeError('Unimplemented');
-                    return Patterns.from(node).some(p => Patterns.matches(value, p));
+                    return Patterns.matchesExpression(value, node);
                 });
             case PatternType.Object:
                 if (!isPlainObject(arg)) return false;
@@ -463,7 +466,7 @@ export const Patterns = {
                     if (node.computed) throw SyntaxError('Computed keys are unsupported.');
                     if (!Patterns.validateKey(node.key)) return Unreachable(node.key);
                     const value = arg[node.key.name];
-                    return Patterns.from(node.value).some(p => Patterns.matches(value, p));
+                    return Patterns.matchesExpression(value, node.value);
                 });
             case PatternType.NumberRange:
                 if (typeof arg !== 'number') return false;
