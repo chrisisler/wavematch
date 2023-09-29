@@ -55,17 +55,12 @@ export const Patterns = {
 
     // Caller must guarantee that either `value` is provided or `requiredSize`
     // is provided; otherwise things will break.
-    // TODO Allocating unnecessary object in parameters
-    array({
-        elements = null,
-        requiredSize = null,
-    }: Partial<Omit<PatternArray, 'type'>>): PatternArray {
+    array(
+        elements: PatternArray['elements'] = null,
+        requiredSize: PatternArray['requiredSize'] = null
+    ): PatternArray {
         // @ts-ignore
-        return {
-            elements,
-            requiredSize,
-            type: PatternType.Array,
-        };
+        return { elements, requiredSize, type: PatternType.Array };
     },
 
     // Caller must guarantee that either `properties` is provided or
@@ -75,11 +70,7 @@ export const Patterns = {
         properties = undefined,
         requiredKeys = undefined,
     }: Partial<Omit<PatternObject, 'type'>>): PatternObject {
-        return {
-            type: PatternType.Object,
-            properties,
-            requiredKeys,
-        };
+        return { type: PatternType.Object, properties, requiredKeys };
     },
 
     /**
@@ -128,7 +119,7 @@ export const Patterns = {
             // (x = []) => {}
             case 'ArrayPattern':
                 const requiredSize = node.elements.length;
-                return Patterns.matches(arg, Patterns.array({ requiredSize }));
+                return Patterns.matches(arg, Patterns.array(null, requiredSize));
             // (x = ???) => {}
             case 'AssignmentPattern':
                 return Patterns.matchesExpression(arg, node);
@@ -165,17 +156,12 @@ export const Patterns = {
         const requiredSize =
             destructured?.type === 'ArrayPattern' ? destructured.elements.length : undefined;
         if (isArrayExpression(node)) {
-            return Patterns.array({
-                elements: node.elements,
-                requiredSize,
-            });
+            return Patterns.array(node.elements, requiredSize);
         }
         if (requiredSize !== undefined) {
-            if (Patterns.isTypedPattern(node)) {
-                // console.warn('Warning: Unnecessary Array type pattern');
-                // Act like `([]) => {}`
-                return Patterns.array({ requiredSize });
-            }
+            // console.warn('Warning: Unnecessary Array type pattern');
+            // Act like `([]) => {}`
+            if (Patterns.isTypedPattern(node)) return Patterns.array(null, requiredSize);
             throw SyntaxError('Invariant: Invalid array-destructuring pattern');
         }
         if (isObjectExpression(node)) {
@@ -183,18 +169,10 @@ export const Patterns = {
             return Patterns.object({ properties: node.properties });
         }
         if (Patterns.isTypedPattern(node)) {
-            return {
-                desiredType: node.name,
-                type: PatternType.Typed,
-                negated: isNegated,
-            };
+            return { desiredType: node.name, type: PatternType.Typed, negated: isNegated };
         }
         if (Patterns.isClassTypedPattern(node)) {
-            return {
-                type: PatternType.ClassTyped,
-                className: node.name,
-                negated: isNegated,
-            };
+            return { type: PatternType.ClassTyped, className: node.name, negated: isNegated };
         }
         // PatternType.Literal cases
         if (
@@ -203,43 +181,23 @@ export const Patterns = {
             isBooleanLiteral(node) ||
             isBigIntLiteral(node)
         ) {
-            return {
-                value: node.value,
-                type: PatternType.Literal,
-                negated: isNegated,
-            };
+            return { value: node.value, type: PatternType.Literal, negated: isNegated };
         }
         if (isRegExpLiteral(node)) {
-            return {
-                regExp: RegExp(node.pattern),
-                type: PatternType.RegExp,
-            };
+            return { regExp: RegExp(node.pattern), type: PatternType.RegExp };
         }
         if (Patterns.isSignedNumber(node)) {
             const isNegativeNumber = node.operator === '-';
             const desired = node.argument.value;
-            return {
-                type: PatternType.Literal,
-                value: isNegativeNumber ? -desired : desired,
-                negated: isNegated,
-            };
+            const value = isNegativeNumber ? -desired : desired;
+            return { type: PatternType.Literal, value, negated: isNegated };
         }
-        if (Patterns.isNumberOtherwise(node)) {
-            throw Error('Unimplemented');
-        }
+        if (Patterns.isNumberOtherwise(node)) throw Error('Unimplemented');
         if (isNullLiteral(node)) {
-            return {
-                value: null,
-                type: PatternType.Literal,
-                negated: isNegated,
-            };
+            return { value: null, type: PatternType.Literal, negated: isNegated };
         }
         if (Patterns.isUndefinedLiteral(node)) {
-            return {
-                value: undefined,
-                type: PatternType.Literal,
-                negated: isNegated,
-            };
+            return { value: undefined, type: PatternType.Literal, negated: isNegated };
         }
         if (Patterns.isNumberRange(node)) {
             const [low, high] = node.arguments.map(_ => {
@@ -250,20 +208,13 @@ export const Patterns = {
                     return -_.argument.value;
                 }
                 // Infinity
-                if (isIdentifierInfinity(_)) {
-                    return Infinity;
-                }
+                if (isIdentifierInfinity(_)) return Infinity;
                 // -Infinity
-                if (isIdentifierNegativeInfinity(_)) {
-                    return -Infinity;
-                }
+                if (isIdentifierNegativeInfinity(_)) return -Infinity;
                 throw TypeError(`Expected a numeric literal. Received: ${JSON.stringify(_)}`);
             });
-            return {
-                type: PatternType.NumberRange,
-                low,
-                high,
-            };
+            // TODO Just `low` `high` tuple
+            return { type: PatternType.NumberRange, low, high };
         }
         if (isArrowFunctionExpression(node)) {
             if (node.params.length !== 1) {
@@ -272,10 +223,8 @@ export const Patterns = {
             const { code } = generate(node, {}, '');
             const guard = new Function('return ' + code)();
             if (typeof guard !== 'function') return Unreachable();
-            return {
-                type: PatternType.Guard,
-                guard,
-            };
+            // TODO Just `guard` function
+            return { type: PatternType.Guard, guard };
         }
         throw Error('Unhandled node state');
     },
@@ -336,9 +285,7 @@ export const Patterns = {
                     isIdentifierInfinity(_) ||
                     isIdentifierNegativeInfinity(_)
             );
-            if (validNumbers) {
-                return true;
-            }
+            if (validNumbers) return true;
         }
         return false;
     },
@@ -474,9 +421,7 @@ export const Patterns = {
                 if (low >= high) {
                     throw RangeError('Expected a valid range. Received an invalid range.');
                 }
-                if (low <= arg && high >= arg) {
-                    return true;
-                }
+                if (low <= arg && high >= arg) return true;
                 return false;
             case PatternType.Guard:
                 const res = pattern.guard(arg);
