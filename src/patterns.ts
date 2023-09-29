@@ -65,11 +65,10 @@ export const Patterns = {
 
     // Caller must guarantee that either `properties` is provided or
     // `requiredKeys` is provided; otherwise things will break.
-    // TODO Allocating unnecessary object in parameters
-    object({
-        properties = undefined,
-        requiredKeys = undefined,
-    }: Partial<Omit<PatternObject, 'type'>>): PatternObject {
+    object(
+        properties: PatternObject['properties'] = undefined,
+        requiredKeys: PatternObject['requiredKeys'] = undefined
+    ): PatternObject {
         return { type: PatternType.Object, properties, requiredKeys };
     },
 
@@ -115,7 +114,7 @@ export const Patterns = {
                     // XXX @babel/types ObjectProperty.key
                     prop.type === 'ObjectProperty' ? [prop.key.name] : []
                 );
-                return Patterns.matches(arg, Patterns.object({ requiredKeys }));
+                return Patterns.matches(arg, Patterns.object(undefined, requiredKeys));
             // (x = []) => {}
             case 'ArrayPattern':
                 const requiredSize = node.elements.length;
@@ -156,22 +155,27 @@ export const Patterns = {
         const requiredSize =
             destructured?.type === 'ArrayPattern' ? destructured.elements.length : undefined;
         if (isArrayExpression(node)) {
+            // TODO Just ???
             return Patterns.array(node.elements, requiredSize);
         }
         if (requiredSize !== undefined) {
             // console.warn('Warning: Unnecessary Array type pattern');
             // Act like `([]) => {}`
+            // TODO Just ???
             if (Patterns.isTypedPattern(node)) return Patterns.array(null, requiredSize);
             throw SyntaxError('Invariant: Invalid array-destructuring pattern');
         }
         if (isObjectExpression(node)) {
             if (isNegated) throw SyntaxError('Invariant: Cannot negate object patterns');
-            return Patterns.object({ properties: node.properties });
+            // TODO Just ???
+            return Patterns.object(node.properties);
         }
         if (Patterns.isTypedPattern(node)) {
-            return { desiredType: node.name, type: PatternType.Typed, negated: isNegated };
+            // TODO Just ???
+            return { type: PatternType.Typed, desiredType: node.name, negated: isNegated };
         }
         if (Patterns.isClassTypedPattern(node)) {
+            // TODO Just ???
             return { type: PatternType.ClassTyped, className: node.name, negated: isNegated };
         }
         // PatternType.Literal cases
@@ -181,23 +185,28 @@ export const Patterns = {
             isBooleanLiteral(node) ||
             isBigIntLiteral(node)
         ) {
-            return { value: node.value, type: PatternType.Literal, negated: isNegated };
+            // TODO Just [PatternType.Literal.value, boolean]
+            return { type: PatternType.Literal, value: node.value, negated: isNegated };
         }
         if (isRegExpLiteral(node)) {
-            return { regExp: RegExp(node.pattern), type: PatternType.RegExp };
+            // TODO Just `RegExp`
+            return { type: PatternType.RegExp, regExp: RegExp(node.pattern) };
         }
         if (Patterns.isSignedNumber(node)) {
             const isNegativeNumber = node.operator === '-';
             const desired = node.argument.value;
             const value = isNegativeNumber ? -desired : desired;
+            // TODO Just [PatternType.Literal.value, boolean]
             return { type: PatternType.Literal, value, negated: isNegated };
         }
         if (Patterns.isNumberOtherwise(node)) throw Error('Unimplemented');
         if (isNullLiteral(node)) {
-            return { value: null, type: PatternType.Literal, negated: isNegated };
+            // TODO Just [PatternType.Literal.value, boolean]
+            return { type: PatternType.Literal, negated: isNegated, value: null };
         }
         if (Patterns.isUndefinedLiteral(node)) {
-            return { value: undefined, type: PatternType.Literal, negated: isNegated };
+            // TODO Just [PatternType.Literal.value, boolean]
+            return { type: PatternType.Literal, value: undefined, negated: isNegated };
         }
         if (Patterns.isNumberRange(node)) {
             const [low, high] = node.arguments.map(_ => {
@@ -213,7 +222,7 @@ export const Patterns = {
                 if (isIdentifierNegativeInfinity(_)) return -Infinity;
                 throw TypeError(`Expected a numeric literal. Received: ${JSON.stringify(_)}`);
             });
-            // TODO Just `low` `high` tuple
+            // TODO Just [number, number] range tuple
             return { type: PatternType.NumberRange, low, high };
         }
         if (isArrowFunctionExpression(node)) {
@@ -223,7 +232,7 @@ export const Patterns = {
             const { code } = generate(node, {}, '');
             const guard = new Function('return ' + code)();
             if (typeof guard !== 'function') return Unreachable();
-            // TODO Just `guard` function
+            // TODO Just `guard` Function
             return { type: PatternType.Guard, guard };
         }
         throw Error('Unhandled node state');
