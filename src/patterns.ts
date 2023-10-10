@@ -59,6 +59,7 @@ export const Patterns = {
         elements: PatternArray['elements'] = null,
         requiredSize: PatternArray['requiredSize'] = null
     ): PatternArray {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         return { elements, requiredSize, type: PatternType.Array };
     },
@@ -229,6 +230,8 @@ export const Patterns = {
             if (node.params.length !== 1) {
                 throw SyntaxError('Guards must have exactly one parameter.');
             }
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
             const { code } = generate(node, {}, '');
             const guard = new Function('return ' + code)();
             if (typeof guard !== 'function') return Unreachable();
@@ -390,7 +393,7 @@ export const Patterns = {
                 });
             case PatternType.Object:
                 if (!isPlainObject(arg)) return false;
-                if (!!pattern.requiredKeys) {
+                if (pattern.requiredKeys) {
                     const argSize = Object.keys(arg).length;
                     const patternSize = pattern.requiredKeys.length;
                     if (patternSize === 0) return argSize === 0;
