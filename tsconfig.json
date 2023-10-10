@@ -2,7 +2,6 @@
   "include": ["src", "test"],
   "exclude": ["node_modules/**/*"],
   "compilerOptions": {
-    "target": "es5",
     "module": "esnext",
     "lib": ["dom", "esnext"],
     "importHelpers": true,
@@ -17,15 +16,15 @@
     "noImplicitThis": true,
     "alwaysStrict": true,
     "noUnusedLocals": false,
+    "skipLibCheck": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "moduleResolution": "node",
     "baseUrl": "./",
-    "paths": {
-      "*": ["src/*", "node_modules/*"]
-    },
     "jsx": "react",
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
     "esModuleInterop": true
   }
 }

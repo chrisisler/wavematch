@@ -4,10 +4,15 @@
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
+  "engines": {
+    "node": ">=10"
+  },
   "scripts": {
     "dev": "tsdx watch",
+    "prebuild": "rm -rf node_modules/tsdx/node_modules/typescript",
     "build": "tsdx build",
     "test": "clear ; ava",
     "test:watch": "clear ; ava --watch",
@@ -27,16 +32,15 @@
   "module": "dist/wavematch.esm.js",
   "devDependencies": {
     "@types/jest": "^24.0.25",
-    "@typescript-eslint/eslint-plugin-tslint": "^2.13.0",
-    "@typescript-eslint/parser": "^5.41.0",
+    "@typescript-eslint/eslint-plugin": "^6.7.5",
+    "@typescript-eslint/parser": "^6.7.5",
     "ava": "^2.4.0",
-    "eslint": "^6.8.0",
+    "eslint": "^8.51.0",
     "eslint-plugin-ava": "^9.0.0",
     "prettier": "^1.19.1",
-    "tsdx": "^0.12.0",
+    "tsdx": "^0.14.1",
     "tslib": "^2.5.0",
-    "tslint": "^5.20.1",
-    "typescript": "^4.9.5"
+    "typescript": "^5.2.2"
   },
   "dependencies": {
     "@babel/generator": "^7.22.15",
@@ -44,7 +48,14 @@
     "@babel/types": "7.8.0"
   },
   "eslintConfig": {
-    "extends": "plugin:ava/recommended",
-    "parser": "@typescript-eslint/parser"
+    "extends": [
+      "eslint:recommended",
+      "plugin:@typescript-eslint/recommended"
+    ],
+    "parser": "@typescript-eslint/parser",
+    "plugins": [
+      "@typescript-eslint"
+    ],
+    "root": true
   }
 }
